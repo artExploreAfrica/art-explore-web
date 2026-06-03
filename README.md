@@ -91,6 +91,8 @@ npm run build && npm start
 | `npm run dev` | Start in watch mode |
 | `npm run build` | Compile TypeScript to `dist/` |
 | `npm start` | Run the compiled server |
+| `npm test` | Run the test suite (Vitest) |
+| `npm run test:watch` | Run tests in watch mode |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` / `lint:fix` | ESLint |
 | `npm run format` | Prettier |
@@ -109,6 +111,23 @@ npm run build && npm start
 **Admin (Audit & Dashboard)** — `GET /api/admin/audit-logs`, `GET /api/admin/dashboard`
 
 All responses follow `{ success, message, data, pagination? }`. Protected routes require `Authorization: Bearer <accessToken>`. A Postman collection is in [`docs/ArtExplore.postman_collection.json`](./docs/ArtExplore.postman_collection.json).
+
+---
+
+## Testing
+
+```bash
+npm test
+```
+
+The suite (Vitest + Supertest, in [`tests/`](./tests)) runs the real Express app
+with the Prisma and Redis clients mocked, so it needs **no database, Redis, or AWS
+credentials** and runs anywhere (including CI). It covers the auth flow
+(validation, bad credentials, deactivated account, successful token issue with no
+password leak), the public institution endpoints (pagination envelope,
+published-only filtering, 404s, map pins), and admin route auth + role-based
+access control (401 / 403 / 200). For full end-to-end checks against live
+services, import [`docs/ArtExplore.postman_collection.json`](./docs/ArtExplore.postman_collection.json).
 
 ---
 
