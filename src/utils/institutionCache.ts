@@ -4,8 +4,8 @@ import { redis } from '../config/redis';
 /**
  * Response cache for the public institution endpoints (Guide §3.4).
  * Keys:
- *   cache:institutions:{queryHash}  — GET /api/institutions
- *   cache:institutions:map          — GET /api/institutions/map
+ *   cache:institutions:{queryHash}  — GET /api/v1/institutions
+ *   cache:institutions:map          — GET /api/v1/institutions/map
  * TTL is 60s. Any admin write to institutions invalidates the whole set.
  */
 const TTL_SECONDS = 60;

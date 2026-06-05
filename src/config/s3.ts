@@ -3,7 +3,7 @@ import { env } from './env';
 
 /**
  * AWS S3 client (singleton). Used only for gallery image uploads
- * (Guide §3.2 — POST /api/admin/institutions/:id/images).
+ * (Guide §3.2 — POST /api/v1/admin/institutions/:id/images).
  */
 export const s3 = new S3Client({
   region: env.AWS_REGION,

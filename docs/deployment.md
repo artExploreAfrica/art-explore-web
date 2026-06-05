@@ -26,13 +26,14 @@ Any PostgreSQL 14+ instance works (Neon, Supabase, RDS, Railway, or self-hosted)
    postgresql://USER:PASSWORD@HOST:5432/art_explore?schema=public
    ```
    For managed providers that require TLS, append `&sslmode=require`.
-3. Apply the schema:
+3. Apply the schema. The initial migration is committed under
+   [`prisma/migrations/`](../prisma/migrations), so this just runs it:
    ```bash
-   # Production: apply already-generated migrations without prompting
+   # Production: apply committed migrations without prompting
    npx prisma migrate deploy
 
-   # First-time local dev: create the initial migration
-   npx prisma migrate dev --name init
+   # Local dev: apply committed migrations (and pick up future schema changes)
+   npx prisma migrate dev
    ```
 4. Seed the default Super Admin (and galleries if `prisma/data/galleries.json` is present):
    ```bash
@@ -82,8 +83,8 @@ Keys used:
 | Key | TTL | Purpose |
 |---|---|---|
 | `refresh:{userId}` | 7 days | Hashed refresh token; deleted on logout/deactivation |
-| `cache:institutions:list:{hash}` | 60s | `GET /api/institutions` cache |
-| `cache:institutions:map` | 60s | `GET /api/institutions/map` cache |
+| `cache:institutions:list:{hash}` | 60s | `GET /api/v1/institutions` cache |
+| `cache:institutions:map` | 60s | `GET /api/v1/institutions/map` cache |
 
 Caches are invalidated automatically on any admin write to institutions.
 
@@ -117,7 +118,7 @@ address — ensure exactly one proxy hop forwards `X-Forwarded-For`.
 ### CORS & rate limiting
 Set `ALLOWED_ORIGINS` to a comma-separated list of frontend domains before
 go-live; while it is empty the API reflects any origin (development default).
-The auth endpoints (`/api/auth/*`) are rate limited to 20 requests per IP per
+The auth endpoints (`/api/v1/auth/*`) are rate limited to 20 requests per IP per
 15 minutes to blunt credential brute-forcing. The limiter uses an in-memory
 store — adequate for a single instance; front it with a shared store if you run
 multiple instances.

@@ -14,7 +14,7 @@ export interface UploadableFile {
 
 /**
  * Uploads an image buffer to S3 under `institutions/{id}/...` and returns the
- * public object URL. Used by POST /api/admin/institutions/:id/images.
+ * public object URL. Used by POST /api/v1/admin/institutions/:id/images.
  */
 export const uploadInstitutionImage = async (
   institutionId: string,

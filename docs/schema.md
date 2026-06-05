@@ -104,7 +104,7 @@ Upstash Redis is used for two purposes only:
 | Key pattern | Value | TTL | Purpose |
 |---|---|---|---|
 | `refresh:{userId}` | Hashed refresh token | 7 days | Refresh-token store — deleted on logout |
-| `cache:institutions:{queryHash}` | JSON string | 60s | Cache for `GET /api/institutions` |
-| `cache:institutions:map` | JSON string | 60s | Cache for `GET /api/institutions/map` |
+| `cache:institutions:{queryHash}` | JSON string | 60s | Cache for `GET /api/v1/institutions` |
+| `cache:institutions:map` | JSON string | 60s | Cache for `GET /api/v1/institutions/map` |
 
 Caches are invalidated on any admin write to institutions.

@@ -43,7 +43,7 @@ router.use(authenticate);
 
 /**
  * @swagger
- * /api/admin/dashboard:
+ * /api/v1/admin/dashboard:
  *   get:
  *     summary: Aggregate counts (institutions total/published/drafts, admins)
  *     tags: [Admin - Dashboard]
@@ -61,7 +61,7 @@ router.get('/dashboard', roleGuard(Role.SUPER_ADMIN, Role.ADMIN), dashboardContr
 
 /**
  * @swagger
- * /api/admin/institutions:
+ * /api/v1/admin/institutions:
  *   post:
  *     summary: Create a new institution
  *     tags: [Admin - Institutions]
@@ -86,7 +86,7 @@ router.post(
 
 /**
  * @swagger
- * /api/admin/institutions/{id}:
+ * /api/v1/admin/institutions/{id}:
  *   put:
  *     summary: Update an institution
  *     tags: [Admin - Institutions]
@@ -115,9 +115,9 @@ router.put(
 
 /**
  * @swagger
- * /api/admin/institutions/{id}:
+ * /api/v1/admin/institutions/{id}:
  *   delete:
- *     summary: Soft delete an institution (sets isPublished false)
+ *     summary: Soft delete an institution (sets deletedAt; excluded from all reads)
  *     tags: [Admin - Institutions]
  *     security: [{ BearerAuth: [] }]
  *     parameters:
@@ -138,7 +138,7 @@ router.delete(
 
 /**
  * @swagger
- * /api/admin/institutions/{id}/publish:
+ * /api/v1/admin/institutions/{id}/publish:
  *   post:
  *     summary: Toggle the publish status of an institution
  *     tags: [Admin - Institutions]
@@ -161,7 +161,7 @@ router.post(
 
 /**
  * @swagger
- * /api/admin/institutions/{id}/images:
+ * /api/v1/admin/institutions/{id}/images:
  *   post:
  *     summary: Upload an image to S3 and attach it to the institution
  *     tags: [Admin - Institutions]
@@ -198,7 +198,7 @@ router.post(
 
 /**
  * @swagger
- * /api/admin/users:
+ * /api/v1/admin/users:
  *   get:
  *     summary: List all admin users
  *     tags: [Admin - Users]
@@ -223,7 +223,7 @@ router.get(
 
 /**
  * @swagger
- * /api/admin/users:
+ * /api/v1/admin/users:
  *   post:
  *     summary: Create a new admin user
  *     tags: [Admin - Users]
@@ -254,7 +254,7 @@ router.post(
 
 /**
  * @swagger
- * /api/admin/users/{id}/deactivate:
+ * /api/v1/admin/users/{id}/deactivate:
  *   patch:
  *     summary: Deactivate an admin user
  *     tags: [Admin - Users]
@@ -283,7 +283,7 @@ router.patch(
 
 /**
  * @swagger
- * /api/admin/audit-logs:
+ * /api/v1/admin/audit-logs:
  *   get:
  *     summary: Paginated audit trail with optional filters
  *     tags: [Admin - Audit]

@@ -16,13 +16,13 @@ vi.mock('../src/config/redis', () => ({ redis: mocks.redis }));
 
 import app from '../src/app';
 
-describe('Admin route auth & RBAC — GET /api/admin/users (Super Admin only)', () => {
+describe('Admin route auth & RBAC — GET /api/v1/admin/users (Super Admin only)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('401s with no Authorization header', async () => {
-    const res = await request(app).get('/api/admin/users');
+    const res = await request(app).get('/api/v1/admin/users');
 
     expect(res.status).toBe(401);
     expect(res.body.success).toBe(false);
@@ -30,7 +30,7 @@ describe('Admin route auth & RBAC — GET /api/admin/users (Super Admin only)', 
 
   it('401s with a malformed token', async () => {
     const res = await request(app)
-      .get('/api/admin/users')
+      .get('/api/v1/admin/users')
       .set(bearer('not-a-real-jwt'));
 
     expect(res.status).toBe(401);
@@ -38,7 +38,7 @@ describe('Admin route auth & RBAC — GET /api/admin/users (Super Admin only)', 
 
   it('403s for an ADMIN (insufficient role)', async () => {
     const res = await request(app)
-      .get('/api/admin/users')
+      .get('/api/v1/admin/users')
       .set(bearer(signAccess(Role.ADMIN)));
 
     expect(res.status).toBe(403);
@@ -50,7 +50,7 @@ describe('Admin route auth & RBAC — GET /api/admin/users (Super Admin only)', 
     mocks.prisma.user.count.mockResolvedValue(0);
 
     const res = await request(app)
-      .get('/api/admin/users')
+      .get('/api/v1/admin/users')
       .set(bearer(signAccess(Role.SUPER_ADMIN)));
 
     expect(res.status).toBe(200);
@@ -59,7 +59,7 @@ describe('Admin route auth & RBAC — GET /api/admin/users (Super Admin only)', 
   });
 });
 
-describe('GET /api/admin/audit-logs — filtering (Super Admin only)', () => {
+describe('GET /api/v1/admin/audit-logs — filtering (Super Admin only)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.prisma.auditLog.findMany.mockResolvedValue([]);
@@ -68,7 +68,7 @@ describe('GET /api/admin/audit-logs — filtering (Super Admin only)', () => {
 
   it('builds a where clause from the query filters', async () => {
     const res = await request(app)
-      .get('/api/admin/audit-logs?action=CREATE&targetModel=INSTITUTION&actorId=user_9')
+      .get('/api/v1/admin/audit-logs?action=CREATE&targetModel=INSTITUTION&actorId=user_9')
       .set(bearer(signAccess(Role.SUPER_ADMIN)));
 
     expect(res.status).toBe(200);
@@ -82,7 +82,7 @@ describe('GET /api/admin/audit-logs — filtering (Super Admin only)', () => {
 
   it('400s on an invalid action filter', async () => {
     const res = await request(app)
-      .get('/api/admin/audit-logs?action=NOPE')
+      .get('/api/v1/admin/audit-logs?action=NOPE')
       .set(bearer(signAccess(Role.SUPER_ADMIN)));
 
     expect(res.status).toBe(400);

@@ -37,7 +37,7 @@ const sampleInstitution = {
   updatedAt: new Date(),
 };
 
-describe('GET /api/institutions', () => {
+describe('GET /api/v1/institutions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.redis.get.mockResolvedValue(null); // cache miss → hit the DB
@@ -48,7 +48,7 @@ describe('GET /api/institutions', () => {
     mocks.prisma.institution.findMany.mockResolvedValue([sampleInstitution]);
     mocks.prisma.institution.count.mockResolvedValue(1);
 
-    const res = await request(app).get('/api/institutions');
+    const res = await request(app).get('/api/v1/institutions');
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -57,7 +57,7 @@ describe('GET /api/institutions', () => {
   });
 
   it('400s on an out-of-range limit', async () => {
-    const res = await request(app).get('/api/institutions?limit=500');
+    const res = await request(app).get('/api/v1/institutions?limit=500');
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
@@ -67,7 +67,7 @@ describe('GET /api/institutions', () => {
     mocks.prisma.institution.findMany.mockResolvedValue([]);
     mocks.prisma.institution.count.mockResolvedValue(0);
 
-    await request(app).get('/api/institutions');
+    await request(app).get('/api/v1/institutions');
 
     const whereArg = mocks.prisma.institution.findMany.mock.calls[0][0].where;
     expect(whereArg.isPublished).toBe(true);
@@ -75,7 +75,7 @@ describe('GET /api/institutions', () => {
   });
 });
 
-describe('GET /api/institutions/map', () => {
+describe('GET /api/v1/institutions/map', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.redis.get.mockResolvedValue(null);
@@ -87,7 +87,7 @@ describe('GET /api/institutions/map', () => {
       { id: 'inst_1', name: 'Test Gallery', lat: 6.45, lng: 3.4, type: 'GALLERY' },
     ]);
 
-    const res = await request(app).get('/api/institutions/map');
+    const res = await request(app).get('/api/v1/institutions/map');
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
@@ -99,7 +99,7 @@ describe('GET /api/institutions/map', () => {
   });
 });
 
-describe('GET /api/institutions/:id', () => {
+describe('GET /api/v1/institutions/:id', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -107,7 +107,7 @@ describe('GET /api/institutions/:id', () => {
   it('404s when the institution is not found or unpublished', async () => {
     mocks.prisma.institution.findFirst.mockResolvedValue(null);
 
-    const res = await request(app).get('/api/institutions/missing_id');
+    const res = await request(app).get('/api/v1/institutions/missing_id');
 
     expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
