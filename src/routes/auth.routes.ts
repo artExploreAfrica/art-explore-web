@@ -2,9 +2,11 @@ import { Role } from '@prisma/client';
 import { Router } from 'express';
 import * as authController from '../controllers/auth.controller';
 import { authenticate } from '../middleware/authenticate';
+import { authLimiter } from '../middleware/rateLimiter';
 import { roleGuard } from '../middleware/roleGuard';
 import { validate } from '../middleware/validate';
 import {
+  changePasswordSchema,
   loginSchema,
   logoutSchema,
   refreshSchema,
@@ -12,6 +14,9 @@ import {
 } from '../validators/auth.validator';
 
 const router = Router();
+
+// Throttle all auth endpoints to blunt credential brute-forcing.
+router.use(authLimiter);
 
 /**
  * @swagger
@@ -119,5 +124,49 @@ router.post('/refresh', validate({ body: refreshSchema }), authController.refres
  *       200: { description: Logged out }
  */
 router.post('/logout', validate({ body: logoutSchema }), authController.logout);
+
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: Get the authenticated admin's own profile
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200: { description: Current user, content: { application/json: { schema: { $ref: '#/components/schemas/SuccessResponse' } } } }
+ *       401: { description: Unauthenticated }
+ */
+router.get('/me', authenticate, authController.me);
+
+/**
+ * @swagger
+ * /api/auth/change-password:
+ *   post:
+ *     summary: Change the authenticated admin's own password
+ *     tags: [Auth]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string, minLength: 8 }
+ *     responses:
+ *       200: { description: Password changed; other sessions revoked }
+ *       400: { description: Validation error }
+ *       401: { description: Unauthenticated or wrong current password }
+ */
+router.post(
+  '/change-password',
+  authenticate,
+  validate({ body: changePasswordSchema }),
+  authController.changePassword,
+);
 
 export default router;

@@ -1,4 +1,4 @@
-import { Role, User } from '@prisma/client';
+import { AuditAction, Role, TargetModel, User } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import prisma from '../config/db';
 import { redis } from '../config/redis';
@@ -7,6 +7,7 @@ import {
   ForbiddenError,
   UnauthorizedError,
 } from '../utils/AppError';
+import { auditLog } from '../utils/auditLogger';
 import {
   signAccessToken,
   signRefreshToken,
@@ -133,6 +134,40 @@ export const refresh = async (
   }
 
   return issueTokens(user);
+};
+
+/** Return the authenticated user's own profile (password stripped). */
+export const getProfile = async (userId: string): Promise<SafeUser> => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw UnauthorizedError('Account no longer exists');
+  return toSafeUser(user);
+};
+
+/**
+ * Change the authenticated user's own password. Verifies the current password,
+ * stores the new hash, and revokes the stored refresh token so other sessions
+ * must re-authenticate. Logs the change to the audit trail.
+ */
+export const changePassword = async (
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> => {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw UnauthorizedError('Account no longer exists');
+
+  const valid = await bcrypt.compare(currentPassword, user.password);
+  if (!valid) throw UnauthorizedError('Current password is incorrect');
+
+  const hashed = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  await prisma.user.update({ where: { id: userId }, data: { password: hashed } });
+
+  // Force re-authentication on any other active session.
+  await redis.del(refreshKey(userId));
+
+  await auditLog(userId, AuditAction.UPDATE, TargetModel.USER, userId, {
+    action: 'password_change',
+  });
 };
 
 /** Invalidate a user's refresh token by deleting the Redis key. */

@@ -3,6 +3,7 @@ import * as authService from '../services/auth.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { successResponse } from '../utils/response';
 import {
+  ChangePasswordInput,
   LoginInput,
   LogoutInput,
   RefreshInput,
@@ -31,4 +32,15 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
   const { refreshToken } = req.body as LogoutInput;
   await authService.logout(refreshToken);
   return successResponse(res, null, 'Logged out successfully');
+});
+
+export const me = asyncHandler(async (req: Request, res: Response) => {
+  const user = await authService.getProfile(req.user!.id);
+  return successResponse(res, user, 'Current user retrieved');
+});
+
+export const changePassword = asyncHandler(async (req: Request, res: Response) => {
+  const { currentPassword, newPassword } = req.body as ChangePasswordInput;
+  await authService.changePassword(req.user!.id, currentPassword, newPassword);
+  return successResponse(res, null, 'Password changed successfully');
 });

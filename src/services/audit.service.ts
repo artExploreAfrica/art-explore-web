@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../config/db';
 import { PaginationMeta } from '../utils/response';
-import { PaginationQuery } from '../validators/user.validator';
+import { AuditLogQuery } from '../validators/audit.validator';
 
 type AuditLogWithActor = Prisma.AuditLogGetPayload<{
   include: { actor: { select: { id: true; fullName: true; email: true } } };
@@ -12,18 +12,31 @@ interface ListResult {
   pagination: PaginationMeta;
 }
 
-/** Paginated audit trail, newest first, with the acting admin attached. */
-export const list = async (query: PaginationQuery): Promise<ListResult> => {
-  const { page, limit } = query;
+/**
+ * Paginated audit trail, newest first, with the acting admin attached.
+ * Optionally filtered by actor, action, target model, and timestamp range.
+ */
+export const list = async (query: AuditLogQuery): Promise<ListResult> => {
+  const { page, limit, actorId, action, targetModel, from, to } = query;
+
+  const where: Prisma.AuditLogWhereInput = {
+    ...(actorId && { actorId }),
+    ...(action && { action }),
+    ...(targetModel && { targetModel }),
+    ...((from || to) && {
+      timestamp: { ...(from && { gte: from }), ...(to && { lte: to }) },
+    }),
+  };
 
   const [data, total] = await Promise.all([
     prisma.auditLog.findMany({
+      where,
       include: { actor: { select: { id: true, fullName: true, email: true } } },
       orderBy: { timestamp: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
     }),
-    prisma.auditLog.count(),
+    prisma.auditLog.count({ where }),
   ]);
 
   return {

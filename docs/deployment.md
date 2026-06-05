@@ -111,8 +111,16 @@ your platform's health probe.
 
 ### Reverse proxy
 Terminate TLS at a proxy (Nginx, ALB, Cloudflare) and forward to the app port.
-CORS is currently open (`cors()`); restrict the origin in
-[`src/app.ts`](../src/app.ts) to the frontend domain before go-live.
+The app sets `trust proxy = 1` so per-IP rate limiting sees the real client
+address — ensure exactly one proxy hop forwards `X-Forwarded-For`.
+
+### CORS & rate limiting
+Set `ALLOWED_ORIGINS` to a comma-separated list of frontend domains before
+go-live; while it is empty the API reflects any origin (development default).
+The auth endpoints (`/api/auth/*`) are rate limited to 20 requests per IP per
+15 minutes to blunt credential brute-forcing. The limiter uses an in-memory
+store — adequate for a single instance; front it with a shared store if you run
+multiple instances.
 
 ---
 
@@ -124,5 +132,5 @@ CORS is currently open (`cors()`); restrict the origin in
 - [ ] S3 upload verified end-to-end (image URL resolves publicly)
 - [ ] Redis reachable; login creates `refresh:{userId}`, logout deletes it
 - [ ] `NODE_ENV=production`
-- [ ] CORS origin restricted to the frontend domain
+- [ ] `ALLOWED_ORIGINS` set to the frontend domain(s)
 - [ ] Swagger reachable (or intentionally disabled) at `/api-docs`

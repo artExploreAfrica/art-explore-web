@@ -39,6 +39,7 @@ export const listPublished = async (query: ListInstitutionsQuery): Promise<ListR
 
   const where: Prisma.InstitutionWhereInput = {
     isPublished: true,
+    deletedAt: null,
     ...(area && { area }),
     ...(type && { type }),
     ...(search && {
@@ -77,7 +78,7 @@ export const listPublished = async (query: ListInstitutionsQuery): Promise<ListR
 /** Single published institution by id. */
 export const getById = async (id: string): Promise<Institution> => {
   const institution = await prisma.institution.findFirst({
-    where: { id, isPublished: true },
+    where: { id, isPublished: true, deletedAt: null },
   });
   if (!institution) throw NotFoundError('Institution');
   return institution;
@@ -91,7 +92,7 @@ export const getMapPins = async (): Promise<MapPin[]> => {
   if (cached) return cached;
 
   const pins = await prisma.institution.findMany({
-    where: { isPublished: true },
+    where: { isPublished: true, deletedAt: null },
     select: { id: true, name: true, lat: true, lng: true, type: true },
   });
 
@@ -145,13 +146,17 @@ export const update = async (
   return institution;
 };
 
-/** Soft delete — sets isPublished:false (Guide §3.2). */
+/**
+ * Soft delete — stamps `deletedAt` so the record is excluded from every read and
+ * can no longer be edited or published. Also clears `isPublished` for consistency.
+ * Distinct from unpublish, which only toggles `isPublished` (Guide §3.2).
+ */
 export const softDelete = async (actorId: string, id: string): Promise<Institution> => {
   await ensureExists(id);
 
   const institution = await prisma.institution.update({
     where: { id },
-    data: { isPublished: false },
+    data: { deletedAt: new Date(), isPublished: false },
   });
 
   await auditLog(actorId, AuditAction.DELETE, TargetModel.INSTITUTION, id);
@@ -199,9 +204,11 @@ export const addImage = async (
   return institution;
 };
 
-/** Admin-facing fetch (ignores isPublished). */
+/** Admin-facing fetch (ignores isPublished, but excludes soft-deleted records). */
 const ensureExists = async (id: string): Promise<Institution> => {
-  const institution = await prisma.institution.findUnique({ where: { id } });
+  const institution = await prisma.institution.findFirst({
+    where: { id, deletedAt: null },
+  });
   if (!institution) throw NotFoundError('Institution');
   return institution;
 };
