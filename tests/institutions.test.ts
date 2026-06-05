@@ -63,7 +63,7 @@ describe('GET /api/institutions', () => {
     expect(res.body.success).toBe(false);
   });
 
-  it('only queries published institutions', async () => {
+  it('only queries published, non-deleted institutions', async () => {
     mocks.prisma.institution.findMany.mockResolvedValue([]);
     mocks.prisma.institution.count.mockResolvedValue(0);
 
@@ -71,6 +71,7 @@ describe('GET /api/institutions', () => {
 
     const whereArg = mocks.prisma.institution.findMany.mock.calls[0][0].where;
     expect(whereArg.isPublished).toBe(true);
+    expect(whereArg.deletedAt).toBeNull();
   });
 });
 
@@ -91,6 +92,10 @@ describe('GET /api/institutions/map', () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data[0]).toMatchObject({ id: 'inst_1', lat: 6.45, lng: 3.4 });
+
+    const whereArg = mocks.prisma.institution.findMany.mock.calls[0][0].where;
+    expect(whereArg.isPublished).toBe(true);
+    expect(whereArg.deletedAt).toBeNull();
   });
 });
 

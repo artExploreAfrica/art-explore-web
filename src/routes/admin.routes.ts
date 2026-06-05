@@ -13,6 +13,7 @@ import {
   idParamSchema,
   updateInstitutionSchema,
 } from '../validators/institution.validator';
+import { auditLogQuerySchema } from '../validators/audit.validator';
 import {
   createUserSchema,
   paginationQuerySchema,
@@ -284,7 +285,7 @@ router.patch(
  * @swagger
  * /api/admin/audit-logs:
  *   get:
- *     summary: Paginated audit trail
+ *     summary: Paginated audit trail with optional filters
  *     tags: [Admin - Audit]
  *     security: [{ BearerAuth: [] }]
  *     parameters:
@@ -294,14 +295,33 @@ router.patch(
  *       - in: query
  *         name: limit
  *         schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: actorId
+ *         schema: { type: string }
+ *         description: Filter by the admin who performed the action
+ *       - in: query
+ *         name: action
+ *         schema: { type: string, enum: [CREATE, UPDATE, DELETE, PUBLISH, UNPUBLISH, DEACTIVATE, IMAGE_UPLOAD] }
+ *       - in: query
+ *         name: targetModel
+ *         schema: { type: string, enum: [INSTITUTION, USER] }
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date-time }
+ *         description: Only entries at or after this timestamp
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date-time }
+ *         description: Only entries at or before this timestamp
  *     responses:
  *       200: { description: Audit log entries }
+ *       400: { description: Invalid query parameters }
  *       403: { description: Forbidden }
  */
 router.get(
   '/audit-logs',
   roleGuard(Role.SUPER_ADMIN),
-  validate({ query: paginationQuerySchema }),
+  validate({ query: auditLogQuerySchema }),
   auditController.list,
 );
 

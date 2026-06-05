@@ -12,8 +12,8 @@ export interface DashboardCounts {
 /** Aggregate counts for the admin dashboard (Guide §3.3). */
 export const getCounts = async (): Promise<DashboardCounts> => {
   const [total, published, admins] = await Promise.all([
-    prisma.institution.count(),
-    prisma.institution.count({ where: { isPublished: true } }),
+    prisma.institution.count({ where: { deletedAt: null } }),
+    prisma.institution.count({ where: { isPublished: true, deletedAt: null } }),
     prisma.user.count(),
   ]);
 

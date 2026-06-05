@@ -55,6 +55,7 @@ All variables are validated at startup ([`src/config/env.ts`](./src/config/env.t
 |---|---|
 | `PORT` | HTTP port (default 4000) |
 | `NODE_ENV` | `development` / `production` / `test` |
+| `ALLOWED_ORIGINS` | Comma-separated CORS allowlist; empty = allow any origin |
 | `DATABASE_URL` | PostgreSQL connection string |
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | JWT signing secrets (≥16 chars) |
 | `JWT_ACCESS_EXPIRES_IN` / `JWT_REFRESH_EXPIRES_IN` | Token lifetimes (default 15m / 7d) |
@@ -104,7 +105,7 @@ npm run build && npm start
 
 ## API Overview
 
-**Auth** — `POST /api/auth/{register,login,refresh,logout}`
+**Auth** — `POST /api/auth/{register,login,refresh,logout,change-password}`, `GET /api/auth/me`
 **Public** — `GET /api/institutions`, `GET /api/institutions/map`, `GET /api/institutions/:id`
 **Admin (Institutions)** — `POST /api/admin/institutions`, `PUT|DELETE /:id`, `POST /:id/publish`, `POST /:id/images`
 **Admin (Users, Super Admin)** — `GET|POST /api/admin/users`, `PATCH /api/admin/users/:id/deactivate`

@@ -6,6 +6,7 @@ import { bearer, signAccess } from './helpers';
 const mocks = vi.hoisted(() => ({
   prisma: {
     user: { findMany: vi.fn(), count: vi.fn() },
+    auditLog: { findMany: vi.fn(), count: vi.fn() },
   },
   redis: {},
 }));
@@ -55,5 +56,35 @@ describe('Admin route auth & RBAC — GET /api/admin/users (Super Admin only)', 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.pagination).toBeDefined();
+  });
+});
+
+describe('GET /api/admin/audit-logs — filtering (Super Admin only)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.prisma.auditLog.findMany.mockResolvedValue([]);
+    mocks.prisma.auditLog.count.mockResolvedValue(0);
+  });
+
+  it('builds a where clause from the query filters', async () => {
+    const res = await request(app)
+      .get('/api/admin/audit-logs?action=CREATE&targetModel=INSTITUTION&actorId=user_9')
+      .set(bearer(signAccess(Role.SUPER_ADMIN)));
+
+    expect(res.status).toBe(200);
+    const whereArg = mocks.prisma.auditLog.findMany.mock.calls[0][0].where;
+    expect(whereArg).toMatchObject({
+      action: 'CREATE',
+      targetModel: 'INSTITUTION',
+      actorId: 'user_9',
+    });
+  });
+
+  it('400s on an invalid action filter', async () => {
+    const res = await request(app)
+      .get('/api/admin/audit-logs?action=NOPE')
+      .set(bearer(signAccess(Role.SUPER_ADMIN)));
+
+    expect(res.status).toBe(400);
   });
 });

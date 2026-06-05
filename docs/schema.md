@@ -42,11 +42,14 @@ A discoverable art venue (gallery, studio, or cultural space).
 | `email` | String? | Optional |
 | `openingHours` | Json? | e.g. `{ "mon": "9am-5pm", ... }` |
 | `tags` | String[] | Freeform tags for search/filter |
-| `isPublished` | Boolean | Default `false`; soft-delete sets `false` |
+| `isPublished` | Boolean | Default `false`; controls public visibility (publish/unpublish) |
+| `deletedAt` | DateTime? | Soft-delete marker. `null` = live; a timestamp = removed and excluded from all reads |
 | `createdAt` | DateTime | Set on insert |
 | `updatedAt` | DateTime | Auto-updated |
 
-Indexed on `area`, `type`, and `isPublished` to keep the public list/filter queries fast.
+Indexed on `area`, `type`, `isPublished`, and `deletedAt` to keep the public list/filter queries fast.
+
+> **Delete vs. unpublish:** `isPublished` and `deletedAt` are independent. Unpublishing hides a venue from the public list but keeps it editable; deleting (sets `deletedAt`) removes it from every query and blocks further edits/publish.
 
 ### AuditLog
 An immutable trail of every admin write action.
@@ -88,7 +91,7 @@ Indexed on `actorId`, `(targetModel, targetId)`, and `timestamp`.
 
 **Area** — `ISLAND` (Lagos Island), `MAINLAND` (Lagos Mainland), `OTHER`.
 
-**AuditAction** — `CREATE`, `UPDATE`, `DELETE` (soft delete → `isPublished:false`), `PUBLISH`, `UNPUBLISH`, `DEACTIVATE`, `IMAGE_UPLOAD`.
+**AuditAction** — `CREATE`, `UPDATE`, `DELETE` (soft delete → sets `deletedAt`), `PUBLISH`, `UNPUBLISH`, `DEACTIVATE`, `IMAGE_UPLOAD`.
 
 **TargetModel** — `INSTITUTION`, `USER`.
 

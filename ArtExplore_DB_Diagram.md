@@ -36,6 +36,7 @@ erDiagram
         Json            openingHours     "{ mon: '9am-5pm', ... }"
         String[]        tags
         Boolean         isPublished      "default: false"
+        DateTime        deletedAt        "soft-delete marker (null = live)"
         DateTime        createdAt        "default: now()"
         DateTime        updatedAt        "auto-updated"
     }
@@ -95,7 +96,7 @@ erDiagram
 |---|---|
 | `CREATE` | New institution or user created |
 | `UPDATE` | Institution or user record updated |
-| `DELETE` | Soft delete (isPublished set to false) |
+| `DELETE` | Soft delete (deletedAt timestamp set) |
 | `PUBLISH` | Institution published |
 | `UNPUBLISH` | Institution unpublished |
 | `DEACTIVATE` | Admin user deactivated |
@@ -152,6 +153,7 @@ model Institution {
   openingHours Json?
   tags         String[]
   isPublished  Boolean         @default(false)
+  deletedAt    DateTime?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 }

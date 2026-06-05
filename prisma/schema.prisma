@@ -71,12 +71,14 @@ model Institution {
   openingHours Json?
   tags         String[]
   isPublished  Boolean         @default(false)
+  deletedAt    DateTime?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
   @@index([area])
   @@index([type])
   @@index([isPublished])
+  @@index([deletedAt])
 }
 
 model AuditLog {

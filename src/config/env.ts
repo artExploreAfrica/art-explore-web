@@ -12,6 +12,8 @@ const envSchema = z.object({
   // Server
   PORT: z.coerce.number().int().positive().default(4000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  // Comma-separated list of allowed CORS origins. Empty/unset = allow any origin.
+  ALLOWED_ORIGINS: z.string().optional(),
 
   // PostgreSQL
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
