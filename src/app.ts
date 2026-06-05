@@ -32,8 +32,8 @@ app.get('/health', (_req: Request, res: Response) =>
   successResponse(res, { status: 'ok', uptime: process.uptime() }, 'Service healthy'),
 );
 
-// API routes.
-app.use('/api', apiRoutes);
+// API routes (versioned).
+app.use('/api/v1', apiRoutes);
 
 // Swagger docs.
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

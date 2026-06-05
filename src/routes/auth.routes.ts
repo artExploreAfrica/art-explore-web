@@ -27,7 +27,7 @@ router.use(authLimiter);
 
 /**
  * @swagger
- * /api/auth/register:
+ * /api/v1/auth/register:
  *   post:
  *     summary: Register a new admin (Super Admin only)
  *     tags: [Auth]
@@ -62,7 +62,7 @@ router.post(
 
 /**
  * @swagger
- * /api/auth/login:
+ * /api/v1/auth/login:
  *   post:
  *     summary: Log in and receive access + refresh tokens
  *     tags: [Auth]
@@ -86,7 +86,7 @@ router.post('/login', validate({ body: loginSchema }), authController.login);
 
 /**
  * @swagger
- * /api/auth/refresh:
+ * /api/v1/auth/refresh:
  *   post:
  *     summary: Exchange a refresh token for a new token pair
  *     tags: [Auth]
@@ -107,7 +107,7 @@ router.post('/refresh', validate({ body: refreshSchema }), authController.refres
 
 /**
  * @swagger
- * /api/auth/logout:
+ * /api/v1/auth/logout:
  *   post:
  *     summary: Invalidate a refresh token (deletes it from Redis)
  *     tags: [Auth]
@@ -127,7 +127,7 @@ router.post('/logout', validate({ body: logoutSchema }), authController.logout);
 
 /**
  * @swagger
- * /api/auth/me:
+ * /api/v1/auth/me:
  *   get:
  *     summary: Get the authenticated admin's own profile
  *     tags: [Auth]
@@ -141,7 +141,7 @@ router.get('/me', authenticate, authController.me);
 
 /**
  * @swagger
- * /api/auth/change-password:
+ * /api/v1/auth/change-password:
  *   post:
  *     summary: Change the authenticated admin's own password
  *     tags: [Auth]

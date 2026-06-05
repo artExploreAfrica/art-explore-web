@@ -26,7 +26,7 @@ export const update = asyncHandler(async (req: Request, res: Response) => {
 
 export const remove = asyncHandler(async (req: Request, res: Response) => {
   const institution = await institutionService.softDelete(actorId(req), req.params.id);
-  return successResponse(res, institution, 'Institution unpublished (soft deleted)');
+  return successResponse(res, institution, 'Institution deleted');
 });
 
 export const publish = asyncHandler(async (req: Request, res: Response) => {

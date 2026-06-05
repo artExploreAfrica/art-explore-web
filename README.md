@@ -67,7 +67,7 @@ All variables are validated at startup ([`src/config/env.ts`](./src/config/env.t
 ### 4. Database
 ```bash
 npm run prisma:generate     # generate the Prisma client
-npm run prisma:migrate       # create & apply the initial migration
+npm run prisma:migrate       # apply the committed migrations
 npm run seed                 # create the Super Admin (+ galleries if present)
 ```
 
@@ -78,7 +78,7 @@ npm run dev      # ts-node-dev with reload
 npm run build && npm start
 ```
 
-- API base: `http://localhost:4000/api`
+- API base: `http://localhost:4000/api/v1`
 - Health: `http://localhost:4000/health`
 - Swagger UI: `http://localhost:4000/api-docs`
 - OpenAPI JSON: `http://localhost:4000/api-docs.json`
@@ -105,11 +105,11 @@ npm run build && npm start
 
 ## API Overview
 
-**Auth** — `POST /api/auth/{register,login,refresh,logout,change-password}`, `GET /api/auth/me`
-**Public** — `GET /api/institutions`, `GET /api/institutions/map`, `GET /api/institutions/:id`
-**Admin (Institutions)** — `POST /api/admin/institutions`, `PUT|DELETE /:id`, `POST /:id/publish`, `POST /:id/images`
-**Admin (Users, Super Admin)** — `GET|POST /api/admin/users`, `PATCH /api/admin/users/:id/deactivate`
-**Admin (Audit & Dashboard)** — `GET /api/admin/audit-logs`, `GET /api/admin/dashboard`
+**Auth** — `POST /api/v1/auth/{register,login,refresh,logout,change-password}`, `GET /api/v1/auth/me`
+**Public** — `GET /api/v1/institutions`, `GET /api/v1/institutions/map`, `GET /api/v1/institutions/:id`
+**Admin (Institutions)** — `POST /api/v1/admin/institutions`, `PUT|DELETE /:id`, `POST /:id/publish`, `POST /:id/images`
+**Admin (Users, Super Admin)** — `GET|POST /api/v1/admin/users`, `PATCH /api/v1/admin/users/:id/deactivate`
+**Admin (Audit & Dashboard)** — `GET /api/v1/admin/audit-logs`, `GET /api/v1/admin/dashboard`
 
 All responses follow `{ success, message, data, pagination? }`. Protected routes require `Authorization: Bearer <accessToken>`. A Postman collection is in [`docs/ArtExplore.postman_collection.json`](./docs/ArtExplore.postman_collection.json).
 
@@ -125,10 +125,12 @@ The suite (Vitest + Supertest, in [`tests/`](./tests)) runs the real Express app
 with the Prisma and Redis clients mocked, so it needs **no database, Redis, or AWS
 credentials** and runs anywhere (including CI). It covers the auth flow
 (validation, bad credentials, deactivated account, successful token issue with no
-password leak), the public institution endpoints (pagination envelope,
-published-only filtering, 404s, map pins), and admin route auth + role-based
-access control (401 / 403 / 200). For full end-to-end checks against live
-services, import [`docs/ArtExplore.postman_collection.json`](./docs/ArtExplore.postman_collection.json).
+password leak, `/me`, change-password), the public institution endpoints
+(pagination envelope, published-and-non-deleted filtering, 404s, map pins),
+admin route auth + role-based access control (401 / 403 / 200), admin
+institution writes (create/soft-delete/publish with audit-log assertions), and
+audit-log filtering. For full end-to-end checks against live services, import
+[`docs/ArtExplore.postman_collection.json`](./docs/ArtExplore.postman_collection.json).
 
 ---
 

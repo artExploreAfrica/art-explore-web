@@ -30,14 +30,14 @@ const activeUser = {
   updatedAt: new Date(),
 };
 
-describe('POST /api/auth/login', () => {
+describe('POST /api/v1/auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.redis.set.mockResolvedValue('OK');
   });
 
   it('400s when the body fails validation', async () => {
-    const res = await request(app).post('/api/auth/login').send({ email: 'not-an-email' });
+    const res = await request(app).post('/api/v1/auth/login').send({ email: 'not-an-email' });
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
@@ -48,7 +48,7 @@ describe('POST /api/auth/login', () => {
     mocks.prisma.user.findUnique.mockResolvedValue(null);
 
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email: 'nobody@test.dev', password: PASSWORD });
 
     expect(res.status).toBe(401);
@@ -59,7 +59,7 @@ describe('POST /api/auth/login', () => {
     mocks.prisma.user.findUnique.mockResolvedValue({ ...activeUser, isActive: false });
 
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email: activeUser.email, password: PASSWORD });
 
     expect(res.status).toBe(403);
@@ -69,7 +69,7 @@ describe('POST /api/auth/login', () => {
     mocks.prisma.user.findUnique.mockResolvedValue(activeUser);
 
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/api/v1/auth/login')
       .send({ email: activeUser.email, password: PASSWORD });
 
     expect(res.status).toBe(200);
@@ -82,11 +82,11 @@ describe('POST /api/auth/login', () => {
   });
 });
 
-describe('GET /api/auth/me', () => {
+describe('GET /api/v1/auth/me', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('401s without a token', async () => {
-    const res = await request(app).get('/api/auth/me');
+    const res = await request(app).get('/api/v1/auth/me');
     expect(res.status).toBe(401);
   });
 
@@ -94,7 +94,7 @@ describe('GET /api/auth/me', () => {
     mocks.prisma.user.findUnique.mockResolvedValue(activeUser);
 
     const res = await request(app)
-      .get('/api/auth/me')
+      .get('/api/v1/auth/me')
       .set(bearer(signAccess(Role.ADMIN, activeUser.id, activeUser.email)));
 
     expect(res.status).toBe(200);
@@ -103,12 +103,12 @@ describe('GET /api/auth/me', () => {
   });
 });
 
-describe('POST /api/auth/change-password', () => {
+describe('POST /api/v1/auth/change-password', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('400s when the new password is too short', async () => {
     const res = await request(app)
-      .post('/api/auth/change-password')
+      .post('/api/v1/auth/change-password')
       .set(bearer(signAccess(Role.ADMIN, activeUser.id, activeUser.email)))
       .send({ currentPassword: PASSWORD, newPassword: 'short' });
 
@@ -119,7 +119,7 @@ describe('POST /api/auth/change-password', () => {
     mocks.prisma.user.findUnique.mockResolvedValue(activeUser);
 
     const res = await request(app)
-      .post('/api/auth/change-password')
+      .post('/api/v1/auth/change-password')
       .set(bearer(signAccess(Role.ADMIN, activeUser.id, activeUser.email)))
       .send({ currentPassword: 'wrong-password', newPassword: 'newpassword123' });
 

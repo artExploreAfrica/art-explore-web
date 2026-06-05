@@ -17,7 +17,7 @@ const router = Router();
 
 /**
  * @swagger
- * /api/institutions:
+ * /api/v1/institutions:
  *   get:
  *     summary: Paginated list of published institutions
  *     tags: [Institutions]
@@ -54,7 +54,7 @@ router.get(
 
 /**
  * @swagger
- * /api/institutions/map:
+ * /api/v1/institutions/map:
  *   get:
  *     summary: Lightweight institution list for map rendering
  *     tags: [Institutions]
@@ -69,7 +69,7 @@ router.get('/map', institutionController.map);
 
 /**
  * @swagger
- * /api/institutions/{id}:
+ * /api/v1/institutions/{id}:
  *   get:
  *     summary: Single published institution by id
  *     tags: [Institutions]
