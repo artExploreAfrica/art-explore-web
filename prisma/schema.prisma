@@ -14,6 +14,7 @@ datasource db {
 enum Role {
   SUPER_ADMIN
   ADMIN
+  USER
 }
 
 enum InstitutionType {
@@ -28,6 +29,15 @@ enum Area {
   OTHER
 }
 
+// Lifecycle of an institution record from submission to publication.
+// Admin-created records default to APPROVED; USER-submitted records start PENDING.
+enum ApprovalStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -36,23 +46,55 @@ enum AuditAction {
   UNPUBLISH
   DEACTIVATE
   IMAGE_UPLOAD
+  SUBMIT
+  APPROVE
+  REJECT
 }
 
 enum TargetModel {
   INSTITUTION
   USER
+  SUBCATEGORY
+  TAG
+  EXHIBITION
 }
 
 model User {
-  id        String     @id @default(cuid())
-  fullName  String
-  email     String     @unique
-  password  String
-  role      Role       @default(ADMIN)
-  isActive  Boolean    @default(true)
-  auditLogs AuditLog[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id                    String        @id @default(cuid())
+  fullName              String
+  email                 String        @unique
+  password              String
+  role                  Role          @default(ADMIN)
+  isActive              Boolean       @default(true)
+  auditLogs             AuditLog[]
+  submittedInstitutions Institution[] @relation("SubmittedBy")
+  reviewedInstitutions  Institution[] @relation("ReviewedBy")
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}
+
+// Admin-managed sub-classification nested under an InstitutionType
+// (e.g. type GALLERY → "Contemporary", "Photography").
+model SubCategory {
+  id           String          @id @default(cuid())
+  name         String
+  type         InstitutionType
+  description  String?
+  institutions Institution[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([type, name])
+  @@index([type])
+}
+
+// Admin-curated tag, many-to-many with Institution (implicit join _InstitutionToTag).
+model Tag {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  institutions Institution[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Institution {
@@ -69,7 +111,21 @@ model Institution {
   phone        String?
   email        String?
   openingHours Json?
-  tags         String[]
+  tags         Tag[]
+  subCategoryId String?
+  subCategory   SubCategory?   @relation(fields: [subCategoryId], references: [id])
+  exhibitions   Exhibition[]
+  hasActiveExhibition Boolean   @default(false)
+
+  // Submission / approval workflow.
+  approvalStatus ApprovalStatus @default(APPROVED)
+  submittedById  String?
+  submittedBy    User?          @relation("SubmittedBy", fields: [submittedById], references: [id])
+  reviewedById   String?
+  reviewedBy     User?          @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewNote     String?
+  reviewedAt     DateTime?
+
   isPublished  Boolean         @default(false)
   deletedAt    DateTime?
   createdAt    DateTime        @default(now())
@@ -79,6 +135,30 @@ model Institution {
   @@index([type])
   @@index([isPublished])
   @@index([deletedAt])
+  @@index([subCategoryId])
+  @@index([hasActiveExhibition])
+  @@index([approvalStatus])
+  @@index([submittedById])
+}
+
+// An exhibition hosted by an institution. One-to-many: an institution can have
+// many exhibitions over time. `Institution.hasActiveExhibition` is recomputed
+// on every write from these rows.
+model Exhibition {
+  id            String      @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  title         String
+  date          DateTime
+  endDate       DateTime?
+  time          String?
+  image         String?
+  socialLink    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([institutionId])
+  @@index([date])
 }
 
 model AuditLog {

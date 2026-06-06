@@ -8,6 +8,16 @@ export const registerSchema = z.object({
   role: z.nativeEnum(Role).optional().default(Role.ADMIN),
 });
 
+/**
+ * Public self-registration. Has no `role` field — the role is forced to USER
+ * server-side so a caller can never grant themselves admin access.
+ */
+export const publicRegisterSchema = z.object({
+  fullName: z.string().min(2, 'fullName must be at least 2 characters'),
+  email: z.string().email(),
+  password: z.string().min(8, 'password must be at least 8 characters'),
+});
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1, 'password is required'),
@@ -27,6 +37,7 @@ export const changePasswordSchema = z.object({
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type PublicRegisterInput = z.infer<typeof publicRegisterSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RefreshInput = z.infer<typeof refreshSchema>;
 export type LogoutInput = z.infer<typeof logoutSchema>;

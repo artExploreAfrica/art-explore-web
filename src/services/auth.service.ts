@@ -80,6 +80,33 @@ export const register = async (input: {
   return toSafeUser(user);
 };
 
+/**
+ * Public self-registration. Always creates a USER account — the role is never
+ * taken from the request, so callers cannot escalate to admin (Feature 1).
+ */
+export const registerPublic = async (input: {
+  fullName: string;
+  email: string;
+  password: string;
+}): Promise<SafeUser> => {
+  const existing = await prisma.user.findUnique({ where: { email: input.email } });
+  if (existing) {
+    throw ConflictError('An account with that email already exists');
+  }
+
+  const hashed = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+  const user = await prisma.user.create({
+    data: {
+      fullName: input.fullName,
+      email: input.email,
+      password: hashed,
+      role: Role.USER,
+    },
+  });
+
+  return toSafeUser(user);
+};
+
 /** Validate credentials and issue tokens. */
 export const login = async (
   email: string,

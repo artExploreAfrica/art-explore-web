@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import * as exhibitionService from '../services/exhibition.service';
 import * as institutionService from '../services/institution.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { successResponse } from '../utils/response';
@@ -21,4 +22,10 @@ export const map = asyncHandler(async (_req: Request, res: Response) => {
 export const detail = asyncHandler(async (req: Request, res: Response) => {
   const institution = await institutionService.getById(req.params.id);
   return successResponse(res, institution, 'Institution retrieved');
+});
+
+/** GET /api/v1/institutions/:id/exhibitions — exhibitions for a published institution. */
+export const exhibitions = asyncHandler(async (req: Request, res: Response) => {
+  const data = await exhibitionService.listForInstitution(req.params.id);
+  return successResponse(res, data, 'Exhibitions retrieved');
 });
