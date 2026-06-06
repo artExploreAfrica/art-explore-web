@@ -94,7 +94,13 @@ async function seedGalleries(): Promise<void> {
       select: { id: true },
     });
 
-    const data = {
+    // Tags are now a relation — connectOrCreate upserts each Tag by name.
+    const tagConnect = (g.tags ?? []).map((name) => ({
+      where: { name },
+      create: { name },
+    }));
+
+    const data: Prisma.InstitutionCreateInput = {
       name: g.name,
       description: g.description ?? null,
       type: g.type,
@@ -106,8 +112,10 @@ async function seedGalleries(): Promise<void> {
       phone: g.phone ?? null,
       email: g.email ?? null,
       openingHours: g.openingHours ?? Prisma.JsonNull,
-      tags: g.tags ?? [],
+      // Seeded galleries are admin-curated, so they go straight to APPROVED.
+      approvalStatus: 'APPROVED',
       isPublished: g.isPublished ?? true,
+      ...(tagConnect.length > 0 && { tags: { connectOrCreate: tagConnect } }),
     };
 
     if (existing) {
@@ -120,8 +128,44 @@ async function seedGalleries(): Promise<void> {
   console.log(`✅ Imported ${galleries.length} galleries`);
 }
 
+/** A small starter set of admin-managed sub-categories, idempotent by (type, name). */
+async function seedSubCategories(): Promise<void> {
+  const subCategories: { name: string; type: InstitutionType }[] = [
+    { name: 'Contemporary', type: InstitutionType.GALLERY },
+    { name: 'Photography', type: InstitutionType.GALLERY },
+    { name: 'Modern', type: InstitutionType.GALLERY },
+    { name: 'Painting Studio', type: InstitutionType.STUDIO },
+    { name: 'Sculpture Studio', type: InstitutionType.STUDIO },
+    { name: 'Museum', type: InstitutionType.CULTURAL_SPACE },
+    { name: 'Heritage Site', type: InstitutionType.CULTURAL_SPACE },
+  ];
+
+  for (const sc of subCategories) {
+    await prisma.subCategory.upsert({
+      where: { type_name: { type: sc.type, name: sc.name } },
+      update: {},
+      create: sc,
+    });
+  }
+
+  console.log(`✅ Seeded ${subCategories.length} sub-categories`);
+}
+
+/** A starter tag list, idempotent by unique name. */
+async function seedTags(): Promise<void> {
+  const tags = ['Contemporary', 'Abstract', 'Sculpture', 'Photography', 'Mixed Media'];
+
+  for (const name of tags) {
+    await prisma.tag.upsert({ where: { name }, update: {}, create: { name } });
+  }
+
+  console.log(`✅ Seeded ${tags.length} tags`);
+}
+
 async function main(): Promise<void> {
   await seedSuperAdmin();
+  await seedSubCategories();
+  await seedTags();
   await seedGalleries();
 }
 

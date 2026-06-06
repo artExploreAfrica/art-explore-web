@@ -88,4 +88,29 @@ router.get('/map', institutionController.map);
  */
 router.get('/:id', validate({ params: idParamSchema }), institutionController.detail);
 
+/**
+ * @swagger
+ * /api/v1/institutions/{id}/exhibitions:
+ *   get:
+ *     summary: Exhibitions for a published institution
+ *     tags: [Institutions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Array of exhibitions (most recent first)
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/SuccessResponse' }
+ *       404: { description: Not found }
+ */
+router.get(
+  '/:id/exhibitions',
+  validate({ params: idParamSchema }),
+  institutionController.exhibitions,
+);
+
 export default router;

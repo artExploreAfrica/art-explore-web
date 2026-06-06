@@ -6,6 +6,7 @@ import {
   ChangePasswordInput,
   LoginInput,
   LogoutInput,
+  PublicRegisterInput,
   RefreshInput,
   RegisterInput,
 } from '../validators/auth.validator';
@@ -14,6 +15,13 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as RegisterInput;
   const user = await authService.register(body);
   return successResponse(res, user, 'Admin registered successfully', 201);
+});
+
+/** Public self-registration — always creates a USER account. */
+export const signup = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body as PublicRegisterInput;
+  const user = await authService.registerPublic(body);
+  return successResponse(res, user, 'Account created', 201);
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {

@@ -9,6 +9,7 @@ import {
   changePasswordSchema,
   loginSchema,
   logoutSchema,
+  publicRegisterSchema,
   refreshSchema,
   registerSchema,
 } from '../validators/auth.validator';
@@ -59,6 +60,30 @@ router.post(
   validate({ body: registerSchema }),
   authController.register,
 );
+
+/**
+ * @swagger
+ * /api/v1/auth/signup:
+ *   post:
+ *     summary: Public self-registration (creates a USER account)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [fullName, email, password]
+ *             properties:
+ *               fullName: { type: string, example: Ada Lovelace }
+ *               email: { type: string, format: email }
+ *               password: { type: string, minLength: 8 }
+ *     responses:
+ *       201: { description: Account created, content: { application/json: { schema: { $ref: '#/components/schemas/SuccessResponse' } } } }
+ *       400: { description: Validation error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+ *       409: { description: Email already exists }
+ */
+router.post('/signup', validate({ body: publicRegisterSchema }), authController.signup);
 
 /**
  * @swagger
