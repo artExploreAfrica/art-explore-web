@@ -72,6 +72,22 @@ describe('GET /api/v1/institutions', () => {
     const whereArg = mocks.prisma.institution.findMany.mock.calls[0][0].where;
     expect(whereArg.isPublished).toBe(true);
     expect(whereArg.deletedAt).toBeNull();
+    expect(whereArg.approvalStatus).toBe('APPROVED');
+  });
+
+  it('searches tags via the relation, not a string array', async () => {
+    mocks.prisma.institution.findMany.mockResolvedValue([]);
+    mocks.prisma.institution.count.mockResolvedValue(0);
+
+    await request(app).get('/api/v1/institutions?search=modern');
+
+    const whereArg = mocks.prisma.institution.findMany.mock.calls[0][0].where;
+    const tagClause = whereArg.OR.find(
+      (c: Record<string, unknown>) => 'tags' in c,
+    );
+    expect(tagClause.tags).toEqual({
+      some: { name: { contains: 'modern', mode: 'insensitive' } },
+    });
   });
 });
 

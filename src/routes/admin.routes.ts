@@ -1,6 +1,9 @@
 import { Role } from '@prisma/client';
 import { Router } from 'express';
+import * as adminExhibitionController from '../controllers/adminExhibition.controller';
 import * as adminInstitutionController from '../controllers/adminInstitution.controller';
+import * as adminSubCategoryController from '../controllers/adminSubCategory.controller';
+import * as adminTagController from '../controllers/adminTag.controller';
 import * as auditController from '../controllers/audit.controller';
 import * as dashboardController from '../controllers/dashboard.controller';
 import * as userController from '../controllers/user.controller';
@@ -13,11 +16,32 @@ import {
   idParamSchema,
   updateInstitutionSchema,
 } from '../validators/institution.validator';
+import {
+  createExhibitionSchema,
+  exhibitionParamsSchema,
+  updateExhibitionSchema,
+} from '../validators/exhibition.validator';
+import {
+  createSubCategorySchema,
+  listSubCategoriesQuerySchema,
+  updateSubCategorySchema,
+} from '../validators/subCategory.validator';
+import {
+  createTagSchema,
+  listTagsQuerySchema,
+  updateTagSchema,
+} from '../validators/tag.validator';
+import {
+  listSubmissionsQuerySchema,
+  rejectSchema,
+} from '../validators/submission.validator';
 import { auditLogQuerySchema } from '../validators/audit.validator';
 import {
   createUserSchema,
   paginationQuerySchema,
 } from '../validators/user.validator';
+
+const isAdmin = roleGuard(Role.SUPER_ADMIN, Role.ADMIN);
 
 const router = Router();
 
@@ -190,6 +214,398 @@ router.post(
   validate({ params: idParamSchema }),
   uploadImage,
   adminInstitutionController.uploadImageHandler,
+);
+
+// ---------------------------------------------------------------------------
+// Exhibitions (nested under an institution; ADMIN or SUPER_ADMIN)
+// ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/exhibitions:
+ *   post:
+ *     summary: Create an exhibition for an institution
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/ExhibitionInput' }
+ *     responses:
+ *       201: { description: Created }
+ *       400: { description: Validation error }
+ *       404: { description: Institution not found }
+ */
+router.post(
+  '/institutions/:id/exhibitions',
+  isAdmin,
+  validate({ params: idParamSchema, body: createExhibitionSchema }),
+  adminExhibitionController.create,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/exhibitions/{exhibitionId}:
+ *   put:
+ *     summary: Update an exhibition
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: exhibitionId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/ExhibitionInput' }
+ *     responses:
+ *       200: { description: Updated }
+ *       404: { description: Not found }
+ */
+router.put(
+  '/institutions/:id/exhibitions/:exhibitionId',
+  isAdmin,
+  validate({ params: exhibitionParamsSchema, body: updateExhibitionSchema }),
+  adminExhibitionController.update,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/exhibitions/{exhibitionId}:
+ *   delete:
+ *     summary: Delete an exhibition
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: exhibitionId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Deleted }
+ *       404: { description: Not found }
+ */
+router.delete(
+  '/institutions/:id/exhibitions/:exhibitionId',
+  isAdmin,
+  validate({ params: exhibitionParamsSchema }),
+  adminExhibitionController.remove,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/exhibitions/{exhibitionId}/image:
+ *   post:
+ *     summary: Upload and attach an image to an exhibition
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: exhibitionId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image: { type: string, format: binary }
+ *     responses:
+ *       201: { description: Image uploaded and attached }
+ *       400: { description: No/invalid file }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/institutions/:id/exhibitions/:exhibitionId/image',
+  isAdmin,
+  validate({ params: exhibitionParamsSchema }),
+  uploadImage,
+  adminExhibitionController.uploadImageHandler,
+);
+
+// ---------------------------------------------------------------------------
+// Submission review (ADMIN or SUPER_ADMIN)
+// ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/v1/admin/submissions:
+ *   get:
+ *     summary: List user-submitted institutions by status (default PENDING)
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20, maximum: 100 }
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [DRAFT, PENDING, APPROVED, REJECTED], default: PENDING }
+ *     responses:
+ *       200: { description: Submissions }
+ *       403: { description: Forbidden }
+ */
+router.get(
+  '/submissions',
+  isAdmin,
+  validate({ query: listSubmissionsQuerySchema }),
+  adminInstitutionController.listSubmissions,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/approve:
+ *   post:
+ *     summary: Approve a submitted institution
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Approved (publish separately to make it live) }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/institutions/:id/approve',
+  isAdmin,
+  validate({ params: idParamSchema }),
+  adminInstitutionController.approve,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/reject:
+ *   post:
+ *     summary: Reject a submitted institution with a review note
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reviewNote]
+ *             properties:
+ *               reviewNote: { type: string }
+ *     responses:
+ *       200: { description: Rejected }
+ *       400: { description: Validation error }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/institutions/:id/reject',
+  isAdmin,
+  validate({ params: idParamSchema, body: rejectSchema }),
+  adminInstitutionController.reject,
+);
+
+// ---------------------------------------------------------------------------
+// Sub-categories (ADMIN or SUPER_ADMIN)
+// ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/v1/admin/subcategories:
+ *   get:
+ *     summary: List sub-categories
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema: { type: string, enum: [GALLERY, STUDIO, CULTURAL_SPACE] }
+ *     responses:
+ *       200: { description: Sub-categories }
+ *   post:
+ *     summary: Create a sub-category
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/SubCategoryInput' }
+ *     responses:
+ *       201: { description: Created }
+ *       409: { description: Duplicate name for that type }
+ */
+router.get(
+  '/subcategories',
+  isAdmin,
+  validate({ query: listSubCategoriesQuerySchema }),
+  adminSubCategoryController.list,
+);
+router.post(
+  '/subcategories',
+  isAdmin,
+  validate({ body: createSubCategorySchema }),
+  adminSubCategoryController.create,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/subcategories/{id}:
+ *   put:
+ *     summary: Update a sub-category
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/SubCategoryInput' }
+ *     responses:
+ *       200: { description: Updated }
+ *       404: { description: Not found }
+ *   delete:
+ *     summary: Delete a sub-category (blocked while institutions reference it)
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Deleted }
+ *       404: { description: Not found }
+ *       409: { description: Still in use }
+ */
+router.put(
+  '/subcategories/:id',
+  isAdmin,
+  validate({ params: idParamSchema, body: updateSubCategorySchema }),
+  adminSubCategoryController.update,
+);
+router.delete(
+  '/subcategories/:id',
+  isAdmin,
+  validate({ params: idParamSchema }),
+  adminSubCategoryController.remove,
+);
+
+// ---------------------------------------------------------------------------
+// Tags (ADMIN or SUPER_ADMIN)
+// ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/v1/admin/tags:
+ *   get:
+ *     summary: List tags
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     responses:
+ *       200: { description: Tags }
+ *   post:
+ *     summary: Create a tag
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/TagInput' }
+ *     responses:
+ *       201: { description: Created }
+ *       409: { description: Duplicate name }
+ */
+router.get(
+  '/tags',
+  isAdmin,
+  validate({ query: listTagsQuerySchema }),
+  adminTagController.list,
+);
+router.post(
+  '/tags',
+  isAdmin,
+  validate({ body: createTagSchema }),
+  adminTagController.create,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/tags/{id}:
+ *   put:
+ *     summary: Rename a tag
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/TagInput' }
+ *     responses:
+ *       200: { description: Updated }
+ *       404: { description: Not found }
+ *   delete:
+ *     summary: Delete a tag
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Deleted }
+ *       404: { description: Not found }
+ */
+router.put(
+  '/tags/:id',
+  isAdmin,
+  validate({ params: idParamSchema, body: updateTagSchema }),
+  adminTagController.update,
+);
+router.delete(
+  '/tags/:id',
+  isAdmin,
+  validate({ params: idParamSchema }),
+  adminTagController.remove,
 );
 
 // ---------------------------------------------------------------------------

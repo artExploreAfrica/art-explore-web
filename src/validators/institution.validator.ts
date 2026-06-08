@@ -16,7 +16,8 @@ export const createInstitutionSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional(),
   openingHours: openingHoursSchema.optional(),
-  tags: z.array(z.string()).optional().default([]),
+  subCategoryId: z.string().optional(),
+  tagIds: z.array(z.string()).optional().default([]),
   isPublished: z.boolean().optional().default(false),
 });
 
@@ -33,6 +34,8 @@ export const listInstitutionsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
   area: z.nativeEnum(Area).optional(),
   type: z.nativeEnum(InstitutionType).optional(),
+  subCategoryId: z.string().optional(),
+  tag: z.string().optional(),
   search: z.string().trim().optional(),
 });
 

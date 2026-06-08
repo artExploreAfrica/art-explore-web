@@ -1,4 +1,5 @@
 import {
+  ApprovalStatus,
   AuditAction,
   Institution,
   Prisma,
@@ -20,6 +21,11 @@ import {
   ListInstitutionsQuery,
   UpdateInstitutionInput,
 } from '../validators/institution.validator';
+import {
+  ListSubmissionsQuery,
+  MySubmissionsQuery,
+  SubmitInstitutionInput,
+} from '../validators/submission.validator';
 
 interface ListResult {
   data: Institution[];
@@ -35,18 +41,21 @@ export const listPublished = async (query: ListInstitutionsQuery): Promise<ListR
   const cached = await getCached<ListResult>(cacheKey);
   if (cached) return cached;
 
-  const { page, limit, area, type, search } = query;
+  const { page, limit, area, type, subCategoryId, tag, search } = query;
 
   const where: Prisma.InstitutionWhereInput = {
     isPublished: true,
     deletedAt: null,
+    approvalStatus: ApprovalStatus.APPROVED,
     ...(area && { area }),
     ...(type && { type }),
+    ...(subCategoryId && { subCategoryId }),
+    ...(tag && { tags: { some: { id: tag } } }),
     ...(search && {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
-        { tags: { has: search } },
+        { tags: { some: { name: { contains: search, mode: 'insensitive' } } } },
       ],
     }),
   };
@@ -54,6 +63,7 @@ export const listPublished = async (query: ListInstitutionsQuery): Promise<ListR
   const [data, total] = await Promise.all([
     prisma.institution.findMany({
       where,
+      include: { tags: true, subCategory: true },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
@@ -78,7 +88,13 @@ export const listPublished = async (query: ListInstitutionsQuery): Promise<ListR
 /** Single published institution by id. */
 export const getById = async (id: string): Promise<Institution> => {
   const institution = await prisma.institution.findFirst({
-    where: { id, isPublished: true, deletedAt: null },
+    where: {
+      id,
+      isPublished: true,
+      deletedAt: null,
+      approvalStatus: ApprovalStatus.APPROVED,
+    },
+    include: { tags: true, subCategory: true },
   });
   if (!institution) throw NotFoundError('Institution');
   return institution;
@@ -92,7 +108,11 @@ export const getMapPins = async (): Promise<MapPin[]> => {
   if (cached) return cached;
 
   const pins = await prisma.institution.findMany({
-    where: { isPublished: true, deletedAt: null },
+    where: {
+      isPublished: true,
+      deletedAt: null,
+      approvalStatus: ApprovalStatus.APPROVED,
+    },
     select: { id: true, name: true, lat: true, lng: true, type: true },
   });
 
@@ -108,10 +128,15 @@ export const create = async (
   actorId: string,
   input: CreateInstitutionInput,
 ): Promise<Institution> => {
+  const { tagIds, openingHours, ...rest } = input;
+
   const institution = await prisma.institution.create({
     data: {
-      ...input,
-      openingHours: input.openingHours ?? Prisma.JsonNull,
+      ...rest,
+      openingHours: openingHours ?? Prisma.JsonNull,
+      ...(tagIds && tagIds.length > 0 && {
+        tags: { connect: tagIds.map((id) => ({ id })) },
+      }),
     },
   });
 
@@ -129,12 +154,18 @@ export const update = async (
 ): Promise<Institution> => {
   await ensureExists(id);
 
+  const { tagIds, openingHours, ...rest } = input;
+
   const institution = await prisma.institution.update({
     where: { id },
     data: {
-      ...input,
-      ...(input.openingHours !== undefined && {
-        openingHours: input.openingHours ?? Prisma.JsonNull,
+      ...rest,
+      ...(openingHours !== undefined && {
+        openingHours: openingHours ?? Prisma.JsonNull,
+      }),
+      // `set` replaces the full tag list; only apply when tagIds was supplied.
+      ...(tagIds !== undefined && {
+        tags: { set: tagIds.map((id) => ({ id })) },
       }),
     },
   });
@@ -200,6 +231,134 @@ export const addImage = async (
   await auditLog(actorId, AuditAction.IMAGE_UPLOAD, TargetModel.INSTITUTION, id, {
     imageUrl,
   });
+  await invalidateInstitutionCache();
+  return institution;
+};
+
+// ---------------------------------------------------------------------------
+// Submission / approval workflow (Feature 5)
+// ---------------------------------------------------------------------------
+
+/**
+ * A USER submits an institution. It is created PENDING and unpublished — never
+ * visible publicly until an admin approves and publishes it.
+ */
+export const submit = async (
+  userId: string,
+  input: SubmitInstitutionInput,
+): Promise<Institution> => {
+  const { tagIds, openingHours, ...rest } = input;
+
+  const institution = await prisma.institution.create({
+    data: {
+      ...rest,
+      openingHours: openingHours ?? Prisma.JsonNull,
+      approvalStatus: ApprovalStatus.PENDING,
+      isPublished: false,
+      submittedById: userId,
+      ...(tagIds && tagIds.length > 0 && {
+        tags: { connect: tagIds.map((id) => ({ id })) },
+      }),
+    },
+  });
+
+  await auditLog(userId, AuditAction.SUBMIT, TargetModel.INSTITUTION, institution.id, {
+    name: institution.name,
+  });
+  // Not public yet — no cache invalidation needed.
+  return institution;
+};
+
+/** A USER's own submissions, any status. */
+export const listMine = async (
+  userId: string,
+  query: MySubmissionsQuery,
+): Promise<ListResult> => {
+  const { page, limit } = query;
+  const where: Prisma.InstitutionWhereInput = { submittedById: userId, deletedAt: null };
+
+  const [data, total] = await Promise.all([
+    prisma.institution.findMany({
+      where,
+      include: { tags: true, subCategory: true },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.institution.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 0 },
+  };
+};
+
+/** Admin review queue, filtered by approval status (defaults to PENDING). */
+export const listSubmissions = async (
+  query: ListSubmissionsQuery,
+): Promise<ListResult> => {
+  const { page, limit, status } = query;
+  const where: Prisma.InstitutionWhereInput = {
+    approvalStatus: status,
+    deletedAt: null,
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.institution.findMany({
+      where,
+      include: { tags: true, subCategory: true },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.institution.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 0 },
+  };
+};
+
+/** Approve a submission. Does not publish — admin publishes separately. */
+export const approve = async (actorId: string, id: string): Promise<Institution> => {
+  await ensureExists(id);
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: {
+      approvalStatus: ApprovalStatus.APPROVED,
+      reviewedById: actorId,
+      reviewedAt: new Date(),
+      reviewNote: null,
+    },
+  });
+
+  await auditLog(actorId, AuditAction.APPROVE, TargetModel.INSTITUTION, id);
+  return institution;
+};
+
+/** Reject a submission with a required reviewer note. */
+export const reject = async (
+  actorId: string,
+  id: string,
+  reviewNote: string,
+): Promise<Institution> => {
+  await ensureExists(id);
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: {
+      approvalStatus: ApprovalStatus.REJECTED,
+      reviewedById: actorId,
+      reviewedAt: new Date(),
+      reviewNote,
+      isPublished: false,
+    },
+  });
+
+  await auditLog(actorId, AuditAction.REJECT, TargetModel.INSTITUTION, id, { reviewNote });
   await invalidateInstitutionCache();
   return institution;
 };
