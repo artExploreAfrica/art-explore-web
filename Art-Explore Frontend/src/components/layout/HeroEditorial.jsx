@@ -10,6 +10,7 @@ const STATS = [
   { number: '6', label: 'Art Forms' },
 ];
 
+// moving ticker elements
 const TICKER_ITEMS = [
   { title: 'Gallery', place: 'Victoria Island' },
   { title: 'Museum', place: 'Lagos Island' },
