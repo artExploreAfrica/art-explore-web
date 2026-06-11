@@ -1,9 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 //  MapView.module.scss
-//  /src/components/MapView/MapView.module.scss
 // ─────────────────────────────────────────────────────────────
 
-// ── Tokens ────────────────────────────────────────────────────
 $c-island:   #1a6bbd;
 $c-mainland: #b45309;
 $c-bg:       #0f172a;
@@ -11,22 +9,22 @@ $c-border:   #1e293b;
 $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
 
 .mapWrapper {
-  position:   relative;
-  height:     90vh;
-  width:      100%;
-  max-width:  1400px;
-  margin:     0 auto;
-  display:    flex;
-  flex-direction: column;
-  gap:        0;
-  font-family: $font;
+  position:        relative;
+  height:          90vh;
+  width:           100%;
+  max-width:       1400px;
+  margin:          0 auto;
+  display:         flex;
+  flex-direction:  column;
+  gap:             0;
+  font-family:     $font;
 
-  @media (max-width: 768px) { 
-    height: 80vh;  // Map takes 80% of viewport, not full screen
-    position: relative;
-  }
-  @media (max-width: 480px) { 
-    height: 75vh;
+  @media (max-width: 768px) {
+    // Full viewport height on mobile — the map needs every pixel.
+    // GalleryCard uses position:fixed so it escapes this container.
+    height:   100svh;
+    height:   100vh; // fallback for browsers without svh
+    max-width: 100%;
   }
 }
 
@@ -39,58 +37,52 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   padding:         10px 0;
   flex-wrap:       wrap;
   z-index:         10;
+  flex-shrink:     0;
 
   @media (max-width: 768px) {
-    gap: 6px;
-    padding: 8px 12px;
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(4px);
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    border-radius: 0;
-    margin-bottom: 4px;
+    gap:              6px;
+    padding:          8px 12px;
+    background:       rgba(255, 255, 255, 0.96);
+    backdrop-filter:  blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    position:         sticky;
+    top:              0;
+    z-index:          20;
+    border-bottom:    1px solid rgba(226, 232, 240, 0.8);
   }
 }
 
 .regionBtn {
-  padding:         6px 16px;
-  border-radius:   20px;
-  border:          1.5px solid #cbd5e1;
-  background:      white;
-  font-size:       13px;
-  font-weight:     500;
-  cursor:          pointer;
-  color:           #475569;
-  transition:      all 0.2s ease;
-  font-family:     $font;
+  padding:      6px 16px;
+  border-radius:20px;
+  border:       1.5px solid #cbd5e1;
+  background:   white;
+  font-size:    13px;
+  font-weight:  500;
+  cursor:       pointer;
+  color:        #475569;
+  transition:   all 0.2s ease;
+  font-family:  $font;
 
   &:hover { border-color: #94a3b8; background: #f8fafc; }
 
   @media (max-width: 768px) {
-    padding: 8px 16px;
-    font-size: 13px;
-    border-width: 1px;
+    padding:      9px 18px;
+    font-size:    13px;
+    min-height:   40px;
+    border-width: 1.5px;
   }
 
-  @media (max-width: 480px) {
-    padding: 6px 12px;
+  @media (max-width: 380px) {
+    padding:   7px 12px;
     font-size: 12px;
   }
 }
 
-.regionBtnActive { font-weight: 700; }
-.regionBtnAll    { &.regionBtnActive { background: $c-bg; color: white; border-color: $c-bg; } }
-.regionBtnIsland { &.regionBtnActive { background: $c-island; color: white; border-color: $c-island; } }
+.regionBtnActive   { font-weight: 700; }
+.regionBtnAll      { &.regionBtnActive { background: $c-bg;       color: white; border-color: $c-bg;       } }
+.regionBtnIsland   { &.regionBtnActive { background: $c-island;   color: white; border-color: $c-island;   } }
 .regionBtnMainland { &.regionBtnActive { background: $c-mainland; color: white; border-color: $c-mainland; } }
-
-.zoomHint {
-  font-size:     11px;
-  color:         #94a3b8;
-  font-style:    italic;
-
-  @media (max-width: 600px) { display: none; }
-}
 
 .resetBtn {
   padding:       6px 14px;
@@ -106,12 +98,13 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   &:hover { background: #f1f5f9; border-color: #94a3b8; }
 
   @media (max-width: 768px) {
-    padding: 8px 12px;
-    font-size: 12px;
+    padding:    9px 14px;
+    min-height: 40px;
+    font-size:  12px;
   }
 
-  @media (max-width: 480px) {
-    padding: 6px 10px;
+  @media (max-width: 380px) {
+    padding:   7px 10px;
     font-size: 11px;
   }
 }
@@ -125,89 +118,64 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   overflow:      hidden;
   box-shadow:    0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10);
   position:      relative;
+  // Ensure the map fills the remaining height after the region bar
+  min-height:    0;
 
-  @media (max-width: 768px) { 
-    border-radius: 12px;
-    border-width: 2px;
-    margin: 0 4px;
-  }
-  @media (max-width: 480px) { 
-    border-radius: 10px;
-    border-width: 2px;
-    margin: 0 2px;
+  @media (max-width: 768px) {
+    border-radius: 0;
+    border:        none;
+    box-shadow:    none;
   }
 }
 
-// ── MapLibre overrides ────────────────────────────────────────
+// ── MapLibre global overrides ─────────────────────────────────
 :global {
 
-  // Gallery markers - LARGE on mobile for easy tapping
   .gallery-marker {
-    width:     36px;
-    height:    48px;
-    cursor:    pointer;
-    position:  relative;
+    width:    36px;
+    height:   48px;
+    cursor:   pointer;
+    position: relative;
 
-    svg { 
-      width: 100%; 
-      height: 100%; 
+    svg {
+      width:  100%;
+      height: 100%;
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
       transition: all 0.2s ease;
     }
+    &:hover svg { filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45)); transform: scale(1.12); }
 
-    &:hover svg { 
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45)); 
-      transform: scale(1.12); 
-    }
-    transition: transform 0.15s ease;
-
-    @media (max-width: 768px) { 
-      width: 55px;  // Large but not huge
-      height: 73px;
-    }
-    @media (max-width: 480px) { 
-      width: 50px;
-      height: 66px;
-    }
+    @media (max-width: 768px) { width: 55px; height: 73px; }
+    @media (max-width: 480px) { width: 50px; height: 66px; }
   }
 
   .gallery-marker__pulse {
-    position:     absolute;
-    bottom:       -4px;
-    left:         50%;
-    transform:    translateX(-50%);
-    width:        10px;
-    height:       10px;
+    position:      absolute;
+    bottom:        -4px;
+    left:          50%;
+    transform:     translateX(-50%);
+    width:         10px;
+    height:        10px;
     border-radius: 50%;
-    background:   rgba(230,57,70,0.5);
-    animation:    pulse 2s infinite;
+    background:    rgba(230, 57, 70, 0.5);
+    animation:     pulse 2s infinite;
 
-    @media (max-width: 768px) {
-      width: 14px;
-      height: 14px;
-      bottom: -6px;
-    }
+    @media (max-width: 768px) { width: 14px; height: 14px; bottom: -6px; }
   }
 
   @keyframes pulse {
     0%   { transform: translateX(-50%) scale(1);   opacity: 0.7; }
-    70%  { transform: translateX(-50%) scale(2.2); opacity: 0; }
-    100% { transform: translateX(-50%) scale(1);   opacity: 0; }
+    70%  { transform: translateX(-50%) scale(2.2); opacity: 0;   }
+    100% { transform: translateX(-50%) scale(1);   opacity: 0;   }
   }
 
-  // Popup
+  // Desktop popup only — mobile suppresses it entirely
   .gallery-popup-wrapper .maplibregl-popup-content {
     padding:       0;
     border-radius: 12px;
     overflow:      hidden;
     box-shadow:    0 8px 30px rgba(0,0,0,0.22);
     border:        1px solid #e2e8f0;
-
-    @media (max-width: 768px) {
-      border-radius: 14px;
-      width: 85vw;
-      max-width: 320px;
-    }
   }
 
   .popup-content {
@@ -215,125 +183,51 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
     flex-direction: column;
     min-width:      220px;
     max-width:      300px;
-
-    @media (max-width: 768px) {
-      min-width: auto;
-      width: 100%;
-    }
   }
 
   .popup-image {
     width:      100%;
     height:     140px;
     object-fit: cover;
-
-    @media (max-width: 768px) { 
-      height: 160px;
-    }
   }
 
   .popup-text {
-    padding:  12px 14px 14px;
+    padding: 12px 14px 14px;
 
-    @media (max-width: 768px) {
-      padding: 14px;
-    }
-
-    h4 {
-      margin:      0 0 4px;
-      font-size:   15px;
-      font-weight: 700;
-      color:       #0f172a;
-      font-family: $font;
-
-      @media (max-width: 768px) {
-        font-size: 17px;
-        margin-bottom: 6px;
-      }
-    }
-
-    p {
-      margin:      0 0 8px;
-      font-size:   12px;
-      color:       #64748b;
-      line-height: 1.4;
-
-      @media (max-width: 768px) {
-        font-size: 13px;
-        margin-bottom: 10px;
-      }
-    }
+    h4 { margin: 0 0 4px; font-size: 15px; font-weight: 700; color: #0f172a; }
+    p  { margin: 0 0 8px; font-size: 12px; color: #64748b; line-height: 1.4; }
   }
 
   .popup-meta {
-    display:     flex;
-    gap:         6px;
-    align-items: center;
+    display:       flex;
+    gap:           6px;
+    align-items:   center;
     margin-bottom: 6px;
-
-    @media (max-width: 768px) {
-      gap: 8px;
-      margin-bottom: 8px;
-    }
   }
 
   .popup-region {
-    font-size:     10px;
-    font-weight:   600;
+    font-size:      10px;
+    font-weight:    600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    padding:       2px 8px;
-    border-radius: 10px;
-
-    @media (max-width: 768px) {
-      font-size: 11px;
-      padding: 3px 10px;
-    }
+    padding:        2px 8px;
+    border-radius:  10px;
 
     &--island   { background: rgba(26,107,189,0.12); color: #1a6bbd; }
     &--mainland { background: rgba(180,83,9,0.12);   color: #b45309; }
   }
 
-  .popup-neighbourhood {
-    font-size:  11px;
-    color:      #94a3b8;
-
-    @media (max-width: 768px) {
-      font-size: 12px;
-    }
-  }
+  .popup-neighbourhood { font-size: 11px; color: #94a3b8; }
 
   .popup-footer {
     display:         flex;
     justify-content: space-between;
     align-items:     center;
     margin-top:      4px;
-
-    @media (max-width: 480px) {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 4px;
-    }
   }
 
-  .popup-rating {
-    font-size:   12px;
-    font-weight: 600;
-    color:       #f59e0b;
-
-    @media (max-width: 768px) {
-      font-size: 13px;
-    }
-  }
-
-  .popup-tags {
-    font-size: 11px;
-    color:     #94a3b8;
-
-    @media (max-width: 768px) {
-      font-size: 12px;
-    }
-  }
+  .popup-rating { font-size: 12px; font-weight: 600; color: #f59e0b; }
+  .popup-tags   { font-size: 11px; color: #94a3b8; }
 
   // Landmark popup
   .landmark-popup {
@@ -343,125 +237,41 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
     padding:     12px;
     max-width:   220px;
 
-    @media (max-width: 768px) {
-      padding: 14px;
-      max-width: 260px;
-      gap: 12px;
-    }
-
-    .landmark-popup__icon { 
-      font-size: 22px; 
-      flex-shrink: 0;
-
-      @media (max-width: 768px) {
-        font-size: 26px;
-      }
-    }
-
-    strong { 
-      display: block; 
-      font-size: 13px; 
-      font-weight: 700; 
-      color: #0f172a; 
-      margin-bottom: 3px;
-
-      @media (max-width: 768px) {
-        font-size: 15px;
-      }
-    }
-    
-    p { 
-      margin: 0; 
-      font-size: 12px; 
-      color: #64748b; 
-      line-height: 1.4;
-
-      @media (max-width: 768px) {
-        font-size: 13px;
-      }
-    }
+    .landmark-popup__icon { font-size: 22px; flex-shrink: 0; }
+    strong { display: block; font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 3px; }
+    p      { margin: 0; font-size: 12px; color: #64748b; line-height: 1.4; }
   }
 
-  // Maplibre controls adjustments for mobile
+  // MapLibre nav controls
   .maplibregl-ctrl-top-right {
     @media (max-width: 768px) {
       top: 10px;
       right: 10px;
-      
-      .maplibregl-ctrl-group {
-        button {
-          width: 36px;
-          height: 36px;
-        }
-      }
+      .maplibregl-ctrl-group button { width: 40px; height: 40px; }
     }
   }
 
   .maplibregl-ctrl-bottom-right {
+    // On mobile, nudge attribution above the bottom sheet safe zone
     @media (max-width: 768px) {
-      bottom: 8px;
-      right: 8px;
+      bottom: 4px;
+      right:  8px;
     }
   }
 
   .maplibregl-ctrl-attrib {
-    @media (max-width: 768px) {
-      font-size: 9px;
-      padding: 2px 4px;
-    }
+    @media (max-width: 768px) { font-size: 9px; padding: 2px 4px; }
   }
 }
 
-// Touch-friendly adjustments for mobile
+// Touch-friendly minimum tap targets
 @media (hover: none) and (pointer: coarse) {
-  .regionBtn, 
-  .resetBtn {
-    min-height: 40px;
-  }
-
-  :global {
-    .gallery-marker {
-      width: 55px;
-      height: 73px;
-    }
-  }
+  .regionBtn,
+  .resetBtn { min-height: 44px; }
 }
 
-// Landscape orientation adjustments
+// Landscape on mobile
 @media (max-width: 768px) and (orientation: landscape) {
-  .mapWrapper {
-    height: 85vh;
-  }
-  
-  .regionBtn {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
-  
-  :global {
-    .gallery-marker {
-      width: 48px;
-      height: 64px;
-    }
-  }
-}
-
-// Small devices
-@media (max-width: 380px) {
-  .regionBtn {
-    padding: 6px 10px;
-    font-size: 11px;
-  }
-
-  .resetBtn {
-    padding: 6px 9px;
-    font-size: 11px;
-  }
-
-  :global {
-    .gallery-marker {
-      width: 48px;
-      height: 64px;
-    }
-  }
+  .mapWrapper { height: 100vh; }
+  .regionBtn  { padding: 6px 12px; font-size: 12px; min-height: 36px; }
 }

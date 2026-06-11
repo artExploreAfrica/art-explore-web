@@ -1,6 +1,5 @@
 // ─────────────────────────────────────────────────────────────
 //  LegendPanel.module.scss
-//  /src/components/MapView/LegendPanel.module.scss
 // ─────────────────────────────────────────────────────────────
 
 $radius:    12px;
@@ -16,33 +15,54 @@ $c-muted:   #64748b;
 
 // ── Panel shell ───────────────────────────────────────────────
 .panel {
-  position:      absolute;
-  bottom:        20px;
-  right:         16px;
-  z-index:       100;
-  width:         260px;
-  background:    $c-bg;
-  border-radius: $radius;
-  box-shadow:    $shadow;
-  border:        1px solid $c-border;
-  font-family:   $font;
-  overflow:      hidden;
-  transition:    width 0.25s ease, opacity 0.2s ease;
-  max-height:    calc(90vh - 120px);
-  display:       flex;
+  position:       absolute;
+  bottom:         20px;
+  right:          16px;
+  z-index:        100;
+  width:          260px;
+  background:     $c-bg;
+  border-radius:  $radius;
+  box-shadow:     $shadow;
+  border:         1px solid $c-border;
+  font-family:    $font;
+  overflow:       hidden;
+  transition:     width 0.25s ease, opacity 0.2s ease, transform 0.2s ease;
+  max-height:     calc(90vh - 120px);
+  display:        flex;
   flex-direction: column;
 
-  @media (max-width: 480px) {
-    width:       calc(100vw - 32px);
-    right:       16px;
-    bottom:      12px;
-    max-height:  55vh;
+  @media (max-width: 768px) {
+    // On mobile: sits in the top-right of the map, compact by default
+    top:         70px; // below the region bar
+    right:       12px;
+    bottom:      auto;
+    width:       auto;
+    max-height:  60vh;
+    // Slightly smaller shadow on mobile
+    box-shadow:  0 4px 16px rgba(0,0,0,0.16), 0 1px 4px rgba(0,0,0,0.10);
   }
 }
 
+// Collapsed: show only the header pill
 .panelCollapsed {
   width: auto;
   max-height: 48px;
+
+  @media (max-width: 768px) {
+    // When collapsed on mobile the panel is a small floating button
+    width:      auto;
+    max-height: 44px;
+    overflow:   hidden;
+  }
+}
+
+// Hidden: when GalleryCard bottom sheet is open on mobile
+.panelHidden {
+  @media (max-width: 768px) {
+    opacity:        0;
+    pointer-events: none;
+    transform:      translateY(-4px);
+  }
 }
 
 // ── Header ────────────────────────────────────────────────────
@@ -54,6 +74,18 @@ $c-muted:   #64748b;
   border-bottom:   1px solid $c-border;
   background:      #f8fafc;
   flex-shrink:     0;
+  gap:             8px;
+
+  @media (max-width: 768px) {
+    padding:  10px 12px;
+    gap:      6px;
+    // Slightly rounded background pill feel when collapsed on mobile
+    border-bottom-color: transparent;
+  }
+
+  .panelCollapsed & {
+    border-bottom-color: transparent;
+  }
 }
 
 .headerTitle {
@@ -69,16 +101,23 @@ $c-muted:   #64748b;
 .headerIcon { font-size: 16px; }
 
 .collapseBtn {
-  background:   transparent;
-  border:       none;
-  cursor:       pointer;
-  padding:      4px 6px;
-  border-radius:6px;
-  color:        $c-muted;
-  font-size:    12px;
-  transition:   background 0.15s;
+  background:    transparent;
+  border:        none;
+  cursor:        pointer;
+  padding:       4px 6px;
+  border-radius: 6px;
+  color:         $c-muted;
+  font-size:     12px;
+  transition:    background 0.15s;
+  flex-shrink:   0;
 
   &:hover { background: $c-border; }
+
+  @media (max-width: 768px) {
+    padding:   6px 8px;
+    min-width: 28px;
+    min-height:28px;
+  }
 }
 
 // ── Tabs ──────────────────────────────────────────────────────
@@ -105,8 +144,8 @@ $c-muted:   #64748b;
 }
 
 .tabActive {
-  color:        $c-text;
-  font-weight:  700;
+  color:              $c-text;
+  font-weight:        700;
   border-bottom-color: $c-island;
 }
 
@@ -138,33 +177,17 @@ $c-muted:   #64748b;
 }
 
 .layerDot {
-  width:        8px;
-  height:       8px;
-  border-radius:50%;
-  flex-shrink:  0;
+  width:         8px;
+  height:        8px;
+  border-radius: 50%;
+  flex-shrink:   0;
 }
 
-.layerIcon { font-size: 14px; flex-shrink: 0; }
+.layerIcon  { font-size: 14px; flex-shrink: 0; }
 
-.layerMeta {
-  display:   flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.layerLabel {
-  font-size:   12px;
-  font-weight: 600;
-  color:       $c-text;
-}
-
-.layerDesc {
-  font-size:  10px;
-  color:      $c-muted;
-  white-space: nowrap;
-  overflow:    hidden;
-  text-overflow: ellipsis;
-}
+.layerMeta  { display: flex; flex-direction: column; min-width: 0; }
+.layerLabel { font-size: 12px; font-weight: 600; color: $c-text; }
+.layerDesc  { font-size: 10px; color: $c-muted; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 // ── Toggle switch ─────────────────────────────────────────────
 .toggle {
@@ -179,48 +202,51 @@ $c-muted:   #64748b;
   outline:       none;
 
   &:focus-visible { box-shadow: 0 0 0 2px $c-island; }
+
+  &::after {
+    content:       '';
+    position:      absolute;
+    top:           3px;
+    left:          3px;
+    width:         14px;
+    height:        14px;
+    border-radius: 50%;
+    background:    white;
+    transition:    transform 0.2s ease;
+    box-shadow:    0 1px 3px rgba(0,0,0,0.2);
+  }
 }
 
-.toggleOn { background: $c-island; }
+.toggleOn {
+  background: $c-island;
 
-.toggleThumb {
-  position:  absolute;
-  top:       3px;
-  left:      3px;
-  width:     14px;
-  height:    14px;
-  border-radius: 50%;
-  background: white;
-  transition: transform 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-
-  .toggleOn & { transform: translateX(16px); }
+  &::after { transform: translateX(16px); }
 }
 
 // ── Zoom guide ────────────────────────────────────────────────
 .zoomGuide {
-  margin:    8px 14px;
-  padding:   10px 12px;
-  background: #f0f9ff;
+  margin:        8px 14px;
+  padding:       10px 12px;
+  background:    #f0f9ff;
   border-radius: 8px;
-  border:    1px solid #bae6fd;
+  border:        1px solid #bae6fd;
 }
 
 .zoomGuideTitle {
-  font-size:   10px;
-  font-weight: 700;
-  color:       #0284c7;
-  margin:      0 0 6px;
+  font-size:      10px;
+  font-weight:    700;
+  color:          #0284c7;
+  margin:         0 0 6px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .zoomRow {
-  display:     flex;
-  align-items: center;
-  gap:         8px;
-  font-size:   11px;
-  color:       #0369a1;
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  font-size:     11px;
+  color:         #0369a1;
   margin-bottom: 3px;
 
   &:last-child { margin-bottom: 0; }
@@ -241,18 +267,9 @@ $c-muted:   #64748b;
 }
 
 // ── Gallery list ──────────────────────────────────────────────
-.galleryList {
-  overflow-y: auto;
-  flex:       1;
-  padding:    4px 0;
-}
+.galleryList { overflow-y: auto; flex: 1; padding: 4px 0; }
 
-.empty {
-  text-align: center;
-  color:      $c-muted;
-  font-size:  13px;
-  padding:    24px;
-}
+.empty { text-align: center; color: $c-muted; font-size: 13px; padding: 24px; }
 
 .galleryItem {
   display:     flex;
@@ -280,74 +297,37 @@ $c-muted:   #64748b;
 }
 
 .galleryMeta {
-  flex:      1;
-  min-width: 0;
-  display:   flex;
+  flex:           1;
+  min-width:      0;
+  display:        flex;
   flex-direction: column;
-  gap:       2px;
+  gap:            2px;
 }
 
-.galleryName {
-  font-size:   12px;
-  font-weight: 600;
-  color:       $c-text;
-  white-space: nowrap;
-  overflow:    hidden;
-  text-overflow: ellipsis;
-}
-
-.galleryNeighbourhood {
-  font-size: 11px;
-  color:     $c-muted;
-}
-
-.galleryRegion {
-  font-size:  10px;
-  font-weight:600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  display:    inline-block;
-  width:      fit-content;
-
-  &Island   { color: $c-island; }
-  &Mainland { color: $c-mainland; }
-}
-
-.galleryRating {
-  font-size:   11px;
-  font-weight: 600;
-  color:       #f59e0b;
-  flex-shrink: 0;
-}
+.galleryName         { font-size: 12px; font-weight: 600; color: $c-text; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.galleryNeighbourhood{ font-size: 11px; color: $c-muted; }
+.galleryRegion       { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; display: inline-block; width: fit-content; }
+.galleryRegionIsland   { color: $c-island;   }
+.galleryRegionMainland { color: $c-mainland; }
+.galleryRating       { font-size: 11px; font-weight: 600; color: #f59e0b; flex-shrink: 0; }
 
 // ── Areas list ────────────────────────────────────────────────
-.areasList {
-  overflow-y: auto;
-  flex:       1;
-  padding:    8px 0;
-}
+.areasList { overflow-y: auto; flex: 1; padding: 8px 0; }
 
-.areasHint {
-  font-size:  11px;
-  color:      $c-muted;
-  padding:    4px 14px 8px;
-  margin:     0;
-  font-style: italic;
-}
+.areasHint { font-size: 11px; color: $c-muted; padding: 4px 14px 8px; margin: 0; font-style: italic; }
 
 .areasGroup { margin-bottom: 8px; }
 
 .areasGroupLabel {
-  font-size:   10px;
-  font-weight: 700;
+  font-size:      10px;
+  font-weight:    700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding:     4px 14px;
-  margin-bottom: 2px;
-
-  &Island   { color: $c-island; }
-  &Mainland { color: $c-mainland; }
+  padding:        4px 14px;
+  margin-bottom:  2px;
 }
+.areasGroupLabelIsland   { color: $c-island;   }
+.areasGroupLabelMainland { color: $c-mainland; }
 
 .areaBtn {
   display:     flex;
@@ -368,7 +348,4 @@ $c-muted:   #64748b;
   &:hover { background: $c-hover; }
 }
 
-.areaBtnIcon {
-  font-size: 12px;
-  color:     $c-muted;
-}
+.areaBtnIcon { font-size: 12px; color: $c-muted; }

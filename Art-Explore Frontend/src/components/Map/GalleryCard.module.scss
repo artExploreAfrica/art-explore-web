@@ -1,14 +1,38 @@
 // ─────────────────────────────────────────────────────────────
 //  GalleryCard.module.scss
-//  /src/components/MapView/GalleryCard.module.scss
+//  Desktop: absolute floating card anchored bottom-left of map
+//  Mobile:  fixed bottom sheet — slides up from screen edge
 // ─────────────────────────────────────────────────────────────
 
-$font:      'Inter', 'Segoe UI', system-ui, sans-serif;
-$shadow:    0 12px 40px rgba(0,0,0,0.22), 0 3px 10px rgba(0,0,0,0.12);
-$c-island:  #1a6bbd;
-$c-mainland:#b45309;
+$font:       'Inter', 'Segoe UI', system-ui, sans-serif;
+$shadow:     0 12px 40px rgba(0,0,0,0.22), 0 3px 10px rgba(0,0,0,0.12);
+$c-island:   #1a6bbd;
+$c-mainland: #b45309;
+$radius-top: 20px;
 
+// ── Backdrop (mobile tap-outside-to-close) ────────────────────
+// On desktop this is invisible and non-interactive for the backdrop area.
+// On mobile it dims the map slightly behind the sheet.
+.backdrop {
+  // Desktop: transparent, doesn't interfere with map interaction
+  position:        absolute;
+  inset:           0;
+  z-index:         190;
+  pointer-events:  none; // pass through to map on desktop
+
+  @media (max-width: 768px) {
+    position:        fixed;
+    inset:           0;
+    z-index:         300;
+    pointer-events:  all; // capture taps outside the sheet
+    // No background dimming on the backdrop itself — the sheet is self-contained
+    background:      transparent;
+  }
+}
+
+// ── Card / Sheet ──────────────────────────────────────────────
 .card {
+  // ── Desktop: floating card (original layout) ──
   position:      absolute;
   bottom:        20px;
   left:          16px;
@@ -20,20 +44,61 @@ $c-mainland:#b45309;
   border:        1px solid #e2e8f0;
   font-family:   $font;
   overflow:      hidden;
+  pointer-events: all;
   animation:     slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 
-  @media (max-width: 480px) {
-    width:  calc(100vw - 32px);
-    left:   16px;
-    bottom: 12px;
+  // ── Mobile: full-width bottom sheet ──────────
+  @media (max-width: 768px) {
+    position:      fixed;
+    bottom:        0;
+    left:          0;
+    right:         0;
+    width:         100%;
+    // ~52 vh: enough room for all content, leaves ~48 vh of visible map
+    // above so the marker (offset +120px upward in flyToGallery) is visible.
+    max-height:    54vh;
+    border-radius: $radius-top $radius-top 0 0;
+    border:        none;
+    border-top:    1px solid #e2e8f0;
+    box-shadow:    0 -4px 24px rgba(0,0,0,0.16), 0 -1px 4px rgba(0,0,0,0.08);
+    overflow-y:    auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    // Slide up from the bottom edge
+    animation:     sheetUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+    // Respect the device safe area (notch phones)
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 }
 
+// ── Desktop entrance animation ────────────────────────────────
 @keyframes slideUp {
   from { transform: translateY(24px); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 
+// ── Mobile sheet entrance animation ──────────────────────────
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0);    }
+}
+
+// ── Drag handle (mobile only) ─────────────────────────────────
+.dragHandle {
+  display: none;
+
+  @media (max-width: 768px) {
+    display:       block;
+    width:         40px;
+    height:        4px;
+    background:    #cbd5e1;
+    border-radius: 2px;
+    margin:        12px auto 4px;
+    flex-shrink:   0;
+  }
+}
+
+// ── Close button ──────────────────────────────────────────────
 .closeBtn {
   position:      absolute;
   top:           10px;
@@ -43,8 +108,8 @@ $c-mainland:#b45309;
   color:         white;
   border:        none;
   border-radius: 50%;
-  width:         28px;
-  height:        28px;
+  width:         30px;
+  height:        30px;
   cursor:        pointer;
   font-size:     12px;
   display:       flex;
@@ -53,14 +118,24 @@ $c-mainland:#b45309;
   transition:    background 0.15s;
 
   &:hover { background: rgba(0,0,0,0.65); }
+
+  @media (max-width: 768px) {
+    // On mobile the close btn sits above the image; offset for drag handle
+    top:    14px;
+    right:  14px;
+    width:  32px;
+    height: 32px;
+  }
 }
 
+// ── Hero image ────────────────────────────────────────────────
 .imageWrap {
-  position:    relative;
-  height:      160px;
-  overflow:    hidden;
+  position: relative;
+  height:   160px;
+  overflow: hidden;
 
-  @media (max-width: 480px) { height: 130px; }
+  // Smaller image on mobile — content is more important than decoration
+  @media (max-width: 768px) { height: 110px; }
 }
 
 .image {
@@ -84,8 +159,8 @@ $c-mainland:#b45309;
   padding:       3px 10px;
   border-radius: 20px;
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
-
 .openBadgeOpen   { background: rgba(22,163,74,0.85);  color: white; }
 .openBadgeClosed { background: rgba(239,68,68,0.85);  color: white; }
 
@@ -97,13 +172,16 @@ $c-mainland:#b45309;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
-
 .regionIsland   { background: rgba(26,107,189,0.85);  color: white; }
 .regionMainland { background: rgba(180,83,9,0.85);    color: white; }
 
+// ── Body ──────────────────────────────────────────────────────
 .body {
   padding: 14px 16px 16px;
+
+  @media (max-width: 768px) { padding: 12px 16px 20px; }
 }
 
 .name {
@@ -112,6 +190,8 @@ $c-mainland:#b45309;
   font-weight: 800;
   color:       #0f172a;
   line-height: 1.2;
+
+  @media (max-width: 768px) { font-size: 17px; }
 }
 
 .neighbourhood {
@@ -139,10 +219,10 @@ $c-mainland:#b45309;
 }
 
 .stat {
-  display:   flex;
+  display:        flex;
   flex-direction: column;
-  align-items: center;
-  flex:       1;
+  align-items:    center;
+  flex:           1;
 }
 
 .statValue {
@@ -152,23 +232,23 @@ $c-mainland:#b45309;
 }
 
 .statLabel {
-  font-size: 10px;
-  color:     #94a3b8;
-  margin-top: 2px;
+  font-size:      10px;
+  color:          #94a3b8;
+  margin-top:     2px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
 .statDivider {
-  width:  1px;
-  height: 28px;
+  width:      1px;
+  height:     28px;
   background: #e2e8f0;
 }
 
 .tags {
-  display:   flex;
-  flex-wrap: wrap;
-  gap:       6px;
+  display:       flex;
+  flex-wrap:     wrap;
+  gap:           6px;
   margin-bottom: 14px;
 }
 
@@ -185,7 +265,7 @@ $c-mainland:#b45309;
 .directionsBtn {
   display:         block;
   width:           100%;
-  padding:         10px;
+  padding:         11px;
   background:      #0f172a;
   color:           white;
   text-align:      center;
@@ -195,6 +275,12 @@ $c-mainland:#b45309;
   font-weight:     600;
   font-family:     $font;
   transition:      background 0.15s;
+  box-sizing:      border-box;
 
   &:hover { background: #1e293b; }
+
+  @media (max-width: 768px) {
+    padding:   13px;
+    font-size: 14px;
+  }
 }
