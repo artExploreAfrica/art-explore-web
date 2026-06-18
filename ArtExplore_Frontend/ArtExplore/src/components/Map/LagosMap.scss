@@ -1,0 +1,75 @@
+.map-section {
+  background: white;
+  
+  
+  .section-header {
+    text-align: center;
+    margin-bottom: 10px;
+    margin-top: 60px;
+    
+    h2 {
+      font-size: 42px;
+      font-family: "Lobster", sans-serif;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    .mapspan{
+      color: #d97706;
+    }
+    
+    p {
+      color: #3a3838;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+  }
+  
+  .map-container {
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    margin-bottom: 40px;
+    
+    iframe {
+      width: 100%;
+      height: 450px;
+      display: block;
+    }
+  }
+  
+  .map-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+    margin-bottom: 30px;
+    
+    .info-card {
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 12px;
+      border-left: 4px solid #d97706;
+      
+      h3 {
+        font-size: 18px;
+        margin-bottom: 8px;
+        color: #333;
+      }
+      
+      p {
+        color: #666;
+        margin-bottom: 8px;
+      }
+      
+      small {
+        color: #d97706;
+        font-size: 13px;
+      }
+    }
+  }
+  
+  .map-note {
+    text-align: center;
+    color: #999;
+    margin-top: 20px;
+  }
+}

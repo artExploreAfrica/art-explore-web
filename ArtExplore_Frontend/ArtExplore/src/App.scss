@@ -1,0 +1,224 @@
+// Variables
+$primary-color: #d97706;
+$primary-dark: #b45309;
+$secondary-color: #1f2937;
+$text-dark: #1f2937;
+$text-light: #6b7280;
+$bg-light: #f9fafb;
+$white: #ffffff;
+$border-color: #e5e7eb;
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+$transition: all 0.3s ease;
+
+// Global Reset
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Red Hat Display", sans-serif;
+  color: $text-dark;
+  line-height: 1.6;
+  background: $white;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px; // ← added so content never bleeds edge-to-edge on mobile
+}
+
+// Buttons
+.btn {
+  display: inline-block;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: $transition;
+  border: none;
+  font-size: 16px;
+
+  @media (max-width: 480px) {
+    padding: 10px 18px;
+    font-size: 14px;
+  }
+
+  &-primary {
+    background: $primary-color;
+    color: $white;
+    &:hover {
+      background: $primary-dark;
+      transform: translateY(-2px);
+    }
+  }
+
+  &-outline {
+    background: transparent;
+    border: 2px solid $primary-color;
+    color: $primary-color;
+    &:hover {
+      background: $primary-color;
+      color: $white;
+    }
+  }
+}
+
+// Section Headers
+.section-header {
+  text-align: center;
+  margin-bottom: 50px;
+
+  @media (max-width: 768px) {
+    margin-bottom: 32px;
+  }
+
+  h2 {
+    font-size: 36px;
+    font-family: Georgia, serif;
+    margin-bottom: 12px;
+    color: $text-dark;
+
+    @media (max-width: 768px) {
+      font-size: 28px;
+    }
+
+    @media (max-width: 480px) {
+      font-size: 22px;
+    }
+  }
+
+  p {
+    color: $text-light;
+    max-width: 600px;
+    margin: 0 auto;
+
+    @media (max-width: 480px) {
+      font-size: 14px;
+    }
+  }
+}
+
+// Loading Spinner
+.loader {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+
+  &-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid $border-color;
+    border-top-color: $primary-color;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// Footer
+.footer {
+  background: $secondary-color;
+  color: $white;
+  padding: 40px 0;
+  text-align: center;
+
+  @media (max-width: 480px) {
+    padding: 28px 16px;
+  }
+
+  p {
+    margin-bottom: 10px;
+    font-size: 15px;
+
+    @media (max-width: 480px) {
+      font-size: 13px;
+    }
+  }
+
+  small {
+    color: #9ca3af;
+
+    @media (max-width: 480px) {
+      font-size: 12px;
+    }
+  }
+}
+
+// Region buttons (above map)
+.region-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: white;
+  border-bottom: 2px solid #f0f0f0;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+  }
+
+  @media (max-width: 480px) {
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    justify-content: flex-start;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  button {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f5f5f5;
+    color: #333;
+    font-family: inherit;
+    white-space: nowrap;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      background: #e8e8e8;
+    }
+
+    &.active {
+      background: #d97706;
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    @media (max-width: 768px) {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+
+    @media (max-width: 480px) {
+      padding: 0.45rem 0.9rem;
+      font-size: 0.8rem;
+    }
+  }
+}
