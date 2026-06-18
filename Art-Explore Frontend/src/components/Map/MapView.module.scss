@@ -8,22 +8,20 @@ $c-bg:       #0f172a;
 $c-border:   #1e293b;
 $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
 
+// ── Map wrapper ───────────────────────────────────────────────
 .mapWrapper {
-  position:        relative;
-  height:          90vh;
-  width:           100%;
-  max-width:       1400px;
-  margin:          0 auto;
-  display:         flex;
-  flex-direction:  column;
-  gap:             0;
-  font-family:     $font;
+  position:       relative;
+  height:         90vh;
+  width:          100%;
+  max-width:      1400px;
+  margin:         0 auto;
+  display:        flex;
+  flex-direction: column;
+  font-family:    $font;
 
   @media (max-width: 768px) {
-    // Full viewport height on mobile — the map needs every pixel.
-    // GalleryCard uses position:fixed so it escapes this container.
-    height:   100svh;
-    height:   100vh; // fallback for browsers without svh
+    height:    100svh;
+    height:    100vh; // fallback for browsers without svh
     max-width: 100%;
   }
 }
@@ -36,41 +34,40 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   gap:             8px;
   padding:         10px 0;
   flex-wrap:       wrap;
-  z-index:         10;
   flex-shrink:     0;
+  z-index:         10;
 
   @media (max-width: 768px) {
-    gap:              6px;
-    padding:          8px 12px;
-    background:       rgba(255, 255, 255, 0.96);
-    backdrop-filter:  blur(8px);
+    gap:             6px;
+    padding:         8px 12px;
+    background:      rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    position:         sticky;
-    top:              0;
-    z-index:          20;
-    border-bottom:    1px solid rgba(226, 232, 240, 0.8);
+    position:        sticky;
+    top:             0;
+    z-index:         20;
+    border-bottom:   1px solid rgba(226, 232, 240, 0.8);
   }
 }
 
 .regionBtn {
-  padding:      6px 16px;
-  border-radius:20px;
-  border:       1.5px solid #cbd5e1;
-  background:   white;
-  font-size:    13px;
-  font-weight:  500;
-  cursor:       pointer;
-  color:        #475569;
-  transition:   all 0.2s ease;
-  font-family:  $font;
+  padding:       6px 16px;
+  border-radius: 20px;
+  border:        1.5px solid #cbd5e1;
+  background:    white;
+  font-size:     13px;
+  font-weight:   500;
+  cursor:        pointer;
+  color:         #475569;
+  transition:    all 0.2s ease;
+  font-family:   $font;
 
   &:hover { border-color: #94a3b8; background: #f8fafc; }
 
   @media (max-width: 768px) {
-    padding:      9px 18px;
-    font-size:    13px;
-    min-height:   40px;
-    border-width: 1.5px;
+    padding:    9px 18px;
+    font-size:  13px;
+    min-height: 40px;
   }
 
   @media (max-width: 380px) {
@@ -100,7 +97,6 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   @media (max-width: 768px) {
     padding:    9px 14px;
     min-height: 40px;
-    font-size:  12px;
   }
 
   @media (max-width: 380px) {
@@ -109,7 +105,7 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   }
 }
 
-// ── Map container ─────────────────────────────────────────────
+// ── Map canvas ────────────────────────────────────────────────
 .mapContainer {
   flex:          1;
   width:         100%;
@@ -117,9 +113,7 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   border-radius: 14px;
   overflow:      hidden;
   box-shadow:    0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10);
-  position:      relative;
-  // Ensure the map fills the remaining height after the region bar
-  min-height:    0;
+  min-height:    0; // flex child must shrink below content height
 
   @media (max-width: 768px) {
     border-radius: 0;
@@ -131,9 +125,10 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
 // ── MapLibre global overrides ─────────────────────────────────
 :global {
 
+  // Gallery marker (DOM-placed fallback; symbol layer is primary)
   .gallery-marker {
-    width:    36px;
-    height:   48px;
+    width:    28px;
+    height:   38px;
     cursor:   pointer;
     position: relative;
 
@@ -143,10 +138,14 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
       transition: all 0.2s ease;
     }
-    &:hover svg { filter: drop-shadow(0 4px 8px rgba(0,0,0,0.45)); transform: scale(1.12); }
 
-    @media (max-width: 768px) { width: 55px; height: 73px; }
-    @media (max-width: 480px) { width: 50px; height: 66px; }
+    &:hover svg {
+      filter:    drop-shadow(0 4px 8px rgba(0,0,0,0.45));
+      transform: scale(1.12);
+    }
+
+    @media (max-width: 768px) { width: 32px; height: 43px; }
+    @media (max-width: 480px) { width: 28px; height: 38px; }
   }
 
   .gallery-marker__pulse {
@@ -169,7 +168,7 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
     100% { transform: translateX(-50%) scale(1);   opacity: 0;   }
   }
 
-  // Desktop popup only — mobile suppresses it entirely
+  // Desktop popup only — suppressed entirely on mobile
   .gallery-popup-wrapper .maplibregl-popup-content {
     padding:       0;
     border-radius: 12px;
@@ -242,21 +241,17 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
     p      { margin: 0; font-size: 12px; color: #64748b; line-height: 1.4; }
   }
 
-  // MapLibre nav controls
+  // MapLibre navigation controls — mobile tweaks
   .maplibregl-ctrl-top-right {
     @media (max-width: 768px) {
-      top: 10px;
+      top:   10px;
       right: 10px;
       .maplibregl-ctrl-group button { width: 40px; height: 40px; }
     }
   }
 
   .maplibregl-ctrl-bottom-right {
-    // On mobile, nudge attribution above the bottom sheet safe zone
-    @media (max-width: 768px) {
-      bottom: 4px;
-      right:  8px;
-    }
+    @media (max-width: 768px) { bottom: 4px; right: 8px; }
   }
 
   .maplibregl-ctrl-attrib {
@@ -264,13 +259,13 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   }
 }
 
-// Touch-friendly minimum tap targets
+// ── Touch tap target minimums ─────────────────────────────────
 @media (hover: none) and (pointer: coarse) {
   .regionBtn,
   .resetBtn { min-height: 44px; }
 }
 
-// Landscape on mobile
+// ── Landscape mobile ──────────────────────────────────────────
 @media (max-width: 768px) and (orientation: landscape) {
   .mapWrapper { height: 100vh; }
   .regionBtn  { padding: 6px 12px; font-size: 12px; min-height: 36px; }
