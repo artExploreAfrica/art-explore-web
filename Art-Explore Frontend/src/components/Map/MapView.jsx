@@ -28,7 +28,7 @@ const ZOOM = { overview: 11, district: 12, street: 14, detail: 16 };
 
 const FIT_PADDING = { top: 100, bottom: 60, left: 60, right: 280 };
 // On mobile the legend is collapsed so we use tighter, balanced padding.
-// Extra bottom padding pushes the overview up above where the bottom sheet sits.
+// Extra bottom padding pushes the overview up above where the bottom sheet sits well.
 const FIT_PADDING_MOBILE = { top: 60, bottom: 220, left: 24, right: 24 };
 
 // ── create GeoJSON from galleries array ────────────────────────
