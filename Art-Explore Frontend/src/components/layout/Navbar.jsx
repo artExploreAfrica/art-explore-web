@@ -1,29 +1,45 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Menu, X, MapPin, Calendar, Search } from "lucide-react";
 import "./Navbar.scss";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navRef = useRef(null);
+
+  // Publish the navbar's real rendered height so the hero (and anything
+  // else) can do `calc(100dvh - var(--navbar-h))` instead of guessing.
+  useEffect(() => {
+    const setNavHeight = () => {
+      if (navRef.current) {
+        document.documentElement.style.setProperty(
+          "--navbar-h",
+          `${navRef.current.offsetHeight}px`
+        );
+      }
+    };
+    setNavHeight();
+    window.addEventListener("resize", setNavHeight);
+    return () => window.removeEventListener("resize", setNavHeight);
+  }, []);
 
   const scrollToSection = (sectionId) => {
     const section = document.getElementById(sectionId);
-    
+
     if (section) {
-      const navbar = document.querySelector('.navbar');
-      const navbarHeight = navbar ? navbar.offsetHeight : 70;
-      
+      const navbarHeight = navRef.current ? navRef.current.offsetHeight : 70;
+
       const sectionPosition = section.offsetTop - navbarHeight;
-            window.scrollTo({
+      window.scrollTo({
         top: sectionPosition,
-        behavior: 'smooth'  
+        behavior: 'smooth'
       });
-      
+
       setIsMenuOpen(false);
     }
   };
 
   return (
-    <nav className="navbar">
+    <nav className="navbar" ref={navRef}>
       <div className="container">
         {/* Logo - scrolls to home when clicked */}
         <a 

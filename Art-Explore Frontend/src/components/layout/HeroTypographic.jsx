@@ -97,53 +97,44 @@ export default function HeroTypographic() {
 
   return (
     <section className="ht" aria-label="Lagos Art — Hero">
-
       {/* ══════════════════════════════════════════════════════
           ZONE 1 — HERO BODY
           3-col grid: [sidebar] [left panel] [right panel]
           flex-grows to fill viewport minus ticker height
       ══════════════════════════════════════════════════════ */}
       <div className="ht__body">
-
-       
-
         {/* ── Col B: Left Panel — all text blocks ── */}
         <div className="ht__left" aria-label="Hero content">
+          <div className="ht__top-group">
+            <div className="ht__eyebrow-wrap">
+              <p className="ht__eyebrow">Lagos Art District</p>
+            </div>
 
-          {/* Eyebrow */}
-          <div className="ht__eyebrow-wrap">
-            <p className="ht__eyebrow">Lagos Art District</p>
+            <div className="ht__headline-wrap">
+              <h1 className="ht__headline">
+                Discover the
+                <br />
+                <em>galleries</em>
+                <br />
+                of Lagos island.
+              </h1>
+            </div>
+
+            <div className="ht__desc-wrap">
+              <p className="ht__desc">
+                From the landmark institutions of Victoria Island to the raw creative energy of Yaba
+                — every gallery, studio and exhibition space, mapped and ready to explore.
+              </p>
+            </div>
+
+            <div className="ht__cta-wrap">
+              <button className="ht__btn-primary">Open Map</button>
+              <button className="ht__btn-ghost">
+                Browse Galleries <ArrowIcon />
+              </button>
+            </div>
           </div>
 
-          {/* Headline */}
-          <div className="ht__headline-wrap">
-            <h1 className="ht__headline">
-              Discover the
-              <br />
-              <em>galleries</em>
-              <br />
-              of Lagos island.
-            </h1>
-          </div>
-
-          {/* Description */}
-          <div className="ht__desc-wrap">
-            <p className="ht__desc">
-              From the landmark institutions of Victoria Island to the raw
-              creative energy of Yaba — every gallery, studio and exhibition
-              space, mapped and ready to explore.
-            </p>
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="ht__cta-wrap">
-            <button className="ht__btn-primary">Open Map</button>
-            <button className="ht__btn-ghost">
-              Browse Galleries <ArrowIcon />
-            </button>
-          </div>
-
-          {/* Stats */}
           <div className="ht__stats-wrap">
             <div className="ht__stats-rule" aria-hidden="true" />
             <div className="ht__stats" role="list" aria-label="Gallery statistics">
@@ -155,17 +146,12 @@ export default function HeroTypographic() {
               ))}
             </div>
           </div>
-
         </div>
-
+        
         {/* ── Col C: Right Panel — image carousel ── */}
         <div className="ht__right" aria-label="Gallery image carousel">
-
-          
-
           {/* Carousel viewport — clips slides */}
           <div className="ht__carousel">
-
             {/* Slides — all stacked, active one visible */}
             <div className="ht__slides">
               {IMAGES.map((img, i) => (
@@ -173,7 +159,7 @@ export default function HeroTypographic() {
                   key={i}
                   src={img.src}
                   alt={img.alt}
-                  className={`ht__slide${i === activeIdx ? " ht__slide--active" : ""}`}
+                  className={`ht__slide${i === activeIdx ? ' ht__slide--active' : ''}`}
                   onError={(e) => {
                     // If this gallery CDN image 404s, fall back to the first (known-good) src
                     if (e.currentTarget.src !== IMAGES[0].src) {
@@ -184,24 +170,23 @@ export default function HeroTypographic() {
               ))}
             </div>
 
-
-
             {/* Progress dots */}
             <div className="ht__dots" aria-label="Go to slide">
               {IMAGES.map((_, i) => (
                 <button
                   key={i}
                   aria-label={`Slide ${i + 1}`}
-                  className={`ht__dot-btn${i === activeIdx ? " ht__dot-btn--active" : ""}`}
+                  className={`ht__dot-btn${i === activeIdx ? ' ht__dot-btn--active' : ''}`}
                   onClick={() => setActiveIdx(i)}
                 />
               ))}
             </div>
-
-          </div>{/* /carousel */}
-        </div>{/* /right */}
-
-      </div>{/* /body */}
+          </div>
+          {/* /carousel */}
+        </div>
+        {/* /right */}
+      </div>
+      {/* /body */}
 
       {/* ══════════════════════════════════════════════════════
           ZONE 2 — TICKER
@@ -219,7 +204,6 @@ export default function HeroTypographic() {
           ))}
         </div>
       </div>
-
     </section>
   );
 }

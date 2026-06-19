@@ -52,7 +52,7 @@ $sidebar-w : 56px;
 .ht {
   display        : flex;
   flex-direction : column;
-  height         : calc(100dvh - var(--navbar-h, 80px));
+  height         : calc(100dvh - var(--navbar-h, 70px));
   overflow       : hidden;
   background     : $white;
   font-family    : $font-body;
@@ -145,15 +145,14 @@ $sidebar-w : 56px;
   flex-direction  : column;
   justify-content : center;
   padding         : 30px 20px;
-  margin-bottom    : 20px;
   min-height      : 0;
 
   @media (max-width: 1100px) { padding: 40px 36px; }
 
   @media (max-width: 768px) {
-    order   : 2;            // below image on mobile
-    padding : 40px 24px 32px;
-    justify-content: flex-start;
+    order           : 2;            // below image on mobile
+    padding         : 40px 24px 20px;   // tightened bottom padding
+    justify-content : flex-start;   // reverted — space-between caused dead gap
   }
 
   @media (max-width: 480px) { padding: 32px 20px 28px; }
@@ -231,11 +230,15 @@ $sidebar-w : 56px;
   margin-bottom : 32px;
   animation     : fadeUp .65s $ease .3s both;
 
+  @media (max-width: 768px) {
+    margin-bottom: 10px;   // tightened — closer to stats
+  }
+
   @media (max-width: 480px) {
     flex-direction : column;
     align-items    : flex-start;
     gap            : 12px;
-    margin-bottom  : 24px;
+    margin-bottom  : 16px;   // tightened further
   }
 }
 
@@ -282,6 +285,10 @@ $sidebar-w : 56px;
 // ── Stats wrapper ─────────────────────────────────────────────
 .ht__stats-wrap {
   animation : fadeUp .65s $ease .4s both;
+
+  @media (max-width: 768px) {
+    margin-top: auto;   // flushes stats to the bottom of .ht__left, right against the ticker
+  }
 }
 
 .ht__stats-rule {
@@ -329,8 +336,8 @@ $sidebar-w : 56px;
 
   @media (max-width: 768px) {
     order: 1;
-    height: 55vw;
-    max-height: 400px;
+    height: 62vw;       // bigger on mobile — more presence, shrinks remaining text space
+    max-height: 440px;
     overflow: hidden;
   }
 }

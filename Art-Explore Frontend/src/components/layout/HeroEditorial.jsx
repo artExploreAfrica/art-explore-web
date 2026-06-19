@@ -86,7 +86,7 @@ export default function HeroEditorial() {
 
               <div className="he__headline-wrap">
                 <h1 className="he__headline">
-                  Discover the
+                  Disc the
                   <br />
                   <em>galleries</em>
                   <br />

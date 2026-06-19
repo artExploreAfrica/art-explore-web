@@ -479,30 +479,6 @@ $pad-y : 28px;
 //  overflow:hidden is THE ONLY clip in this component.
 //  flex-shrink:0 = always exactly $ticker-h, never compressed.
 // ═══════════════════════════════════════════════════════════════
-.he__ticker {
-  flex-shrink : 0;
-  width       : 100%;
-  height      : $ticker-h;
-  border-top  : 1px solid $rule;
-  overflow    : hidden;
-  display     : flex;
-  align-items : center;
-  background  : $cream;
-
-  @media (max-width: 760px) { height: 48px; }
-  @media (max-width: 400px) { height: 44px; }
-}
-
-.he__ticker-track {
-  display     : flex;
-  align-items : center;
-  white-space : nowrap;
-  animation   : he-ticker 22s linear infinite;
-  will-change : transform;
-
-  &:hover { animation-play-state: paused; }
-}
-
 .he__ticker-item {
   display        : inline-flex;
   align-items    : center;
@@ -526,17 +502,30 @@ $pad-y : 28px;
   }
 
   @media (max-width: 760px) {
-    padding   : 0 16px;
+    padding   : 8px 14px;   // was 0 16px — added vertical padding
     font-size : 9px;
     gap       : 10px;
     strong    { font-size: 10px; }
   }
 
   @media (max-width: 400px) {
-    padding : 0 12px;
+    padding : 6px 10px;    // was 0 12px — added vertical padding
     gap     : 8px;
   }
 }
+
+
+.he__ticker-track {
+  display     : flex;
+  align-items : center;
+  white-space : nowrap;
+  animation   : he-ticker 22s linear infinite;
+  will-change : transform;
+
+  &:hover { animation-play-state: paused; }
+}
+
+
 
 .he__ticker-sep {
   display    : inline-block;
