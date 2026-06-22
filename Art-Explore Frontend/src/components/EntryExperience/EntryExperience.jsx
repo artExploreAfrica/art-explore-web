@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import EntryPage from './EntryPage';
-import CinematicReel from './CinematicReel';
+import CinematicReel from './Cinematicreel';
 import './tokens.css';
 import './EntryExperience.css';
 
