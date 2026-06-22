@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Navbar from './components/layout/Navbar';
 // import Herosection3 from './components/layout/HeroTypographic.jsx';
+import EntryExperience from './components/EntryExperience/EntryExperience';
 import ArtGalleryApp from './components/gallery/ArtGalleryApp.jsx';
 import Mapheader from './components/Map/LagosMap.jsx';
 import MapView from './components/Map/MapView';
