@@ -259,6 +259,10 @@ $sidebar-w : 56px;
 
   &:hover  { background: $accent; transform: translateY(-1px); }
   &:active { transform: translateY(0); }
+  
+  @media (max-width: 768px) {
+    font-size : 15px;
+  }
 }
 
 .ht__btn-ghost {
@@ -280,6 +284,10 @@ $sidebar-w : 56px;
   &:hover     { color: $ink; }
   svg         { transition: transform .2s ease; }
   &:hover svg { transform: translateX(4px); }
+  
+  @media (max-width: 768px){
+    font-size : 17px;
+  }
 }
 
 // ── Stats wrapper ─────────────────────────────────────────────

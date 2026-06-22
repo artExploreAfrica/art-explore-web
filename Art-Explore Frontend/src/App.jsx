@@ -1,9 +1,5 @@
-// src/App.jsx
-// import { useState, useEffect } from 'react'
 import Navbar from './components/layout/Navbar';
-// import Herosection1 from './components/layout/HeroCinematic.jsx'
-// import Herosection2 from './components/layout/HeroEditorial.jsx'
-import Herosection3 from './components/layout/HeroTypographic.jsx';
+// import Herosection3 from './components/layout/HeroTypographic.jsx';
 import ArtGalleryApp from './components/gallery/ArtGalleryApp.jsx';
 import Mapheader from './components/Map/LagosMap.jsx';
 import MapView from './components/Map/MapView';
@@ -13,7 +9,7 @@ function App() {
   return (
     <div className="app">
       <Navbar />
-      <Herosection3 />
+      {/* <Herosection3 /> */}
       <Mapheader />
       <MapView />
       <ArtGalleryApp />
