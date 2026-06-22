@@ -27,7 +27,7 @@ const adminToken = bearer(signAccess(Role.ADMIN, 'admin_1'));
 
 const validBody = {
   name: 'Community Gallery',
-  type: 'GALLERY',
+  type: 'ART_GALLERY',
   address: '5 New St',
   area: 'MAINLAND',
   lat: 6.5,

@@ -365,7 +365,7 @@ router.post(
  *         schema: { type: integer, default: 20, maximum: 100 }
  *       - in: query
  *         name: status
- *         schema: { type: string, enum: [DRAFT, PENDING, APPROVED, REJECTED], default: PENDING }
+ *         schema: { type: string, enum: [PENDING, APPROVED, REJECTED], default: PENDING }
  *     responses:
  *       200: { description: Submissions }
  *       403: { description: Forbidden }
@@ -447,7 +447,7 @@ router.post(
  *     parameters:
  *       - in: query
  *         name: type
- *         schema: { type: string, enum: [GALLERY, STUDIO, CULTURAL_SPACE] }
+ *         schema: { type: string, enum: [ART_GALLERY, MUSEUM, INSTITUTE, FOUNDATION, STUDIO, CULTURAL_SPACE] }
  *     responses:
  *       200: { description: Sub-categories }
  *   post:

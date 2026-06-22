@@ -34,6 +34,12 @@ const envSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url('UPSTASH_REDIS_REST_URL must be a valid URL'),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1, 'UPSTASH_REDIS_REST_TOKEN is required'),
 
+  // Email (Resend). EMAIL_FROM must be a verified Resend sender/domain; FRONTEND_URL
+  // is the public web app base used to build password-reset links.
+  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
+  EMAIL_FROM: z.string().email('EMAIL_FROM must be a valid email address'),
+  FRONTEND_URL: z.string().url('FRONTEND_URL must be a valid URL'),
+
   // Seed (optional at runtime; required only when running the seed script)
   SEED_SUPER_ADMIN_NAME: z.string().optional(),
   SEED_SUPER_ADMIN_EMAIL: z.string().email().optional(),

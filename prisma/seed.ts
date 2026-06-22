@@ -4,8 +4,11 @@ import {
   Prisma,
   PrismaClient,
   Role,
+  TagCategory,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -50,11 +53,11 @@ async function seedSuperAdmin(): Promise<void> {
 /**
  * Gallery import.
  *
- * The client maintains ~90 galleries in a Google Sheet. Coordinate with the PM
- * to export that sheet to `prisma/data/galleries.json` matching the shape below,
- * then this loop upserts each one idempotently (keyed by name + address).
- *
- * Until the CSV/JSON export is supplied, this is a no-op with a clear notice.
+ * Source of truth is `institutions-with-images.csv` at the repo root (produced
+ * from the client's Google Sheet). Each row is upserted idempotently, keyed by
+ * name + address. Text fields only — the `images` column is intentionally not
+ * imported; images are curated and uploaded later via the admin UI, and the
+ * update path below never touches `images`, so re-seeding preserves them.
  */
 interface GallerySeed {
   name: string;
@@ -72,18 +75,110 @@ interface GallerySeed {
   isPublished?: boolean;
 }
 
-async function seedGalleries(): Promise<void> {
-  let galleries: GallerySeed[] = [];
+/** Split a single CSV line, honouring quoted fields and "" escapes. */
+function parseCsvRow(line: string): string[] {
+  const result: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      result.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  result.push(cur);
+  return result;
+}
 
+/** Parse and validate the gallery CSV into GallerySeed rows. */
+function loadGalleriesFromCsv(): GallerySeed[] {
+  const csvPath = path.resolve(__dirname, '..', 'institutions-with-images.csv');
+
+  let content: string;
   try {
-    // Lazy require so a missing file does not crash the whole seed.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    galleries = require('./data/galleries.json') as GallerySeed[];
+    content = fs.readFileSync(csvPath, 'utf-8');
   } catch {
     console.warn(
-      '⚠️  No prisma/data/galleries.json found — skipping gallery import. ' +
-        'Export the client Google Sheet to that path to seed the ~90 galleries.',
+      '⚠️  institutions-with-images.csv not found at repo root — skipping gallery import.',
     );
+    return [];
+  }
+
+  const lines = content.replace(/\r\n/g, '\n').split('\n').filter((l) => l.trim());
+  const headers = parseCsvRow(lines[0]);
+  const validTypes = new Set<string>(Object.values(InstitutionType));
+  const validAreas = new Set<string>(Object.values(Area));
+
+  const galleries: GallerySeed[] = [];
+  let skipped = 0;
+
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCsvRow(lines[i]);
+    const row: Record<string, string> = {};
+    headers.forEach((h, idx) => {
+      row[h] = (values[idx] ?? '').trim();
+    });
+
+    const lat = Number(row.lat);
+    const lng = Number(row.lng);
+    // Drop any row that fails the hard constraints — this also filters out
+    // garbage produced if a description ever contained an embedded newline.
+    if (
+      !row.name ||
+      !validTypes.has(row.type) ||
+      !validAreas.has(row.area) ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng)
+    ) {
+      skipped++;
+      continue;
+    }
+
+    let openingHours: Prisma.InputJsonValue | undefined;
+    if (row.openingHours) {
+      try {
+        openingHours = JSON.parse(row.openingHours);
+      } catch {
+        openingHours = undefined;
+      }
+    }
+
+    galleries.push({
+      name: row.name,
+      description: row.description || undefined,
+      type: row.type as InstitutionType,
+      address: row.address,
+      area: row.area as Area,
+      lat,
+      lng,
+      website: row.website || undefined,
+      phone: row.phone || undefined,
+      email: row.email || undefined,
+      openingHours,
+    });
+  }
+
+  if (skipped > 0) {
+    console.warn(`⚠️  Skipped ${skipped} malformed CSV row(s) during gallery import.`);
+  }
+  return galleries;
+}
+
+async function seedGalleries(): Promise<void> {
+  const galleries = loadGalleriesFromCsv();
+
+  if (galleries.length === 0) {
+    console.warn('⚠️  No galleries to import — skipping.');
     return;
   }
 
@@ -95,9 +190,12 @@ async function seedGalleries(): Promise<void> {
     });
 
     // Tags are now a relation — connectOrCreate upserts each Tag by name.
+    // Tags created on the fly here default to label = name, category = STYLE
+    // (matching the v2 migration backfill); the curated vocabulary is seeded by
+    // seedTags().
     const tagConnect = (g.tags ?? []).map((name) => ({
       where: { name },
-      create: { name },
+      create: { name, label: name, category: TagCategory.STYLE },
     }));
 
     const data: Prisma.InstitutionCreateInput = {
@@ -131,9 +229,9 @@ async function seedGalleries(): Promise<void> {
 /** A small starter set of admin-managed sub-categories, idempotent by (type, name). */
 async function seedSubCategories(): Promise<void> {
   const subCategories: { name: string; type: InstitutionType }[] = [
-    { name: 'Contemporary', type: InstitutionType.GALLERY },
-    { name: 'Photography', type: InstitutionType.GALLERY },
-    { name: 'Modern', type: InstitutionType.GALLERY },
+    { name: 'Contemporary', type: InstitutionType.ART_GALLERY },
+    { name: 'Photography', type: InstitutionType.ART_GALLERY },
+    { name: 'Modern', type: InstitutionType.ART_GALLERY },
     { name: 'Painting Studio', type: InstitutionType.STUDIO },
     { name: 'Sculpture Studio', type: InstitutionType.STUDIO },
     { name: 'Museum', type: InstitutionType.CULTURAL_SPACE },
@@ -151,12 +249,33 @@ async function seedSubCategories(): Promise<void> {
   console.log(`✅ Seeded ${subCategories.length} sub-categories`);
 }
 
-/** A starter tag list, idempotent by unique name. */
+/** The v2 predefined tag vocabulary, idempotent by unique name (slug). */
 async function seedTags(): Promise<void> {
-  const tags = ['Contemporary', 'Abstract', 'Sculpture', 'Photography', 'Mixed Media'];
+  const tags: { name: string; label: string; category: TagCategory }[] = [
+    { name: 'WOMEN_OWNED', label: 'Women Owned', category: TagCategory.OWNERSHIP },
+    { name: 'BLACK_OWNED', label: 'Black Owned', category: TagCategory.OWNERSHIP },
+    { name: 'ARTIST_LED', label: 'Artist Led', category: TagCategory.OWNERSHIP },
+    { name: 'LIVE_EXHIBITION', label: 'Live Exhibition', category: TagCategory.FORMAT },
+    { name: 'BY_APPOINTMENT', label: 'By Appointment', category: TagCategory.FORMAT },
+    { name: 'ONLINE', label: 'Online', category: TagCategory.FORMAT },
+    { name: 'OUR_PICKS', label: 'Our Picks', category: TagCategory.CURATION },
+    { name: 'NEW_ARRIVAL', label: 'New Arrival', category: TagCategory.CURATION },
+    { name: 'FEATURED', label: 'Featured', category: TagCategory.CURATION },
+    { name: 'CONTEMPORARY', label: 'Contemporary', category: TagCategory.STYLE },
+    { name: 'MODERN', label: 'Modern', category: TagCategory.STYLE },
+    { name: 'PHOTOGRAPHY', label: 'Photography', category: TagCategory.STYLE },
+    { name: 'SCULPTURE', label: 'Sculpture', category: TagCategory.STYLE },
+    { name: 'DIGITAL_ART', label: 'Digital Art', category: TagCategory.STYLE },
+    { name: 'TEXTILE', label: 'Textile & Fabric', category: TagCategory.STYLE },
+    { name: 'MIXED_MEDIA', label: 'Mixed Media', category: TagCategory.STYLE },
+  ];
 
-  for (const name of tags) {
-    await prisma.tag.upsert({ where: { name }, update: {}, create: { name } });
+  for (const tag of tags) {
+    await prisma.tag.upsert({
+      where: { name: tag.name },
+      update: { label: tag.label, category: tag.category },
+      create: tag,
+    });
   }
 
   console.log(`✅ Seeded ${tags.length} tags`);

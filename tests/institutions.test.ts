@@ -21,7 +21,7 @@ const sampleInstitution = {
   id: 'inst_1',
   name: 'Test Gallery',
   description: 'A gallery',
-  type: 'GALLERY',
+  type: 'ART_GALLERY',
   address: '1 Test St',
   area: 'ISLAND',
   lat: 6.45,
@@ -100,7 +100,7 @@ describe('GET /api/v1/institutions/map', () => {
 
   it('returns lightweight pins', async () => {
     mocks.prisma.institution.findMany.mockResolvedValue([
-      { id: 'inst_1', name: 'Test Gallery', lat: 6.45, lng: 3.4, type: 'GALLERY' },
+      { id: 'inst_1', name: 'Test Gallery', lat: 6.45, lng: 3.4, type: 'ART_GALLERY' },
     ]);
 
     const res = await request(app).get('/api/v1/institutions/map');

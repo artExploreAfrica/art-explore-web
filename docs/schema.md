@@ -2,7 +2,7 @@
 
 **Stack:** PostgreSQL via Prisma ORM. Source of truth: [`prisma/schema.prisma`](../prisma/schema.prisma).
 
-This document describes every model, field, and relationship in plain language. It mirrors the diagram in [`ArtExplore_DB_Diagram.md`](../ArtExplore_DB_Diagram.md).
+This document describes every model, field, and relationship in plain language. It mirrors the diagram in [`ArtExplore_DB_Diagram_v2.md`](../ArtExplore_DB_Diagram_v2.md), with two retained extensions not in v2: the `SUPER_ADMIN`/`ADMIN`/`USER` roles and the `SubCategory` model.
 
 ---
 
@@ -43,12 +43,17 @@ Admin-managed sub-classification nested under an `InstitutionType` (e.g. `GALLER
 
 ### Tag
 Admin-curated tag, many-to-many with `Institution` (implicit join `_InstitutionToTag`).
-Replaces the former freeform `Institution.tags` string array.
+Replaces the former freeform `Institution.tags` string array. A controlled
+vocabulary: `name` is a machine slug, `label` the display text, and `category`
+groups tags (v2). The v2 diagram's explicit `InstitutionTag` junction carries no
+extra columns, so Prisma's implicit M2M join is the equivalent representation.
 
 | Field | Type | Notes |
 |---|---|---|
 | `id` | String (cuid) | Primary key |
-| `name` | String | **Unique** |
+| `name` | String | **Unique** — machine slug, e.g. `WOMEN_OWNED` |
+| `label` | String | Display label, e.g. `Women Owned` (defaults to `name` on create) |
+| `category` | `TagCategory` | `OWNERSHIP` / `STYLE` / `CURATION` / `FORMAT` |
 | `institutions` | `Institution[]` | Many-to-many relation |
 | `createdAt` / `updatedAt` | DateTime | Timestamps |
 
@@ -60,7 +65,7 @@ A discoverable art venue (gallery, studio, or cultural space).
 | `id` | String (cuid) | Primary key |
 | `name` | String | Venue name |
 | `description` | String? | Optional long text |
-| `type` | `InstitutionType` | `GALLERY` / `STUDIO` / `CULTURAL_SPACE` |
+| `type` | `InstitutionType` | `ART_GALLERY` / `MUSEUM` / `INSTITUTE` / `FOUNDATION` / `STUDIO` / `CULTURAL_SPACE` |
 | `address` | String | Street address |
 | `area` | `Area` | `ISLAND` / `MAINLAND` / `OTHER` |
 | `lat` | Float | Latitude (map pin) |
@@ -74,7 +79,7 @@ A discoverable art venue (gallery, studio, or cultural space).
 | `subCategory` | `SubCategory?` | Relation |
 | `tags` | `Tag[]` | Many-to-many — admin-curated tags (was a `String[]`) |
 | `exhibitions` | `Exhibition[]` | Reverse relation — exhibitions hosted here |
-| `hasActiveExhibition` | Boolean | Default `false`; recomputed on every exhibition write |
+| `hasExhibition` | Boolean | Default `false`; recomputed on every exhibition write (true when the institution has ≥1 approved exhibition) |
 | `approvalStatus` | `ApprovalStatus` | Default `APPROVED`; USER submissions start `PENDING` |
 | `submittedById` | String? (FK → User.id) | The USER who submitted it (null for admin-created) |
 | `reviewedById` | String? (FK → User.id) | The admin who approved/rejected it |
@@ -85,7 +90,7 @@ A discoverable art venue (gallery, studio, or cultural space).
 | `createdAt` | DateTime | Set on insert |
 | `updatedAt` | DateTime | Auto-updated |
 
-Indexed on `area`, `type`, `isPublished`, `deletedAt`, `subCategoryId`, `hasActiveExhibition`, `approvalStatus`, and `submittedById`.
+Indexed on `area`, `type`, `isPublished`, `deletedAt`, `subCategoryId`, `hasExhibition`, `approvalStatus`, and `submittedById`.
 
 > **Delete vs. unpublish:** `isPublished` and `deletedAt` are independent. Unpublishing hides a venue from the public list but keeps it editable; deleting (sets `deletedAt`) removes it from every query and blocks further edits/publish.
 >
@@ -93,22 +98,30 @@ Indexed on `area`, `type`, `isPublished`, `deletedAt`, `subCategoryId`, `hasActi
 
 ### Exhibition
 An exhibition hosted by an institution. One institution → many exhibitions.
+Carries its own submission/approval workflow (v2), mirroring Institution.
 
 | Field | Type | Notes |
 |---|---|---|
 | `id` | String (cuid) | Primary key |
 | `institutionId` | String (FK → Institution.id) | Parent institution (`onDelete: Cascade`) |
-| `title` | String | Exhibition title |
-| `date` | DateTime | Start date |
-| `endDate` | DateTime? | Optional end date (used for the "active" calculation) |
-| `time` | String? | Free text, e.g. `"10:00 - 18:00"` |
-| `image` | String? | S3 object URL |
-| `socialLink` | String? | Social-media / external link |
+| `name` | String | Exhibition title |
+| `images` | String[] | Array of S3 object URLs |
+| `startDate` | DateTime | Start date |
+| `endDate` | DateTime | End date |
+| `startTime` | String | Daily start, e.g. `"10:00"` |
+| `endTime` | String | Daily end, e.g. `"18:00"` |
+| `link` | String? | Social-media / ticketing URL |
+| `description` | String? | Curatorial note |
+| `approvalStatus` | `ApprovalStatus` | Default `PENDING`; admin-created exhibitions are set `APPROVED` |
+| `submittedById` | String? (FK → User.id) | Who submitted it |
+| `approvedById` | String? (FK → User.id) | Admin who approved/rejected it |
+| `approvedAt` | DateTime? | When it was approved |
+| `isActive` | Boolean | Default `false`; admin-created exhibitions are set `true` |
 | `createdAt` / `updatedAt` | DateTime | Timestamps |
 
-Indexed on `institutionId` and `date`. After any exhibition write the parent's
-`hasActiveExhibition` is recomputed (`true` when any exhibition has
-`coalesce(endDate, date) >= start of today`).
+Indexed on `institutionId`, `startDate`, `approvalStatus`, `submittedById`, and
+`approvedById`. After any exhibition write the parent's `hasExhibition` is
+recomputed (`true` when the institution has ≥1 approved exhibition).
 
 ### AuditLog
 An immutable trail of every admin write action.
@@ -150,13 +163,15 @@ Indexed on `actorId`, `(targetModel, targetId)`, and `timestamp`.
 
 **Role** — `SUPER_ADMIN` (manage admins + all content), `ADMIN` (manage institution content only), `USER` (public account; submits institutions for review).
 
-**InstitutionType** — `GALLERY`, `STUDIO`, `CULTURAL_SPACE`.
+**InstitutionType** — `ART_GALLERY`, `MUSEUM`, `INSTITUTE`, `FOUNDATION`, `STUDIO`, `CULTURAL_SPACE`.
 
 **Area** — `ISLAND` (Lagos Island), `MAINLAND` (Lagos Mainland), `OTHER`.
 
-**ApprovalStatus** — `DRAFT`, `PENDING` (awaiting review), `APPROVED`, `REJECTED`.
+**ApprovalStatus** — `PENDING` (awaiting review), `APPROVED`, `REJECTED`. Shared by Institution and Exhibition.
 
-**AuditAction** — `CREATE`, `UPDATE`, `DELETE` (soft delete → sets `deletedAt`), `PUBLISH`, `UNPUBLISH`, `DEACTIVATE`, `IMAGE_UPLOAD`, `SUBMIT`, `APPROVE`, `REJECT`.
+**TagCategory** — `OWNERSHIP`, `STYLE`, `CURATION`, `FORMAT`.
+
+**AuditAction** — `CREATE`, `UPDATE`, `DELETE` (soft delete → sets `deletedAt`), `PUBLISH`, `UNPUBLISH`, `DEACTIVATE`, `IMAGE_UPLOAD`, `SUBMIT`, `APPROVE`, `REJECT`, plus the v2 granular actions `APPROVE_USER`, `REJECT_USER`, `APPROVE_INSTITUTION`, `REJECT_INSTITUTION`, `EXHIBITION_CREATE`, `EXHIBITION_UPDATE`, `EXHIBITION_DELETE`, `APPROVE_EXHIBITION`, `REJECT_EXHIBITION`.
 
 **TargetModel** — `INSTITUTION`, `USER`, `SUBCATEGORY`, `TAG`, `EXHIBITION`.
 

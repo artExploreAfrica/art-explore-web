@@ -119,9 +119,8 @@ address — ensure exactly one proxy hop forwards `X-Forwarded-For`.
 Set `ALLOWED_ORIGINS` to a comma-separated list of frontend domains before
 go-live; while it is empty the API reflects any origin (development default).
 The auth endpoints (`/api/v1/auth/*`) are rate limited to 20 requests per IP per
-15 minutes to blunt credential brute-forcing. The limiter uses an in-memory
-store — adequate for a single instance; front it with a shared store if you run
-multiple instances.
+15 minutes to blunt credential brute-forcing. The limiter is backed by Upstash
+Redis, so limit state survives restarts and is shared across instances.
 
 ---
 

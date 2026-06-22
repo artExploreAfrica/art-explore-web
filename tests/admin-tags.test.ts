@@ -27,7 +27,9 @@ const adminToken = bearer(signAccess(Role.ADMIN, 'admin_1'));
 
 const stored = {
   id: 'tag_1',
-  name: 'Abstract',
+  name: 'ABSTRACT',
+  label: 'Abstract',
+  category: 'STYLE',
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -46,7 +48,7 @@ describe('POST /api/v1/admin/tags', () => {
     const res = await request(app)
       .post('/api/v1/admin/tags')
       .set(adminToken)
-      .send({ name: 'Abstract' });
+      .send({ name: 'ABSTRACT', label: 'Abstract', category: 'STYLE' });
 
     expect(res.status).toBe(201);
     expect(mocks.prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({
@@ -68,7 +70,7 @@ describe('POST /api/v1/admin/tags', () => {
     const res = await request(app)
       .post('/api/v1/admin/tags')
       .set(adminToken)
-      .send({ name: 'Abstract' });
+      .send({ name: 'ABSTRACT', label: 'Abstract', category: 'STYLE' });
 
     expect(res.status).toBe(409);
   });

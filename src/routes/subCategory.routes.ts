@@ -27,7 +27,7 @@ const router = Router();
  *         schema: { type: integer, default: 20, maximum: 100 }
  *       - in: query
  *         name: type
- *         schema: { type: string, enum: [GALLERY, STUDIO, CULTURAL_SPACE] }
+ *         schema: { type: string, enum: [ART_GALLERY, MUSEUM, INSTITUTE, FOUNDATION, STUDIO, CULTURAL_SPACE] }
  *     responses:
  *       200:
  *         description: A paginated list of sub-categories

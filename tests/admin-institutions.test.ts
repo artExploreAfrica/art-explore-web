@@ -19,7 +19,7 @@ import app from '../src/app';
 
 const validBody = {
   name: 'New Gallery',
-  type: 'GALLERY',
+  type: 'ART_GALLERY',
   address: '1 Test St',
   area: 'ISLAND',
   lat: 6.45,
