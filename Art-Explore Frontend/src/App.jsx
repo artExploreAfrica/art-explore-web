@@ -7,6 +7,13 @@ import MapView from './components/Map/MapView';
 import './App.scss';
 
 function App() {
+
+ const [entered, setEntered] = useState(false);
+
+ if (!entered) {
+   return <EntryExperience onComplete={() => setEntered(true)} />;
+ }
+
   return (
     <div className="app">
       <Navbar />
