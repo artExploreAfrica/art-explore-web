@@ -1,0 +1,18 @@
+.entry-experience {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  opacity: 1;
+  transition: opacity 0.8s ease;
+}
+
+.entry-experience.is-exiting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry-experience {
+    transition: opacity 0.2s linear;
+  }
+}
