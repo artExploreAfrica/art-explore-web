@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Navbar from './components/layout/Navbar';
 // import Herosection3 from './components/layout/HeroTypographic.jsx';
 import ArtGalleryApp from './components/gallery/ArtGalleryApp.jsx';
