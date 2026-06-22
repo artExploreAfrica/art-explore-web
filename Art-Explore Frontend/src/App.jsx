@@ -17,6 +17,7 @@ function App() {
 
   return (
     <div className="app">
+      <EntryExperience />
       <Navbar />
       {/* <Herosection3 /> */}
       <Mapheader />

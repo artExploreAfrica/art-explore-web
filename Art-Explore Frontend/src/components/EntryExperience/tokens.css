@@ -1,0 +1,31 @@
+/*
+  EntryExperience design tokens
+  -----------------------------
+  Reuses the ArtExplore brand palette (deep brown / terracotta / cream)
+  rather than introducing a separate "cinematic" palette, so the entry
+  feature feels like part of the same brand, not a bolted-on intro screen.
+
+  Fonts assumed already loaded by the app (Playfair Display + DM Sans).
+  If they aren't yet loaded globally, add the Google Fonts <link> or
+  @font-face rules to your main index.html / global stylesheet.
+*/
+
+.entry-experience {
+  --ee-ink: #1b1410;          /* near-black warm brown, base background */
+  --ee-ink-soft: #2a1f17;     /* slightly lighter brown for gradients */
+  --ee-terracotta: #c8391a;   /* brand accent, reused */
+  --ee-clay: #8c5a3c;         /* warm mid-brown */
+  --ee-cream: #f4ecdf;        /* warm off-white for text on dark */
+  --ee-gold-glow: rgba(200, 57, 26, 0.45); /* terracotta-based glow, not a separate gold */
+
+  --ee-font-display: "Playfair Display", "Georgia", serif;
+  --ee-font-body: "DM Sans", "Helvetica Neue", Arial, sans-serif;
+
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--ee-ink);
+  color: var(--ee-cream);
+  font-family: var(--ee-font-body);
+}
