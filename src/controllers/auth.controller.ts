@@ -4,11 +4,13 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { successResponse } from '../utils/response';
 import {
   ChangePasswordInput,
+  ForgotPasswordInput,
   LoginInput,
   LogoutInput,
   PublicRegisterInput,
   RefreshInput,
   RegisterInput,
+  ResetPasswordInput,
 } from '../validators/auth.validator';
 
 export const register = asyncHandler(async (req: Request, res: Response) => {
@@ -40,6 +42,23 @@ export const logout = asyncHandler(async (req: Request, res: Response) => {
   const { refreshToken } = req.body as LogoutInput;
   await authService.logout(refreshToken);
   return successResponse(res, null, 'Logged out successfully');
+});
+
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body as ForgotPasswordInput;
+  await authService.forgotPassword(email);
+  // Always 200 with a generic message so callers can't probe which emails exist.
+  return successResponse(
+    res,
+    null,
+    'If that email is registered, a password reset link has been sent',
+  );
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { token, newPassword } = req.body as ResetPasswordInput;
+  await authService.resetPassword(token, newPassword);
+  return successResponse(res, null, 'Password reset successfully');
 });
 
 export const me = asyncHandler(async (req: Request, res: Response) => {

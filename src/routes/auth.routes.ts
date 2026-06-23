@@ -7,11 +7,13 @@ import { roleGuard } from '../middleware/roleGuard';
 import { validate } from '../middleware/validate';
 import {
   changePasswordSchema,
+  forgotPasswordSchema,
   loginSchema,
   logoutSchema,
   publicRegisterSchema,
   refreshSchema,
   registerSchema,
+  resetPasswordSchema,
 } from '../validators/auth.validator';
 
 const router = Router();
@@ -149,6 +151,58 @@ router.post('/refresh', validate({ body: refreshSchema }), authController.refres
  *       200: { description: Logged out }
  */
 router.post('/logout', validate({ body: logoutSchema }), authController.logout);
+
+/**
+ * @swagger
+ * /api/v1/auth/forgot-password:
+ *   post:
+ *     summary: Request a password reset link (emailed if the account exists)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string, format: email }
+ *     responses:
+ *       200: { description: Always returned, regardless of whether the email is registered }
+ *       400: { description: Validation error }
+ */
+router.post(
+  '/forgot-password',
+  validate({ body: forgotPasswordSchema }),
+  authController.forgotPassword,
+);
+
+/**
+ * @swagger
+ * /api/v1/auth/reset-password:
+ *   post:
+ *     summary: Set a new password using a reset token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, newPassword]
+ *             properties:
+ *               token: { type: string, description: Token from the reset link }
+ *               newPassword: { type: string, minLength: 8 }
+ *     responses:
+ *       200: { description: Password reset; existing sessions revoked }
+ *       400: { description: Validation error }
+ *       401: { description: Invalid or expired reset token }
+ */
+router.post(
+  '/reset-password',
+  validate({ body: resetPasswordSchema }),
+  authController.resetPassword,
+);
 
 /**
  * @swagger

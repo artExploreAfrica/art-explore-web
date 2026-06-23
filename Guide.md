@@ -55,6 +55,8 @@ Build and document all endpoints the frontend needs:
 - `POST /api/auth/login` — returns access + refresh tokens
 - `POST /api/auth/refresh` — refresh access token
 - `POST /api/auth/logout` — invalidate refresh token (deletes token from Upstash Redis)
+- `POST /api/auth/forgot-password` — request a password reset link (emailed via Resend; always returns 200 to avoid account enumeration)
+- `POST /api/auth/reset-password` — set a new password using a single-use reset token (1-hour TTL, stored hashed in Upstash Redis); revokes existing sessions on success
 
 **Galleries / Institutions**
 - `GET /api/institutions` — paginated list, supports filtering by area (ISLAND/MAINLAND), type, and text search

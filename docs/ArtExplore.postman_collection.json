@@ -18,6 +18,10 @@
       "value": ""
     },
     {
+      "key": "resetToken",
+      "value": ""
+    },
+    {
       "key": "institutionId",
       "value": ""
     },
@@ -155,6 +159,42 @@
               "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/auth/logout"
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@artexplore.africa\"\n}"
+            },
+            "description": "Always returns 200. If the email is registered and active, a reset link is emailed to {{FRONTEND_URL}}/reset-password?token=... Paste that token into the resetToken collection variable for the next request.",
+            "url": "{{baseUrl}}/api/v1/auth/forgot-password"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"a-stronger-password\"\n}"
+            },
+            "description": "Single-use token from the reset email (expires in 1 hour). On success the password is changed and existing sessions are revoked.",
+            "url": "{{baseUrl}}/api/v1/auth/reset-password"
           }
         },
         {

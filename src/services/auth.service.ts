@@ -1,6 +1,8 @@
 import { AuditAction, Role, TargetModel, User } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import prisma from '../config/db';
+import { env } from '../config/env';
 import { redis } from '../config/redis';
 import {
   ConflictError,
@@ -8,6 +10,7 @@ import {
   UnauthorizedError,
 } from '../utils/AppError';
 import { auditLog } from '../utils/auditLogger';
+import { sendPasswordResetEmail } from '../utils/mailer';
 import {
   signAccessToken,
   signRefreshToken,
@@ -17,8 +20,17 @@ import { JwtPayload } from '../types/auth';
 
 const BCRYPT_ROUNDS = 10;
 const REFRESH_TTL_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const RESET_TTL_SECONDS = 60 * 60; // 1 hour
 
 const refreshKey = (userId: string): string => `refresh:${userId}`;
+const resetKey = (tokenHash: string): string => `reset:${tokenHash}`;
+
+/**
+ * Deterministic SHA-256 of a reset token so we can look it up by key. Only the
+ * hash is stored in Redis — a Redis read never yields a usable token.
+ */
+const hashResetToken = (token: string): string =>
+  crypto.createHash('sha256').update(token).digest('hex');
 
 /** Public-safe user shape — never expose the password hash. */
 export type SafeUser = Omit<User, 'password'>;
@@ -194,6 +206,58 @@ export const changePassword = async (
 
   await auditLog(userId, AuditAction.UPDATE, TargetModel.USER, userId, {
     action: 'password_change',
+  });
+};
+
+/**
+ * Begin a password reset. Generates a single-use token, stores only its hash in
+ * Redis (`reset:{hash}` → userId, 1-hour TTL), and emails a reset link. Always
+ * resolves without revealing whether the email is registered, and only acts for
+ * active accounts.
+ */
+export const forgotPassword = async (email: string): Promise<void> => {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user || !user.isActive) return;
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashResetToken(rawToken);
+  await redis.set(resetKey(tokenHash), user.id, { ex: RESET_TTL_SECONDS });
+
+  // Trim a trailing slash so we never emit "//reset-password".
+  const base = env.FRONTEND_URL.replace(/\/$/, '');
+  const resetUrl = `${base}/reset-password?token=${rawToken}`;
+
+  // Best-effort send — a mail failure must not leak account existence.
+  await sendPasswordResetEmail(user.email, user.fullName, resetUrl);
+};
+
+/**
+ * Complete a password reset. Validates the single-use token, sets the new
+ * password, consumes the token, and revokes existing sessions so the reset is
+ * effective immediately.
+ */
+export const resetPassword = async (
+  token: string,
+  newPassword: string,
+): Promise<void> => {
+  const tokenHash = hashResetToken(token);
+  const userId = await redis.get<string>(resetKey(tokenHash));
+  if (!userId) throw UnauthorizedError('Invalid or expired reset token');
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user || !user.isActive) {
+    throw UnauthorizedError('Invalid or expired reset token');
+  }
+
+  const hashed = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  await prisma.user.update({ where: { id: userId }, data: { password: hashed } });
+
+  // Consume the token and force re-authentication on any active session.
+  await redis.del(resetKey(tokenHash));
+  await redis.del(refreshKey(userId));
+
+  await auditLog(userId, AuditAction.UPDATE, TargetModel.USER, userId, {
+    action: 'password_reset',
   });
 };
 
