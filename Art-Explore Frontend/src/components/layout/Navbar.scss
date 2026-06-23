@@ -1,0 +1,109 @@
+.navbar {
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
+  .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 70px;
+    padding: 0 16px;
+
+    @media (max-width: 480px) {
+      height: 60px;
+    }
+  }
+
+  .logo {
+    font-size: 28px;
+    font-weight: bold;
+    font-family: "Lobster", sans-serif;
+    color: #1f2937;
+    text-decoration: none;
+
+    @media (max-width: 480px) {
+      font-size: 22px;
+    }
+
+    span {
+      color: #d97706;
+    }
+  }
+
+  .mobile-menu-btn {
+    display: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    color: #1f2937;
+
+    @media (max-width: 768px) {
+      display: block;
+    }
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 30px;
+    list-style: none;
+
+    a {
+      text-decoration: none;
+      color: #666;
+      font-size: 15px;
+      transition: color 0.3s;
+
+      &:hover {
+        color: #d97706;
+      }
+    }
+
+    @media (max-width: 768px) {
+      display: none;
+      position: absolute;
+      top: 70px;
+      left: 0;
+      right: 0;
+      background: white;
+      flex-direction: column;
+      padding: 20px;
+      text-align: center;
+      gap: 15px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+
+      &.active {
+        display: flex;
+      }
+    }
+
+    @media (max-width: 480px) {
+      top: 60px;
+      padding: 16px;
+      gap: 12px;
+
+      a {
+        font-size: 16px; // slightly larger tap target
+        padding: 4px 0;
+        display: block;
+      }
+    }
+  }
+
+  .nav-actions {
+    .search-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      color: #666;
+
+      &:hover {
+        color: #d97706;
+      }
+    }
+  }
+}

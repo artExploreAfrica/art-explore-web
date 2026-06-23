@@ -1,0 +1,547 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&family=DM+Sans:wght@300;400;500&display=swap');
+
+// ═══════════════════════════════════════════════════════════════
+//  DESIGN TOKENS
+// ═══════════════════════════════════════════════════════════════
+$font-display : 'Playfair Display', Georgia, serif;
+$font-body    : 'DM Sans', sans-serif;
+
+$cream  : #f5f0e8;
+$ink    : #0e0e0e;
+$muted  : #6b6b6b;
+$rule   : #d8d3cc;
+$accent : #c8391a;
+$white  : #ffffff;
+$ease   : cubic-bezier(.4, 0, .2, 1);
+
+// Single source of truth for the ticker strip height.
+// Changing this one number adjusts content zone automatically.
+$ticker-h : 60px;
+
+// Horizontal padding inside he__content.
+// Also used to compute image column breathing room.
+$pad-x : 32px;
+$pad-y : 28px;
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SIZE MAP  (1440 × 900 viewport, 80px navbar)
+//
+//  .he               1440 × 820px  (100vw × (100dvh−navbar))
+//  .he__grid         1440 × 820px  (grid: 1fr | 1fr)
+//  .he__left          720 × 820px  (50vw, flex column)
+//    .he__content     720 × 760px  (flex:1, space-between)
+//    .he__ticker      720 ×  60px  (fixed, flex-shrink:0)
+//  .he__right         720 × 820px  (50vw, image absolute)
+//    .he__image       720 × 820px  (inset:0, object-fit:cover)
+//
+//  Mobile (390px wide, 760px breakpoint):
+//  .he__grid  single column, rows: [image] [text]
+//  .he__right   390 × 195px  (50vw — exactly half viewport width)
+//  .he__left    390 × auto   (content height + ticker)
+//    .he__content  padding-bottom: 0 ← zero gap before ticker
+//    .he__ticker   390 × 48px
+// ═══════════════════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════════════════
+//  ANIMATIONS
+// ═══════════════════════════════════════════════════════════════
+@keyframes he-fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes he-imgReveal {
+  from { opacity: 0;  transform: scale(1.04); }
+  to   { opacity: 1;  transform: scale(1); }  // full opacity = full-width fill
+}
+
+@keyframes he-ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  ROOT  .he
+// ═══════════════════════════════════════════════════════════════
+.he {
+  width       : 100%;
+  background  : $cream;
+  font-family : $font-body;
+  position    : relative;
+
+  // Desktop: hard height so ticker is always on-screen.
+  // Set :root { --navbar-h: 80px; } in your global CSS.
+  height   : calc(100dvh - var(--navbar-h, 80px));
+  overflow : hidden;
+
+  @media (max-width: 760px) {
+    height   : auto;    // content drives height on mobile
+    overflow : visible;
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  GRID  .he__grid
+//  1fr | 1fr = exactly 50% / 50%. No sidebar. No offsets.
+// ═══════════════════════════════════════════════════════════════
+.he__grid {
+  display               : grid;
+  grid-template-columns : 1fr 1fr;
+  grid-template-rows    : 1fr;
+  width                 : 100%;
+  height                : 100%;
+
+  @media (max-width: 760px) {
+    grid-template-columns : 1fr;
+    grid-template-rows    : auto auto;
+    align-items           : start;  // rows shrink to content, no stretching
+    height                : auto;
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  RIGHT COLUMN  .he__right
+//
+//  KEY FIX — image fills 100%:
+//  he-imgReveal now ends at opacity:1 (not 0.88). Previously the
+//  image was semi-transparent which made it look narrow/cropped.
+//  width:100% is explicit so grid rounding never leaves a 1px gap.
+//
+//  Mobile: height = 50vw (exactly half the viewport width).
+//  This gives the image the same proportional weight as the
+//  text column below it. No max-height cap — let it breathe.
+// ═══════════════════════════════════════════════════════════════
+.he__right {
+  position : relative;
+  overflow : hidden;
+  width    : 100%;
+  height   : 100%;
+
+  @media (max-width: 760px) {
+    order  : 1;           // image on top on mobile
+    height : 50vw;        // exactly 50% of viewport width
+    // NO max-height — let it fill proportionally at every screen size
+  }
+}
+
+// Image: absolute fill, covers every pixel of the right column
+.he__image {
+  position        : absolute;
+  inset           : 0;
+  width           : 100%;
+  height          : 100%;
+  object-fit      : cover;
+  object-position : center;
+  display         : block;
+  animation       : he-imgReveal 1.2s $ease .15s both;
+}
+
+// Faint decorative grid over image
+.he__overlay {
+  position         : absolute;
+  inset            : 0;
+  z-index          : 2;
+  background-image :
+    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size  : 60px 60px;
+  pointer-events   : none;
+}
+
+// Red badge top-left of image
+.he__img-tag {
+  position       : absolute;
+  top            : 28px;
+  left           : 0;
+  z-index        : 10;
+  background     : $accent;
+  color          : $white;
+  font-size      : 9px;
+  font-weight    : 500;
+  letter-spacing : .2em;
+  text-transform : uppercase;
+  padding        : 7px 14px;
+  animation      : he-fadeUp .7s $ease .5s both;
+
+  @media (max-width: 760px) { top: 12px; padding: 5px 10px; font-size: 8px; }
+}
+
+// Italic caption bottom-left of image
+.he__img-caption {
+  position       : absolute;
+  bottom         : 18px;
+  left           : 16px;
+  z-index        : 10;
+  color          : rgba(255, 255, 255, .55);
+  font-size      : 10px;
+  font-weight    : 300;
+  letter-spacing : .1em;
+  font-style     : italic;
+  font-family    : $font-display;
+  pointer-events : none;
+
+  @media (max-width: 450px) { font-size: 9px; bottom: 10px; left: 12px; }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  LEFT COLUMN  .he__left
+//  Shell: ZERO padding. flex column: content grows, ticker fixed.
+// ═══════════════════════════════════════════════════════════════
+.he__left {
+  display        : flex;
+  flex-direction : column;
+  width          : 100%;
+  height         : 100%;
+  border-right   : 1px solid $rule;
+
+  @media (max-width: 760px) {
+    order        : 2;
+    height       : auto;
+    min-height   : 0;
+    border-right : none;
+    border-top   : 1px solid $rule;
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  CONTENT WRAPPER  .he__content
+//
+//  Desktop: flex:1 fills (section height − ticker).
+//    justify-content:space-between puts top-group flush at top,
+//    stats flush at bottom — zero dead space.
+//
+//  Mobile: KEY RULES
+//    flex:none      → height driven by children, not the flex parent
+//    justify-content:flex-start → items stack naturally top-down
+//    padding-bottom:0 → THE ONLY rule that prevents white space
+//                        between stats and the ticker border-top.
+//                        Any non-zero value here = visible gap.
+// ═══════════════════════════════════════════════════════════════
+.he__content {
+  flex            : 1;
+  min-height      : 0;
+  display         : flex;
+  flex-direction  : column;
+  justify-content : flex-start;   // stack from top — no artificial stretching
+  padding         : $pad-y $pad-x;
+
+  @media (max-width: 1100px) { padding: 24px 24px; }
+  @media (max-width: 900px)  { padding: 20px 20px; }
+
+  @media (max-width: 760px) {
+    flex            : 0 0 auto;     // shrink to content height only
+    justify-content : flex-start;
+    padding         : 18px 18px 0;
+  }
+
+  @media (max-width: 480px) {
+    padding : 16px 16px 0;
+  }
+
+  @media (max-width: 400px) {
+    padding : 14px 14px 0;
+  }
+}
+
+
+// Groups eyebrow + headline + body + CTA as one block.
+// space-between in he__content creates a single gap between
+// this group and the stats at the bottom.
+.he__top-group {
+  display        : flex;
+  flex-direction : column;
+}
+
+
+// ── Eyebrow ───────────────────────────────────────────────────
+.he__eyebrow-wrap {
+  margin-bottom : 12px;
+  animation     : he-fadeUp .55s $ease both;
+
+  @media (max-width: 760px) { margin-bottom: 8px;  }
+  @media (max-width: 400px) { margin-bottom: 6px;  }
+}
+
+.he__eyebrow {
+  display        : inline-flex;
+  align-items    : center;
+  gap            : 10px;
+  font-size      : 10px;
+  font-weight    : 500;
+  letter-spacing : .22em;
+  text-transform : uppercase;
+  color          : $muted;
+  margin         : 0;
+
+  &::before {
+    content    : '';
+    width      : 22px;
+    height     : 1px;
+    background : $accent;
+    flex-shrink: 0;
+  }
+}
+
+
+// ── Headline ──────────────────────────────────────────────────
+.he__headline-wrap {
+  margin-bottom : 12px;
+  animation     : he-fadeUp .55s $ease .07s both;
+
+  @media (max-width: 760px) { margin-bottom: 8px; }
+  @media (max-width: 400px) { margin-bottom: 6px; }
+}
+
+.he__headline {
+  font-family    : $font-display;
+  font-size      : clamp(26px, 3.6vw, 54px);
+  font-weight    : 400;
+  line-height    : 1.06;
+  letter-spacing : -.03em;
+  color          : $ink;
+  margin         : 0;
+
+  em {
+    font-style : italic;
+    color      : $accent;
+  }
+
+  @media (max-width: 400px) {
+    font-size : clamp(22px, 7vw, 28px);
+  }
+}
+
+
+// ── Description ───────────────────────────────────────────────
+.he__body-wrap {
+  margin-bottom : 16px;
+  animation     : he-fadeUp .55s $ease .14s both;
+
+  @media (max-width: 760px) { margin-bottom: 10px; }
+  @media (max-width: 400px) { margin-bottom: 8px;  }
+}
+
+.he__body-text {
+  font-size   : 13px;
+  font-weight : 300;
+  line-height : 1.68;
+  color       : $muted;
+  max-width   : 38ch;
+  margin      : 0;
+
+  @media (max-width: 400px) { font-size: 12px; }
+}
+
+
+// ── CTA buttons ───────────────────────────────────────────────
+// NO margin-bottom on this wrap — it is the last child of
+// he__top-group. The gap to stats is handled by space-between
+// on desktop and padding-top on he__stats-wrap on mobile.
+.he__cta-wrap {
+  display     : flex;
+  align-items : center;
+  gap         : 14px;
+  animation   : he-fadeUp .55s $ease .21s both;
+
+  @media (max-width: 480px) {
+    flex-direction : column;
+    align-items    : flex-start;
+    gap            : 8px;
+  }
+}
+
+.he__btn-primary {
+  font-family    : $font-body;
+  font-size      : 10px;
+  font-weight    : 500;
+  letter-spacing : .12em;
+  text-transform : uppercase;
+  color          : $white;
+  background     : $ink;
+  border         : none;
+  padding        : 11px 24px;
+  border-radius  : 2px;
+  cursor         : pointer;
+  white-space    : nowrap;
+  transition     : background .22s ease, transform .18s ease;
+
+  &:hover  { background: $accent; transform: translateY(-1px); }
+  &:active { transform: translateY(0); }
+}
+
+.he__btn-ghost {
+  display        : inline-flex;
+  align-items    : center;
+  gap            : 7px;
+  font-family    : $font-body;
+  font-size      : 10px;
+  font-weight    : 500;
+  letter-spacing : .12em;
+  text-transform : uppercase;
+  color          : $muted;
+  background     : none;
+  border         : none;
+  cursor         : pointer;
+  white-space    : nowrap;
+  transition     : color .2s ease;
+
+  &:hover     { color: $ink; }
+  svg         { transition: transform .2s ease; }
+  &:hover svg { transform: translateX(4px); }
+}
+
+
+// ── Stats ─────────────────────────────────────────────────────
+//
+//  Desktop: pushed to bottom of content zone by space-between.
+//           padding-bottom creates breathing room above ticker.
+//
+//  Mobile:  padding-top separates stats from CTA buttons.
+//           padding-bottom MUST be 0 — this is the element
+//           directly above the ticker border-top. Any value
+//           here = white space between stats and ticker.
+// ─────────────────────────────────────────────────────────────
+.he__stats-wrap {
+  margin-top : auto;   // pins to bottom on desktop without space-between stretching
+  animation  : he-fadeUp .55s $ease .28s both;
+
+  @media (max-width: 760px) {
+    margin-top     : 0 !important;  // kill the desktop auto margin
+    padding-top    : 10px;
+    padding-bottom : 0;
+    margin-bottom  : 0;
+  }
+
+  @media (max-width: 480px) { padding-top: 10px; }
+  @media (max-width: 400px) { padding-top: 8px;  }
+}
+
+.he__stats-rule {
+  height     : 1px;
+  background : $rule;
+  // margin-bottom creates gap between the rule and the numbers
+  margin-bottom : 12px;
+
+  @media (max-width: 760px) { margin-bottom: 8px; }
+  @media (max-width: 400px) { margin-bottom: 6px; }
+}
+
+.he__stats {
+  display : flex;
+  gap     : 28px;
+  // padding-bottom here = gap between stat numbers and ticker.
+  // Keep it small — just enough so stats don't feel glued to ticker.
+  padding-bottom : 6px;
+
+  @media (max-width: 760px) { gap: 20px; padding-bottom: 6px; }
+  @media (max-width: 480px) { gap: 14px; padding-bottom: 4px; }
+  @media (max-width: 400px) { gap: 12px; padding-bottom: 4px; }
+}
+
+.he__stat {
+  display        : flex;
+  flex-direction : column;
+  gap            : 3px;
+}
+
+.he__stat-number {
+  font-family    : $font-display;
+  font-size      : 24px;
+  font-weight    : 400;
+  color          : $ink;
+  letter-spacing : -.03em;
+  line-height    : 1;
+
+  @media (max-width: 400px) { font-size: 20px; }
+}
+
+.he__stat-label {
+  font-size      : 8px;
+  font-weight    : 500;
+  letter-spacing : .16em;
+  text-transform : uppercase;
+  color          : $muted;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  TICKER  .he__ticker
+//
+//  Direct child of .he__left — outside he__content.
+//  Inherits NO padding. width:100% = full left column width.
+//  overflow:hidden is THE ONLY clip in this component.
+//  flex-shrink:0 = always exactly $ticker-h, never compressed.
+// ═══════════════════════════════════════════════════════════════
+.he__ticker {
+  flex-shrink : 0;
+  width       : 100%;
+  height      : $ticker-h;
+  border-top  : 1px solid $rule;
+  overflow    : hidden;
+  display     : flex;
+  align-items : center;
+  background  : $cream;
+
+  @media (max-width: 760px) { height: 48px; }
+  @media (max-width: 400px) { height: 44px; }
+}
+
+.he__ticker-track {
+  display     : flex;
+  align-items : center;
+  white-space : nowrap;
+  animation   : he-ticker 22s linear infinite;
+  will-change : transform;
+
+  &:hover { animation-play-state: paused; }
+}
+
+.he__ticker-item {
+  display        : inline-flex;
+  align-items    : center;
+  gap            : 14px;
+  padding        : 0 26px;
+  font-size      : 10px;
+  font-weight    : 500;
+  letter-spacing : .16em;
+  text-transform : uppercase;
+  color          : $muted;
+  flex-shrink    : 0;
+
+  strong {
+    color          : $ink;
+    font-weight    : 600;
+    font-family    : $font-display;
+    font-style     : italic;
+    font-size      : 12px;
+    letter-spacing : .03em;
+    text-transform : none;
+  }
+
+  @media (max-width: 760px) {
+    padding   : 0 16px;
+    font-size : 9px;
+    gap       : 10px;
+    strong    { font-size: 10px; }
+  }
+
+  @media (max-width: 400px) {
+    padding : 0 12px;
+    gap     : 8px;
+  }
+}
+
+.he__ticker-sep {
+  display    : inline-block;
+  width      : 1px;
+  height     : 10px;
+  background : $rule;
+  flex-shrink: 0;
+}

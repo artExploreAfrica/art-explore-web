@@ -1,0 +1,412 @@
+// ─────────────────────────────────────────────────────────────
+//  GalleryCard.module.scss
+//
+//  Mobile sheet states:
+//    peek     → ~20vh  — marker fully visible above
+//    expanded → ~48vh  — full detail, still leaves map visible
+//
+//  Transitions use max-height so content fades in smoothly.
+//  .backdrop data-state mirrors the sheet state so it tracks height.
+// ─────────────────────────────────────────────────────────────
+
+$font:       'Inter', 'Segoe UI', system-ui, sans-serif;
+$shadow:     0 12px 40px rgba(0,0,0,0.22), 0 3px 10px rgba(0,0,0,0.12);
+$c-island:   #1a6bbd;
+$c-mainland: #b45309;
+$radius-top: 20px;
+
+// ── Backdrop ──────────────────────────────────────────────────
+// Desktop: invisible, no pointer-events.
+// Mobile:  covers only the active sheet zone so map stays tappable.
+.backdrop {
+  position:       absolute;
+  inset:          0;
+  z-index:        190;
+  pointer-events: none;
+  background:     transparent;
+
+  @media (max-width: 768px) {
+    position:       fixed;
+    left:           0;
+    right:          0;
+    bottom:         0;
+    z-index:        300;
+    pointer-events: all;
+
+    // peek: backdrop covers bottom 20vh
+    &[data-state='peek']     { top: 80vh; }
+    // expanded: backdrop covers bottom 48vh
+    &[data-state='expanded'] { top: 52vh; }
+
+    transition: top 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
+
+// ── Card / Sheet ──────────────────────────────────────────────
+.card {
+  // Desktop: compact floating card, bottom-left of the map
+  position:       absolute;
+  bottom:         20px;
+  left:           16px;
+  z-index:        200;
+  width:          300px;
+  background:     white;
+  border-radius:  14px;
+  box-shadow:     $shadow;
+  border:         1px solid #e2e8f0;
+  font-family:    $font;
+  overflow:       hidden;
+  pointer-events: all;
+  animation:      slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+
+  // Mobile: bottom sheet
+  @media (max-width: 768px) {
+    position:      fixed;
+    bottom:        0;
+    left:          0;
+    right:         0;
+    width:         100%;
+    border-radius: $radius-top $radius-top 0 0;
+    border:        none;
+    border-top:    1px solid #e2e8f0;
+    box-shadow:    0 -4px 24px rgba(0,0,0,0.16), 0 -1px 4px rgba(0,0,0,0.08);
+    overflow:      hidden; // clip expanded content, NOT overflow-y scroll
+    pointer-events: all;
+    z-index:       301;
+    animation:     sheetUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    transition:    max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
+
+// Peek state — ~20vh, marker fully visible
+.card--peek {
+  @media (max-width: 768px) {
+    max-height: 20vh;
+  }
+}
+
+// Expanded state — ~48vh, full detail
+.card--expanded {
+  @media (max-width: 768px) {
+    max-height:    48vh;
+    overflow-y:    auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0);    }
+}
+
+// ── Handle row ────────────────────────────────────────────────
+// Contains the drag handle bar + the expand/collapse chevron
+.handleRow {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  position:        relative;
+  padding-top:     10px;
+  flex-shrink:     0;
+}
+
+// ── Drag handle ───────────────────────────────────────────────
+.dragHandle {
+  display: none;
+
+  @media (max-width: 768px) {
+    display:       block;
+    width:         40px;
+    height:        4px;
+    background:    #cbd5e1;
+    border-radius: 2px;
+    flex-shrink:   0;
+  }
+}
+
+// ── Chevron button ────────────────────────────────────────────
+.chevronBtn {
+  display: none; // hidden on desktop
+
+  @media (max-width: 768px) {
+    display:         flex;
+    align-items:     center;
+    justify-content: center;
+    position:        absolute;
+    right:           44px; // leaves room for close button
+    top:             50%;
+    transform:       translateY(-50%);
+    background:      none;
+    border:          none;
+    padding:         4px;
+    cursor:          pointer;
+    color:           #94a3b8;
+    line-height:     1;
+  }
+}
+
+.chevron {
+  display:         inline-block;
+  font-size:       20px;
+  line-height:     1;
+  transition:      transform 0.25s ease;
+}
+
+// Chevron points up when peek (↑ = rotate -90deg from ›)
+.chevronUp   { transform: rotate(-90deg); }
+// Chevron points down when expanded
+.chevronDown { transform: rotate(90deg);  }
+
+// ── Close button ──────────────────────────────────────────────
+.closeBtn {
+  position:        absolute;
+  top:             10px;
+  right:           10px;
+  z-index:         10;
+  background:      rgba(0,0,0,0.45);
+  color:           white;
+  border:          none;
+  border-radius:   50%;
+  width:           30px;
+  height:          30px;
+  cursor:          pointer;
+  font-size:       12px;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  transition:      background 0.15s;
+
+  &:hover { background: rgba(0,0,0,0.65); }
+
+  @media (max-width: 768px) {
+    top:        10px;
+    right:      12px;
+    width:      28px;
+    height:     28px;
+    background: rgba(0,0,0,0.35);
+  }
+}
+
+// ── Hero image — desktop only ─────────────────────────────────
+.imageWrap {
+  position: relative;
+  height:   160px;
+  overflow: hidden;
+
+  @media (max-width: 768px) { display: none; }
+}
+
+.image {
+  width:      100%;
+  height:     100%;
+  object-fit: cover;
+  display:    block;
+}
+
+.imageOverlay {
+  position: absolute;
+  bottom:   10px;
+  left:     10px;
+  display:  flex;
+  gap:      6px;
+}
+
+// ── Badges ────────────────────────────────────────────────────
+.openBadge {
+  font-size:     11px;
+  font-weight:   600;
+  padding:       3px 10px;
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.openBadgeOpen   { background: rgba(22,163,74,0.85);  color: white; }
+.openBadgeClosed { background: rgba(239,68,68,0.85);  color: white; }
+
+.regionBadge {
+  font-size:      10px;
+  font-weight:    700;
+  padding:        3px 10px;
+  border-radius:  20px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.regionIsland   { background: rgba(26,107,189,0.85); color: white; }
+.regionMainland { background: rgba(180,83,9,0.85);   color: white; }
+
+// Mobile badges — always visible (image is hidden on mobile)
+.mobileBadges {
+  display: none;
+
+  @media (max-width: 768px) {
+    display:     flex;
+    gap:         6px;
+    align-items: center;
+    margin:      8px 0 6px;
+
+    .openBadge,
+    .regionBadge {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+    .openBadgeOpen   { background: rgba(22,163,74,0.9);   }
+    .openBadgeClosed { background: rgba(239,68,68,0.9);   }
+    .regionIsland    { background: rgba(26,107,189,0.9);  }
+    .regionMainland  { background: rgba(180,83,9,0.9);    }
+  }
+}
+
+// ── Body ──────────────────────────────────────────────────────
+.body {
+  padding: 14px 16px 16px;
+
+  @media (max-width: 768px) { padding: 2px 14px 12px; }
+}
+
+.name {
+  margin:      0 0 2px;
+  font-size:   16px;
+  font-weight: 800;
+  color:       #0f172a;
+  line-height: 1.2;
+
+  @media (max-width: 768px) { font-size: 15px; margin-bottom: 1px; }
+}
+
+.neighbourhood {
+  margin:      0 0 0;
+  font-size:   12px;
+  font-weight: 600;
+  color:       #64748b;
+}
+
+// ── Peek hint ─────────────────────────────────────────────────
+// Shown only in peek state, disappears when expanded
+.peekHint {
+  display: none;
+
+  @media (max-width: 768px) {
+    display:     block;
+    margin:      6px 0 0;
+    font-size:   11px;
+    color:       #94a3b8;
+    cursor:      pointer;
+    user-select: none;
+  }
+}
+
+// ── Expanded-only content ─────────────────────────────────────
+// Hidden in peek, fades in when expanded
+.expandedContent {
+  @media (max-width: 768px) {
+    max-height: 0;
+    overflow:   hidden;
+    opacity:    0;
+    transition: max-height 0.28s ease, opacity 0.2s ease;
+  }
+}
+
+.expandedContentVisible {
+  @media (max-width: 768px) {
+    max-height: 400px; // large enough to never clip content
+    opacity:    1;
+    transition: max-height 0.32s ease, opacity 0.25s ease 0.05s;
+  }
+}
+
+.address {
+  margin:      6px 0 10px;
+  font-size:   11px;
+  color:       #94a3b8;
+  line-height: 1.4;
+}
+
+.stats {
+  display:       flex;
+  align-items:   center;
+  gap:           16px;
+  padding:       8px 0;
+  border-top:    1px solid #f1f5f9;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 10px;
+
+  @media (max-width: 768px) { padding: 6px 0; margin-bottom: 8px; }
+}
+
+.stat {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  flex:           1;
+}
+
+.statValue {
+  font-size:   13px;
+  font-weight: 700;
+  color:       #0f172a;
+}
+
+.statLabel {
+  font-size:      10px;
+  color:          #94a3b8;
+  margin-top:     1px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.statDivider {
+  width:      1px;
+  height:     24px;
+  background: #e2e8f0;
+}
+
+.tags {
+  display:       flex;
+  flex-wrap:     wrap;
+  gap:           5px;
+  margin-bottom: 12px;
+
+  @media (max-width: 768px) { margin-bottom: 10px; }
+}
+
+.tag {
+  font-size:      11px;
+  font-weight:    500;
+  padding:        2px 9px;
+  border-radius:  20px;
+  background:     #f1f5f9;
+  color:          #475569;
+  text-transform: capitalize;
+}
+
+.directionsBtn {
+  display:         block;
+  width:           100%;
+  padding:         10px;
+  background:      #0f172a;
+  color:           white;
+  text-align:      center;
+  border-radius:   8px;
+  text-decoration: none;
+  font-size:       13px;
+  font-weight:     600;
+  font-family:     $font;
+  transition:      background 0.15s;
+  box-sizing:      border-box;
+
+  &:hover { background: #1e293b; }
+
+  @media (max-width: 768px) {
+    padding:   11px;
+    font-size: 13px;
+  }
+}

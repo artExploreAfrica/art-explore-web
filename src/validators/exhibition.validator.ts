@@ -1,11 +1,14 @@
 import { z } from 'zod';
 
 export const createExhibitionSchema = z.object({
-  title: z.string().min(1, 'title is required'),
-  date: z.coerce.date(),
-  endDate: z.coerce.date().optional(),
-  time: z.string().optional(),
-  socialLink: z.string().url().optional(),
+  name: z.string().min(1, 'name is required'),
+  images: z.array(z.string().url()).optional().default([]),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+  startTime: z.string().min(1, 'startTime is required'),
+  endTime: z.string().min(1, 'endTime is required'),
+  link: z.string().url().optional(),
+  description: z.string().optional(),
 });
 
 /** Update: all fields optional, but at least one must be present. */

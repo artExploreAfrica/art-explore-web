@@ -29,14 +29,29 @@ const adminToken = bearer(signAccess(Role.ADMIN, 'admin_1'));
 const exhibition = {
   id: 'ex_1',
   institutionId: 'inst_1',
-  title: 'Spring Show',
-  date: new Date('2026-07-01'),
-  endDate: null,
-  time: null,
-  image: null,
-  socialLink: null,
+  name: 'Spring Show',
+  images: [],
+  startDate: new Date('2026-07-01'),
+  endDate: new Date('2026-07-10'),
+  startTime: '10:00',
+  endTime: '18:00',
+  link: null,
+  description: null,
+  approvalStatus: 'APPROVED',
+  submittedById: 'admin_1',
+  approvedById: 'admin_1',
+  approvedAt: new Date(),
+  isActive: true,
   createdAt: new Date(),
   updatedAt: new Date(),
+};
+
+const validBody = {
+  name: 'Spring Show',
+  startDate: '2026-07-01',
+  endDate: '2026-07-10',
+  startTime: '10:00',
+  endTime: '18:00',
 };
 
 beforeEach(() => {
@@ -53,13 +68,13 @@ describe('POST /api/v1/admin/institutions/:id/exhibitions', () => {
     const res = await request(app)
       .post('/api/v1/admin/institutions/inst_1/exhibitions')
       .set(adminToken)
-      .send({ title: 'Spring Show', date: '2026-07-01' });
+      .send(validBody);
 
     expect(res.status).toBe(404);
     expect(mocks.prisma.exhibition.create).not.toHaveBeenCalled();
   });
 
-  it('201s, recomputes hasActiveExhibition, and logs CREATE', async () => {
+  it('201s, recomputes hasExhibition, and logs EXHIBITION_CREATE', async () => {
     mocks.prisma.institution.findFirst.mockResolvedValue({ id: 'inst_1' });
     mocks.prisma.exhibition.create.mockResolvedValue(exhibition);
     mocks.prisma.exhibition.count.mockResolvedValue(1);
@@ -68,15 +83,15 @@ describe('POST /api/v1/admin/institutions/:id/exhibitions', () => {
     const res = await request(app)
       .post('/api/v1/admin/institutions/inst_1/exhibitions')
       .set(adminToken)
-      .send({ title: 'Spring Show', date: '2026-07-01' });
+      .send(validBody);
 
     expect(res.status).toBe(201);
-    // hasActiveExhibition recomputed from the exhibition count.
+    // hasExhibition recomputed from the approved-exhibition count.
     expect(mocks.prisma.institution.update.mock.calls[0][0].data).toMatchObject({
-      hasActiveExhibition: true,
+      hasExhibition: true,
     });
     expect(mocks.prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({
-      action: 'CREATE',
+      action: 'EXHIBITION_CREATE',
       targetModel: 'EXHIBITION',
       targetId: 'ex_1',
     });

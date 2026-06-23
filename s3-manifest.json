@@ -1,0 +1,90 @@
+[
+  {
+    "slug": "art-house-foundation",
+    "file": "image-1.jpg",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/art-house-foundation/image-1.jpg",
+    "s3Key": "institutions/art-house-foundation/image-1.jpg",
+    "s3Uri": "s3://art-explore-db-images/institutions/art-house-foundation/image-1.jpg",
+    "contentType": "image/jpeg"
+  },
+  {
+    "slug": "art-house-foundation",
+    "file": "image-2.png",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/art-house-foundation/image-2.png",
+    "s3Key": "institutions/art-house-foundation/image-2.png",
+    "s3Uri": "s3://art-explore-db-images/institutions/art-house-foundation/image-2.png",
+    "contentType": "image/png"
+  },
+  {
+    "slug": "arthouse-contemporary",
+    "file": "image-1.jpg",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/arthouse-contemporary/image-1.jpg",
+    "s3Key": "institutions/arthouse-contemporary/image-1.jpg",
+    "s3Uri": "s3://art-explore-db-images/institutions/arthouse-contemporary/image-1.jpg",
+    "contentType": "image/jpeg"
+  },
+  {
+    "slug": "arthouse-contemporary",
+    "file": "image-2.png",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/arthouse-contemporary/image-2.png",
+    "s3Key": "institutions/arthouse-contemporary/image-2.png",
+    "s3Uri": "s3://art-explore-db-images/institutions/arthouse-contemporary/image-2.png",
+    "contentType": "image/png"
+  },
+  {
+    "slug": "ko-art-space",
+    "file": "image-1.webp",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/ko-art-space/image-1.webp",
+    "s3Key": "institutions/ko-art-space/image-1.webp",
+    "s3Uri": "s3://art-explore-db-images/institutions/ko-art-space/image-1.webp",
+    "contentType": "image/webp"
+  },
+  {
+    "slug": "omenka-gallery",
+    "file": "image-1.webp",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/omenka-gallery/image-1.webp",
+    "s3Key": "institutions/omenka-gallery/image-1.webp",
+    "s3Uri": "s3://art-explore-db-images/institutions/omenka-gallery/image-1.webp",
+    "contentType": "image/webp"
+  },
+  {
+    "slug": "quintessence-gallery",
+    "file": "image-1.jpg",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/quintessence-gallery/image-1.jpg",
+    "s3Key": "institutions/quintessence-gallery/image-1.jpg",
+    "s3Uri": "s3://art-explore-db-images/institutions/quintessence-gallery/image-1.jpg",
+    "contentType": "image/jpeg"
+  },
+  {
+    "slug": "quintessence-gallery",
+    "file": "image-2.webp",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/quintessence-gallery/image-2.webp",
+    "s3Key": "institutions/quintessence-gallery/image-2.webp",
+    "s3Uri": "s3://art-explore-db-images/institutions/quintessence-gallery/image-2.webp",
+    "contentType": "image/webp"
+  },
+  {
+    "slug": "smo-contemporary-art",
+    "file": "image-1.jpg",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/smo-contemporary-art/image-1.jpg",
+    "s3Key": "institutions/smo-contemporary-art/image-1.jpg",
+    "s3Uri": "s3://art-explore-db-images/institutions/smo-contemporary-art/image-1.jpg",
+    "contentType": "image/jpeg"
+  },
+  {
+    "slug": "tiwani-contemporary",
+    "file": "image-1.webp",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/tiwani-contemporary/image-1.webp",
+    "s3Key": "institutions/tiwani-contemporary/image-1.webp",
+    "s3Uri": "s3://art-explore-db-images/institutions/tiwani-contemporary/image-1.webp",
+    "contentType": "image/webp"
+  },
+  {
+    "slug": "yemisi-shyllon-museum-of-art",
+    "file": "image-1.png",
+    "localPath": "/Users/tobilesi/Projects/art-explore-web/public/uploads/institutions/yemisi-shyllon-museum-of-art/image-1.png",
+    "s3Key": "institutions/yemisi-shyllon-museum-of-art/image-1.png",
+    "s3Uri": "s3://art-explore-db-images/institutions/yemisi-shyllon-museum-of-art/image-1.png",
+    "contentType": "image/png"
+  }
+]

@@ -13,12 +13,6 @@ import {
   UpdateExhibitionInput,
 } from '../validators/exhibition.validator';
 
-const startOfToday = (): Date => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
-
 /** Admin-facing fetch of the parent institution (excludes soft-deleted). */
 const ensureInstitution = async (institutionId: string): Promise<void> => {
   const institution = await prisma.institution.findFirst({
@@ -40,20 +34,16 @@ const ensureExhibition = async (
 };
 
 /**
- * Recompute Institution.hasActiveExhibition: true when any exhibition is still
- * running — coalesce(endDate, date) >= start of today. Called after every write.
+ * Recompute Institution.hasExhibition: true when the institution has at least one
+ * approved exhibition. Called after every write (v2).
  */
-const recomputeActive = async (institutionId: string): Promise<void> => {
-  const today = startOfToday();
-  const activeCount = await prisma.exhibition.count({
-    where: {
-      institutionId,
-      OR: [{ endDate: { gte: today } }, { endDate: null, date: { gte: today } }],
-    },
+const recomputeHasExhibition = async (institutionId: string): Promise<void> => {
+  const approvedCount = await prisma.exhibition.count({
+    where: { institutionId, approvalStatus: ApprovalStatus.APPROVED },
   });
   await prisma.institution.update({
     where: { id: institutionId },
-    data: { hasActiveExhibition: activeCount > 0 },
+    data: { hasExhibition: approvedCount > 0 },
   });
 };
 
@@ -73,8 +63,8 @@ export const listForInstitution = async (
   if (!institution) throw NotFoundError('Institution');
 
   return prisma.exhibition.findMany({
-    where: { institutionId },
-    orderBy: { date: 'desc' },
+    where: { institutionId, approvalStatus: ApprovalStatus.APPROVED },
+    orderBy: { startDate: 'desc' },
   });
 };
 
@@ -85,15 +75,27 @@ export const create = async (
 ): Promise<Exhibition> => {
   await ensureInstitution(institutionId);
 
+  // Admins create exhibitions directly — they bypass the approval queue (v2).
   const exhibition = await prisma.exhibition.create({
-    data: { ...input, institutionId },
+    data: {
+      ...input,
+      institutionId,
+      approvalStatus: ApprovalStatus.APPROVED,
+      isActive: true,
+      submittedById: actorId,
+      approvedById: actorId,
+      approvedAt: new Date(),
+    },
   });
 
-  await recomputeActive(institutionId);
-  await auditLog(actorId, AuditAction.CREATE, TargetModel.EXHIBITION, exhibition.id, {
-    institutionId,
-    title: exhibition.title,
-  });
+  await recomputeHasExhibition(institutionId);
+  await auditLog(
+    actorId,
+    AuditAction.EXHIBITION_CREATE,
+    TargetModel.EXHIBITION,
+    exhibition.id,
+    { institutionId, name: exhibition.name },
+  );
   await invalidateInstitutionCache();
   return exhibition;
 };
@@ -111,11 +113,14 @@ export const update = async (
     data: input,
   });
 
-  await recomputeActive(institutionId);
-  await auditLog(actorId, AuditAction.UPDATE, TargetModel.EXHIBITION, exhibitionId, {
-    institutionId,
-    fields: Object.keys(input),
-  });
+  await recomputeHasExhibition(institutionId);
+  await auditLog(
+    actorId,
+    AuditAction.EXHIBITION_UPDATE,
+    TargetModel.EXHIBITION,
+    exhibitionId,
+    { institutionId, fields: Object.keys(input) },
+  );
   await invalidateInstitutionCache();
   return exhibition;
 };
@@ -129,10 +134,14 @@ export const remove = async (
 
   const exhibition = await prisma.exhibition.delete({ where: { id: exhibitionId } });
 
-  await recomputeActive(institutionId);
-  await auditLog(actorId, AuditAction.DELETE, TargetModel.EXHIBITION, exhibitionId, {
-    institutionId,
-  });
+  await recomputeHasExhibition(institutionId);
+  await auditLog(
+    actorId,
+    AuditAction.EXHIBITION_DELETE,
+    TargetModel.EXHIBITION,
+    exhibitionId,
+    { institutionId },
+  );
   await invalidateInstitutionCache();
   return exhibition;
 };
@@ -144,11 +153,11 @@ export const addImage = async (
   exhibitionId: string,
   imageUrl: string,
 ): Promise<Exhibition> => {
-  await ensureExhibition(institutionId, exhibitionId);
+  const current = await ensureExhibition(institutionId, exhibitionId);
 
   const exhibition = await prisma.exhibition.update({
     where: { id: exhibitionId },
-    data: { image: imageUrl },
+    data: { images: [...current.images, imageUrl] },
   });
 
   await auditLog(actorId, AuditAction.IMAGE_UPLOAD, TargetModel.EXHIBITION, exhibitionId, {

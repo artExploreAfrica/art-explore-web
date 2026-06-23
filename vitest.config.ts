@@ -27,6 +27,9 @@ export default defineConfig({
       AWS_S3_BUCKET_NAME: 'test-bucket',
       UPSTASH_REDIS_REST_URL: 'https://test.upstash.io',
       UPSTASH_REDIS_REST_TOKEN: 'test-token',
+      RESEND_API_KEY: 're_test_key',
+      EMAIL_FROM: 'no-reply@artexplore.africa',
+      FRONTEND_URL: 'https://app.artexplore.africa',
     },
   },
 });

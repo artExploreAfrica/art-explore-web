@@ -1,0 +1,23 @@
+Column,Type,Key,Nullable,Default,Notes
+id,String,PK,No,cuid(),
+name,String,,No,,
+description,String,,Yes,,
+type,InstitutionType,,No,,"ART_GALLERY | MUSEUM | INSTITUTE | FOUNDATION | STUDIO | CULTURAL_SPACE"
+address,String,,No,,
+area,Area,,No,,"ISLAND | MAINLAND | OTHER"
+lat,Float,,No,,
+lng,Float,,No,,
+images,String[],,No,,S3 URLs
+website,String,,Yes,,
+phone,String,,Yes,,
+email,String,,Yes,,
+openingHours,Json,,Yes,,"{ mon: '9am-5pm', ... }"
+hasExhibition,Boolean,,No,false,
+approvalStatus,ApprovalStatus,,No,PENDING,"PENDING | APPROVED | REJECTED"
+submittedById,String,FK → User,Yes,,
+approvedById,String,FK → User,Yes,,
+approvedAt,DateTime,,Yes,,
+isPublished,Boolean,,No,false,
+deletedAt,DateTime,,Yes,,Soft-delete marker — null = live
+createdAt,DateTime,,No,now(),
+updatedAt,DateTime,,No,auto,

@@ -47,7 +47,13 @@ export const getById = async (id: string): Promise<Tag> => {
 export const create = async (actorId: string, input: CreateTagInput): Promise<Tag> => {
   let tag: Tag;
   try {
-    tag = await prisma.tag.create({ data: { name: input.name } });
+    tag = await prisma.tag.create({
+      data: {
+        name: input.name,
+        label: input.label ?? input.name,
+        category: input.category,
+      },
+    });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       throw ConflictError(`A tag named "${input.name}" already exists`);
@@ -69,7 +75,14 @@ export const update = async (
 
   let tag: Tag;
   try {
-    tag = await prisma.tag.update({ where: { id }, data: { name: input.name } });
+    tag = await prisma.tag.update({
+      where: { id },
+      data: {
+        ...(input.name !== undefined && { name: input.name }),
+        ...(input.label !== undefined && { label: input.label }),
+        ...(input.category !== undefined && { category: input.category }),
+      },
+    });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       throw ConflictError(`A tag named "${input.name}" already exists`);

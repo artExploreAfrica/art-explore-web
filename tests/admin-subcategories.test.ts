@@ -30,7 +30,7 @@ const userToken = bearer(signAccess(Role.USER, 'user_1'));
 const stored = {
   id: 'sc_1',
   name: 'Contemporary',
-  type: 'GALLERY',
+  type: 'ART_GALLERY',
   description: null,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -48,7 +48,7 @@ describe('POST /api/v1/admin/subcategories', () => {
     const res = await request(app)
       .post('/api/v1/admin/subcategories')
       .set(userToken)
-      .send({ name: 'Contemporary', type: 'GALLERY' });
+      .send({ name: 'Contemporary', type: 'ART_GALLERY' });
 
     expect(res.status).toBe(403);
   });
@@ -59,7 +59,7 @@ describe('POST /api/v1/admin/subcategories', () => {
     const res = await request(app)
       .post('/api/v1/admin/subcategories')
       .set(adminToken)
-      .send({ name: 'Contemporary', type: 'GALLERY' });
+      .send({ name: 'Contemporary', type: 'ART_GALLERY' });
 
     expect(res.status).toBe(201);
     expect(mocks.prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({

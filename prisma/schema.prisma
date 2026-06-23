@@ -18,7 +18,10 @@ enum Role {
 }
 
 enum InstitutionType {
-  GALLERY
+  ART_GALLERY
+  MUSEUM
+  INSTITUTE
+  FOUNDATION
   STUDIO
   CULTURAL_SPACE
 }
@@ -29,13 +32,20 @@ enum Area {
   OTHER
 }
 
-// Lifecycle of an institution record from submission to publication.
+// Lifecycle of an institution or exhibition record from submission to publication.
 // Admin-created records default to APPROVED; USER-submitted records start PENDING.
 enum ApprovalStatus {
-  DRAFT
   PENDING
   APPROVED
   REJECTED
+}
+
+// Controlled vocabulary grouping for Tag (v2).
+enum TagCategory {
+  OWNERSHIP
+  STYLE
+  CURATION
+  FORMAT
 }
 
 enum AuditAction {
@@ -49,6 +59,16 @@ enum AuditAction {
   SUBMIT
   APPROVE
   REJECT
+  // v2 additions — granular approval/exhibition actions.
+  APPROVE_USER
+  REJECT_USER
+  APPROVE_INSTITUTION
+  REJECT_INSTITUTION
+  EXHIBITION_CREATE
+  EXHIBITION_UPDATE
+  EXHIBITION_DELETE
+  APPROVE_EXHIBITION
+  REJECT_EXHIBITION
 }
 
 enum TargetModel {
@@ -69,6 +89,8 @@ model User {
   auditLogs             AuditLog[]
   submittedInstitutions Institution[] @relation("SubmittedBy")
   reviewedInstitutions  Institution[] @relation("ReviewedBy")
+  submittedExhibitions  Exhibition[]  @relation("ExhibitionSubmitter")
+  approvedExhibitions   Exhibition[]  @relation("ExhibitionApprover")
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 }
@@ -89,12 +111,20 @@ model SubCategory {
 }
 
 // Admin-curated tag, many-to-many with Institution (implicit join _InstitutionToTag).
+// `category` groups tags into the controlled vocabulary defined in v2; `label` is
+// the human-facing display text (the unique `name` is the machine slug).
+// Note: v2's explicit `InstitutionTag` junction carries no extra columns, so the
+// Prisma implicit M2M join (`_InstitutionToTag`) is the equivalent representation.
 model Tag {
   id           String        @id @default(cuid())
   name         String        @unique
+  label        String
+  category     TagCategory
   institutions Institution[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+
+  @@index([category])
 }
 
 model Institution {
@@ -115,7 +145,7 @@ model Institution {
   subCategoryId String?
   subCategory   SubCategory?   @relation(fields: [subCategoryId], references: [id])
   exhibitions   Exhibition[]
-  hasActiveExhibition Boolean   @default(false)
+  hasExhibition Boolean         @default(false)
 
   // Submission / approval workflow.
   approvalStatus ApprovalStatus @default(APPROVED)
@@ -136,29 +166,44 @@ model Institution {
   @@index([isPublished])
   @@index([deletedAt])
   @@index([subCategoryId])
-  @@index([hasActiveExhibition])
+  @@index([hasExhibition])
   @@index([approvalStatus])
   @@index([submittedById])
 }
 
 // An exhibition hosted by an institution. One-to-many: an institution can have
-// many exhibitions over time. `Institution.hasActiveExhibition` is recomputed
-// on every write from these rows.
+// many exhibitions over time. `Institution.hasExhibition` is recomputed on every
+// write from these rows. Carries its own submission/approval workflow (v2).
 model Exhibition {
-  id            String      @id @default(cuid())
-  institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
-  title         String
-  date          DateTime
-  endDate       DateTime?
-  time          String?
-  image         String?
-  socialLink    String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id             String         @id @default(cuid())
+  institutionId  String
+  institution    Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  name           String
+  images         String[]
+  startDate      DateTime
+  endDate        DateTime
+  startTime      String
+  endTime        String
+  link           String?
+  description    String?
+
+  // Submission & approval — mirrors the Institution flow.
+  approvalStatus ApprovalStatus @default(PENDING)
+  submittedById  String?
+  submittedBy    User?          @relation("ExhibitionSubmitter", fields: [submittedById], references: [id])
+  approvedById   String?
+  approvedBy     User?          @relation("ExhibitionApprover", fields: [approvedById], references: [id])
+  approvedAt     DateTime?
+
+  isActive       Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([institutionId])
-  @@index([date])
+  @@index([startDate])
+  @@index([approvalStatus])
+  @@index([submittedById])
+  @@index([approvedById])
 }
 
 model AuditLog {
