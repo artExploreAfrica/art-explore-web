@@ -1,15 +1,29 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import EntryPage from './EntryPage';
-import CinematicReel from './Cinematicreel';
+import CinematicReel from './CinematicReel';
+import LoadingScreen from './LoadingScreen';
 import './tokens.css';
 import './EntryExperience.css';
 
 const REEL_IMAGE_SRCS = [
-  'https://images.unsplash.com/photo-1562322140-8baeececf3df?w=1400&q=80',
-  'https://images.unsplash.com/photo-1577083552431-6e5fd01988ec?w=1400&q=80',
-  'https://images.unsplash.com/photo-1536924940841-227dfb32e5d5?w=1400&q=80',
-  'https://images.unsplash.com/photo-1544717297-faec6c2dd1f4?w=1400&q=80',
+  'https://d1rgjmn2wmqeif.cloudfront.net/extra/b/HomePageModule-40923-95830.jpg',
+  'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/09/2d/c9/c2/the-national-museum.jpg?w=1200&h=-1&s=1',
+  'https://africanartists.org/wp-content/uploads/Installations-Coffi-28-scaled.jpg',
+  'https://sumellist.com/wp-content/uploads/2023/02/Rele_New_Gallery_Day_1-112.jpg',
+  'https://www.artmajeur.com/medias/standard/s/i/signature-beyond-art-gallery/article/1150264_untitled-12.jpg',
+  'https://africanartists.org/wp-content/uploads/Installations-Coffi-28-scaled.jpg',
 ];
+
+// How long the text holds on black after the reel, before fading into
+// the platform — a deliberate calm pause, not a rushed handoff.
+const MIN_LOADING_MS = 4000;
+// Safety net: finish anyway after this long, even if isReady never
+// becomes true (e.g. a bug elsewhere) — visitors should never get stuck.
+const MAX_LOADING_MS = 9000;
+// How long the final fade-to-platform transition takes (must match
+// the CSS transition duration on .entry-experience in EntryExperience.css).
+// Kept slow and smooth on purpose — this is the "not in a hurry" cut.
+const EXIT_FADE_MS = 1400;
 
 function preloadImages(srcs, timeoutMs = 4000) {
   const loaders = srcs.map(
@@ -27,44 +41,90 @@ function preloadImages(srcs, timeoutMs = 4000) {
 
 /**
  * EntryExperience
- * Drop this in place of (or in front of) your main app route.
  *
- * Usage:
- *   const [entered, setEntered] = useState(false);
- *   return entered
- *     ? <MainPlatform />
- *     : <EntryExperience onComplete={() => setEntered(true)} />;
+ * IMPORTANT — mount this ALONGSIDE your main platform, not in place of
+ * it, so the platform can load underneath while this covers the screen:
  *
- * Visitors who have already been through the intro this session skip
- * straight to onComplete — see the sessionStorage check below.
+ *   function App() {
+ *     const [showIntro, setShowIntro] = useState(true);
+ *     const [platformReady, setPlatformReady] = useState(false);
+ *
+ *     return (
+ *       <>
+ *         <MainPlatform onReady={() => setPlatformReady(true)} />
+ *         {showIntro && (
+ *           <EntryExperience
+ *             isReady={platformReady}
+ *             onComplete={() => setShowIntro(false)}
+ *           />
+ *         )}
+ *       </>
+ *     );
+ *   }
+ *
+ * If your MainPlatform has no "ready" signal to give you yet, just
+ * omit the isReady prop — it defaults to true and the black loading
+ * screen will simply hold for MIN_LOADING_MS before fading out.
+ *
+ * Props:
+ *  - onComplete: () => void   called once the whole experience is done
+ *  - isReady: boolean         optional. Pass true once your real page
+ *                             content has finished loading underneath.
  */
-export default function EntryExperience({ onComplete }) {
+export default function EntryExperience({ onComplete, isReady = true }) {
   const alreadySeen =
     typeof window !== 'undefined' &&
     sessionStorage.getItem('artexplore_intro_seen') === 'true';
 
   const [phase, setPhase] = useState(alreadySeen ? 'done' : 'entry');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingImages, setIsLoadingImages] = useState(false);
+  const [minTimeElapsed, setMinTimeElapsed] = useState(false);
 
   const handleEnter = useCallback(async () => {
-    setIsLoading(true);
+    setIsLoadingImages(true);
     await preloadImages(REEL_IMAGE_SRCS);
-    setIsLoading(false);
+    setIsLoadingImages(false);
     setPhase('reel');
   }, []);
 
-  const handleReelFinish = useCallback(() => {
+  const finishExperience = useCallback(() => {
     sessionStorage.setItem('artexplore_intro_seen', 'true');
     setPhase('exiting');
-    // Let the fade-out finish before handing off to the main platform
     setTimeout(() => {
       setPhase('done');
       onComplete?.();
-    }, 800);
+    }, EXIT_FADE_MS);
   }, [onComplete]);
 
+  const handleReelFinish = useCallback(() => {
+    setPhase('loading');
+  }, []);
+
+  // While in the loading bridge: start the minimum-dwell timer and the
+  // safety-net timer.
+  useEffect(() => {
+    if (phase !== 'loading') return;
+    setMinTimeElapsed(false);
+
+    const minTimer = setTimeout(() => setMinTimeElapsed(true), MIN_LOADING_MS);
+    const maxTimer = setTimeout(() => finishExperience(), MAX_LOADING_MS);
+
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(maxTimer);
+    };
+  }, [phase, finishExperience]);
+
+  // Finish as soon as BOTH the minimum dwell time has passed AND the
+  // real platform reports itself ready.
+  useEffect(() => {
+    if (phase === 'loading' && minTimeElapsed && isReady) {
+      finishExperience();
+    }
+  }, [phase, minTimeElapsed, isReady, finishExperience]);
+
   if (phase === 'done') {
-    return null; // parent renders the main platform instead
+    return null;
   }
 
   return (
@@ -72,11 +132,10 @@ export default function EntryExperience({ onComplete }) {
       className={`entry-experience ${phase === 'exiting' ? 'is-exiting' : ''}`}
     >
       {phase === 'entry' && (
-        <EntryPage onEnter={handleEnter} isLoading={isLoading} />
+        <EntryPage onEnter={handleEnter} isLoading={isLoadingImages} />
       )}
-      {(phase === 'reel' || phase === 'exiting') && (
-        <CinematicReel onFinish={handleReelFinish} />
-      )}
+      {phase === 'reel' && <CinematicReel onFinish={handleReelFinish} />}
+      {(phase === 'loading' || phase === 'exiting') && <LoadingScreen />}
     </div>
   );
 }

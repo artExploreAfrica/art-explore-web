@@ -1,34 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
+import { ENTRY_OVERLAY } from './entrycopy';
 import './CinematicReel.css';
 
-// Swap these for images you've sourced and licensed yourself — see the
-// note at the bottom of this file before shipping.
-const SLIDES = [
-  {
-    src: 'https://images.unsplash.com/photo-1562322140-8baeececf3df?w=1400&q=80',
-    text: 'WELCOME',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1577083552431-6e5fd01988ec?w=1400&q=80',
-    text: 'LAGOS AWAITS',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1536924940841-227dfb32e5d5?w=1400&q=80',
-    text: 'THE GALLERIES',
-  },
-  {
-    src: 'https://images.unsplash.com/photo-1544717297-faec6c2dd1f4?w=1400&q=80',
-    text: 'Step inside.',
-  },
+// Swap these for real photos of your galleries. These Unsplash
+// placeholders are generic stock and should not ship as final — see
+// the note at the bottom of this file.
+const IMAGES = [
+  'https://d1rgjmn2wmqeif.cloudfront.net/extra/b/HomePageModule-40923-95830.jpg',
+  'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/09/2d/c9/c2/the-national-museum.jpg?w=1200&h=-1&s=1',
+  'https://africanartists.org/wp-content/uploads/Installations-Coffi-28-scaled.jpg',
+  'https://sumellist.com/wp-content/uploads/2023/02/Rele_New_Gallery_Day_1-112.jpg',
+  'https://www.artmajeur.com/medias/standard/s/i/signature-beyond-art-gallery/article/1150264_untitled-12.jpg',
+  'https://africanartists.org/wp-content/uploads/Installations-Coffi-28-scaled.jpg',
 ];
 
-const SLIDE_DURATION_MS = 1500;
+const SLIDE_DURATION_MS = 800; // time each image is fully visible
+const CROSSFADE_MS = 450; // overlap between images, also used for the
+// final fade-to-black after the last image
 
 /**
  * CinematicReel
- * Crossfades through SLIDES, one text overlay per image, then calls
- * onFinish. A SKIP control and a 4-segment progress bar are included
- * since this is a real fixed sequence, not decorative.
+ * Crossfades through IMAGES behind one fixed text composition. After
+ * the last image, it fades to black (text stays exactly where it is)
+ * and only then calls onFinish — so whatever renders next can pick up
+ * on an already-black screen with no visible seam.
  *
  * Props:
  *  - onFinish: () => void
@@ -42,9 +37,14 @@ export default function CinematicReel({ onFinish }) {
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
   useEffect(() => {
-    if (activeIndex >= SLIDES.length) {
-      onFinish();
-      return;
+    if (activeIndex >= IMAGES.length) {
+      // Hold on black (all slides faded out, text stays put) just long
+      // enough for the fade-out transition to actually finish before
+      // handing off, so there's no hard cut.
+      timeoutRef.current = setTimeout(() => {
+        onFinish();
+      }, CROSSFADE_MS);
+      return () => clearTimeout(timeoutRef.current);
     }
     timeoutRef.current = setTimeout(() => {
       setActiveIndex((i) => i + 1);
@@ -64,18 +64,17 @@ export default function CinematicReel({ onFinish }) {
 
   return (
     <div className="cinematic-reel">
-      {SLIDES.map((slide, index) => (
+      {IMAGES.map((src, index) => (
         <div
-          key={slide.src}
-          className={`cinematic-reel__slide ${
-            index === activeIndex ? 'is-active' : ''
-          }`}
+          key={src}
+          className={`cinematic-reel__slide ${index === activeIndex ? 'is-active' : ''}`}
+          style={{ transitionDuration: `${CROSSFADE_MS}ms` }}
         >
           {failedSlides[index] ? (
             <div className="cinematic-reel__fallback" />
           ) : (
             <img
-              src={slide.src}
+              src={src}
               alt=""
               className="cinematic-reel__image"
               onError={() => handleImageError(index)}
@@ -83,32 +82,28 @@ export default function CinematicReel({ onFinish }) {
             />
           )}
           <div className="cinematic-reel__scrim" />
-          <p
-            className={`cinematic-reel__text ${
-              index === activeIndex ? 'is-active' : ''
-            }`}
-          >
-            {slide.text}
-          </p>
         </div>
       ))}
 
+      <div className="cinematic-reel__overlay">
+        <span className="cinematic-reel__eyebrow">{ENTRY_OVERLAY.eyebrow}</span>
+        <h2 className="cinematic-reel__title">{ENTRY_OVERLAY.title}</h2>
+        <span className="cinematic-reel__subtitle">{ENTRY_OVERLAY.subtitle}</span>
+      </div>
+
       <div className="cinematic-reel__progress" aria-hidden="true">
-        {SLIDES.map((slide, index) => (
+        {IMAGES.map((src, index) => (
           <span
-            key={slide.src}
+            key={src}
             className={`cinematic-reel__progress-seg ${
               index <= activeIndex ? 'is-filled' : ''
             } ${index === activeIndex && !prefersReducedMotion ? 'is-active' : ''}`}
+            style={{ animationDuration: `${SLIDE_DURATION_MS}ms` }}
           />
         ))}
       </div>
 
-      <button
-        type="button"
-        className="cinematic-reel__skip"
-        onClick={handleSkip}
-      >
+      <button type="button" className="cinematic-reel__skip" onClick={handleSkip}>
         SKIP
       </button>
     </div>
@@ -118,11 +113,7 @@ export default function CinematicReel({ onFinish }) {
 /*
   Note on images:
   The 4 Unsplash URLs above are generic "art gallery / exhibition" stock
-  photography. They'll work as placeholders, but they read as Western
-  museum interiors rather than anything specific to Lagos. Before this
-  ships, swap them for images that actually feel like the platform —
-  either real (licensed) photos of the galleries you're listing, or
-  Unsplash searches for warmer/more specific terms (e.g. "gallery warm
-  light", "sculpture closeup", "African textile") rather than literal
-  "art gallery", which skews generic.
+  photography — placeholders only. Replace IMAGES with real photography
+  before this ships: actual shots of the galleries/spaces you're
+  listing, or artwork close-ups supplied by your designer.
 */

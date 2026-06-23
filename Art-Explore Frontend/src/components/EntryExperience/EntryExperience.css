@@ -3,7 +3,8 @@
   inset: 0;
   z-index: 1000;
   opacity: 1;
-  transition: opacity 0.8s ease;
+  /* Matches EXIT_FADE_MS in EntryExperience.jsx — keep these in sync */
+  transition: opacity 1.4s ease;
 }
 
 .entry-experience.is-exiting {
@@ -13,6 +14,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .entry-experience {
-    transition: opacity 0.2s linear;
+    transition: opacity 0.3s linear;
   }
 }
