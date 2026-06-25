@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Navbar from './components/layout/Navbar';
-import hero from './components/layout/hero.jsx'
+import Hero from './components/layout/hero.jsx';
 // import Herosection3 from './components/layout/HeroTypographic.jsx';
 import EntryExperience from './components/EntryExperience/EntryExperience';
 import ArtGalleryApp from './components/gallery/ArtGalleryApp.jsx';
@@ -21,7 +21,7 @@ function App() {
       <EntryExperience />
      
       <Navbar />
-      <hero />
+      <Hero />
       {/* <Herosection3 /> */}
       <Mapheader />
       <MapView />
