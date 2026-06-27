@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import "./ArtGalleryApp.scss";
-import { galleries } from "../../data/galleries"; // ← single source of truth
+import { useGalleries } from "../../hooks/useGalleries"; // ← live data from the API
 
 const TABS = [
   { id: "all", label: "All", matchTypes: null },
@@ -392,21 +392,23 @@ function GalleryCard({ gallery }) {
             </span>
           ))}
         </div>
-        <div className="card__rating">
-          <div className="card__stars">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <span
-                key={n}
-                className={`card__star ${n <= Math.round(gallery.rating) ? "card__star--on" : ""}`}
-              >
-                ★
-              </span>
-            ))}
+        {gallery.rating != null && (
+          <div className="card__rating">
+            <div className="card__stars">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <span
+                  key={n}
+                  className={`card__star ${n <= Math.round(gallery.rating) ? "card__star--on" : ""}`}
+                >
+                  ★
+                </span>
+              ))}
+            </div>
+            <span className="card__rating-value">
+              {gallery.rating.toFixed(1)}
+            </span>
           </div>
-          <span className="card__rating-value">
-            {gallery.rating.toFixed(1)}
-          </span>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -435,6 +437,7 @@ function ResultsGrid({ galleries, searchQuery }) {
 }
 
 export default function ArtGalleryApp() {
+  const { galleries, loading, error, reload } = useGalleries();
   const F = useGalleryFilters(galleries);
   return (
     <div className="galleries" id="galleries">
@@ -467,7 +470,21 @@ export default function ArtGalleryApp() {
         resetAllFilters={F.resetAllFilters}
         resultCount={F.resultCount}
       />
-      <ResultsGrid galleries={F.filtered} searchQuery={F.searchQuery} />
+      {loading ? (
+        <div className="empty">
+          <p className="empty__heading">Loading galleries…</p>
+        </div>
+      ) : error ? (
+        <div className="empty">
+          <p className="empty__heading">Couldn't load galleries</p>
+          <p className="empty__sub">{error}</p>
+          <button className="empty__retry" onClick={reload}>
+            Try again
+          </button>
+        </div>
+      ) : (
+        <ResultsGrid galleries={F.filtered} searchQuery={F.searchQuery} />
+      )}
     </div>
   );
 }
