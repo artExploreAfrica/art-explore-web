@@ -1,4 +1,4 @@
-import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
 import { S3_BUCKET, S3_REGION, s3 } from '../config/s3';
@@ -72,4 +72,29 @@ export const uploadExhibitionImage = async (
   );
 
   return `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`;
+};
+
+/**
+ * Best-effort delete of an S3 object given its public URL. Swallows errors so
+ * removing a DB image reference never fails because of S3.
+ */
+export const deleteS3ObjectByUrl = async (imageUrl: string): Promise<void> => {
+  try {
+    const prefix = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/`;
+    if (!imageUrl.startsWith(prefix)) {
+      console.warn(`[s3] skip delete — URL is not from this bucket: ${imageUrl}`);
+      return;
+    }
+    const key = decodeURIComponent(imageUrl.slice(prefix.length));
+    if (!key) return;
+
+    await s3.send(
+      new DeleteObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: key,
+      }),
+    );
+  } catch (err) {
+    console.error(`[s3] failed to delete object for ${imageUrl}:`, err);
+  }
 };

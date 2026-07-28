@@ -179,13 +179,15 @@ Indexed on `actorId`, `(targetModel, targetId)`, and `timestamp`.
 
 ## Redis (outside the relational schema)
 
-Upstash Redis is used for two purposes only:
+Upstash Redis is used for:
 
 | Key pattern | Value | TTL | Purpose |
 |---|---|---|---|
 | `refresh:{userId}` | Hashed refresh token | 7 days | Refresh-token store — deleted on logout |
 | `cache:institutions:{queryHash}` | JSON string | 60s | Cache for `GET /api/v1/institutions` |
 | `cache:institutions:map` | JSON string | 60s | Cache for `GET /api/v1/institutions/map` |
+| `reset:{sha256}` | userId | 1 hour | Password-reset token |
+| rate-limit keys | counter | per limiter | Auth endpoint rate limiting |
 
 Caches are invalidated on any admin write that can change a public payload —
 institutions, tags, sub-categories, and exhibitions.

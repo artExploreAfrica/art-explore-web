@@ -8,43 +8,55 @@ dotenv.config();
  * Validation runs once at module load — if anything is missing or malformed,
  * the process crashes immediately with a clear, actionable message.
  */
-const envSchema = z.object({
-  // Server
-  PORT: z.coerce.number().int().positive().default(4000),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  // Comma-separated list of allowed CORS origins. Empty/unset = allow any origin.
-  ALLOWED_ORIGINS: z.string().optional(),
+const envSchema = z
+  .object({
+    // Server
+    PORT: z.coerce.number().int().positive().default(4000),
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    // Comma-separated list of allowed CORS origins.
+    // Required in production; empty/unset = allow any origin in development/test.
+    ALLOWED_ORIGINS: z.string().optional(),
 
-  // PostgreSQL
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+    // PostgreSQL
+    DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
 
-  // JWT
-  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 chars'),
-  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 chars'),
-  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
+    // JWT
+    JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 chars'),
+    JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 chars'),
+    JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+    JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
-  // AWS S3
-  AWS_ACCESS_KEY_ID: z.string().min(1, 'AWS_ACCESS_KEY_ID is required'),
-  AWS_SECRET_ACCESS_KEY: z.string().min(1, 'AWS_SECRET_ACCESS_KEY is required'),
-  AWS_REGION: z.string().min(1, 'AWS_REGION is required'),
-  AWS_S3_BUCKET_NAME: z.string().min(1, 'AWS_S3_BUCKET_NAME is required'),
+    // AWS S3
+    AWS_ACCESS_KEY_ID: z.string().min(1, 'AWS_ACCESS_KEY_ID is required'),
+    AWS_SECRET_ACCESS_KEY: z.string().min(1, 'AWS_SECRET_ACCESS_KEY is required'),
+    AWS_REGION: z.string().min(1, 'AWS_REGION is required'),
+    AWS_S3_BUCKET_NAME: z.string().min(1, 'AWS_S3_BUCKET_NAME is required'),
 
-  // Upstash Redis
-  UPSTASH_REDIS_REST_URL: z.string().url('UPSTASH_REDIS_REST_URL must be a valid URL'),
-  UPSTASH_REDIS_REST_TOKEN: z.string().min(1, 'UPSTASH_REDIS_REST_TOKEN is required'),
+    // Upstash Redis
+    UPSTASH_REDIS_REST_URL: z.string().url('UPSTASH_REDIS_REST_URL must be a valid URL'),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1, 'UPSTASH_REDIS_REST_TOKEN is required'),
 
-  // Email (Resend). EMAIL_FROM must be a verified Resend sender/domain; FRONTEND_URL
-  // is the public web app base used to build password-reset links.
-  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
-  EMAIL_FROM: z.string().email('EMAIL_FROM must be a valid email address'),
-  FRONTEND_URL: z.string().url('FRONTEND_URL must be a valid URL'),
+    // Email (Resend). RESEND_API_KEY is optional — mailer no-ops until set.
+    // EMAIL_FROM must be a verified Resend sender/domain; FRONTEND_URL is the
+    // public web app base used to build password-reset and login links.
+    RESEND_API_KEY: z.string().optional(),
+    EMAIL_FROM: z.string().email('EMAIL_FROM must be a valid email address'),
+    FRONTEND_URL: z.string().url('FRONTEND_URL must be a valid URL'),
 
-  // Seed (optional at runtime; required only when running the seed script)
-  SEED_SUPER_ADMIN_NAME: z.string().optional(),
-  SEED_SUPER_ADMIN_EMAIL: z.string().email().optional(),
-  SEED_SUPER_ADMIN_PASSWORD: z.string().optional(),
-});
+    // Seed (optional at runtime; required only when running the seed script)
+    SEED_SUPER_ADMIN_NAME: z.string().optional(),
+    SEED_SUPER_ADMIN_EMAIL: z.string().email().optional(),
+    SEED_SUPER_ADMIN_PASSWORD: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.NODE_ENV === 'production' && !data.ALLOWED_ORIGINS?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ALLOWED_ORIGINS'],
+        message: 'ALLOWED_ORIGINS is required in production',
+      });
+    }
+  });
 
 const parsed = envSchema.safeParse(process.env);
 

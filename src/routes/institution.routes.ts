@@ -35,6 +35,14 @@ const router = Router();
  *         name: type
  *         schema: { type: string, enum: [ART_GALLERY, MUSEUM, INSTITUTE, FOUNDATION, STUDIO, CULTURAL_SPACE] }
  *       - in: query
+ *         name: subCategoryId
+ *         schema: { type: string }
+ *         description: Filter by sub-category id
+ *       - in: query
+ *         name: tag
+ *         schema: { type: string }
+ *         description: Tag id or slug (name)
+ *       - in: query
  *         name: search
  *         schema: { type: string }
  *         description: Free-text search over name, description, and tags

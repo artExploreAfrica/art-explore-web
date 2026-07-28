@@ -13,12 +13,15 @@ import { uploadImage } from '../middleware/upload';
 import { validate } from '../middleware/validate';
 import {
   createInstitutionSchema,
+  adminListInstitutionsQuerySchema,
   idParamSchema,
+  removeImageSchema,
   updateInstitutionSchema,
 } from '../validators/institution.validator';
 import {
   createExhibitionSchema,
   exhibitionParamsSchema,
+  setExhibitionActiveSchema,
   updateExhibitionSchema,
 } from '../validators/exhibition.validator';
 import {
@@ -82,6 +85,76 @@ router.get('/dashboard', roleGuard(Role.SUPER_ADMIN, Role.ADMIN), dashboardContr
 // ---------------------------------------------------------------------------
 // Institution management (ADMIN or SUPER_ADMIN)
 // ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions:
+ *   get:
+ *     summary: List all institutions (including drafts / unpublished)
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: area
+ *         schema: { type: string, enum: [ISLAND, MAINLAND, OTHER] }
+ *       - in: query
+ *         name: type
+ *         schema: { type: string }
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *       - in: query
+ *         name: tag
+ *         schema: { type: string, description: Tag id or slug }
+ *       - in: query
+ *         name: subCategoryId
+ *         schema: { type: string }
+ *       - in: query
+ *         name: isPublished
+ *         schema: { type: string, enum: [true, false] }
+ *       - in: query
+ *         name: approvalStatus
+ *         schema: { type: string, enum: [PENDING, APPROVED, REJECTED] }
+ *     responses:
+ *       200: { description: Paginated institution list }
+ *       401: { description: Unauthenticated }
+ *       403: { description: Forbidden }
+ */
+router.get(
+  '/institutions',
+  roleGuard(Role.SUPER_ADMIN, Role.ADMIN),
+  validate({ query: adminListInstitutionsQuerySchema }),
+  adminInstitutionController.list,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}:
+ *   get:
+ *     summary: Get a single institution (admin view)
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Institution detail }
+ *       404: { description: Not found }
+ */
+router.get(
+  '/institutions/:id',
+  roleGuard(Role.SUPER_ADMIN, Role.ADMIN),
+  validate({ params: idParamSchema }),
+  adminInstitutionController.getById,
+);
 
 /**
  * @swagger
@@ -216,6 +289,38 @@ router.post(
   adminInstitutionController.uploadImageHandler,
 );
 
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/images:
+ *   delete:
+ *     summary: Remove an image URL from an institution (best-effort S3 delete)
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [url]
+ *             properties:
+ *               url: { type: string, format: uri }
+ *     responses:
+ *       200: { description: Image removed }
+ *       404: { description: Not found }
+ */
+router.delete(
+  '/institutions/:id/images',
+  roleGuard(Role.SUPER_ADMIN, Role.ADMIN),
+  validate({ params: idParamSchema, body: removeImageSchema }),
+  adminInstitutionController.removeImageHandler,
+);
+
 // ---------------------------------------------------------------------------
 // Exhibitions (nested under an institution; ADMIN or SUPER_ADMIN)
 // ---------------------------------------------------------------------------
@@ -343,6 +448,78 @@ router.post(
   validate({ params: exhibitionParamsSchema }),
   uploadImage,
   adminExhibitionController.uploadImageHandler,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/exhibitions/{exhibitionId}/activate:
+ *   post:
+ *     summary: Set whether an exhibition is publicly active
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: exhibitionId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [isActive]
+ *             properties:
+ *               isActive: { type: boolean }
+ *     responses:
+ *       200: { description: Active status updated }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/institutions/:id/exhibitions/:exhibitionId/activate',
+  isAdmin,
+  validate({ params: exhibitionParamsSchema, body: setExhibitionActiveSchema }),
+  adminExhibitionController.setActive,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/exhibitions/{exhibitionId}/images:
+ *   delete:
+ *     summary: Remove an image URL from an exhibition
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: exhibitionId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [url]
+ *             properties:
+ *               url: { type: string, format: uri }
+ *     responses:
+ *       200: { description: Image removed }
+ *       404: { description: Not found }
+ */
+router.delete(
+  '/institutions/:id/exhibitions/:exhibitionId/images',
+  isAdmin,
+  validate({ params: exhibitionParamsSchema, body: removeImageSchema }),
+  adminExhibitionController.removeImageHandler,
 );
 
 // ---------------------------------------------------------------------------
@@ -693,6 +870,30 @@ router.patch(
   userController.deactivate,
 );
 
+/**
+ * @swagger
+ * /api/v1/admin/users/{id}/activate:
+ *   patch:
+ *     summary: Reactivate a deactivated admin user
+ *     tags: [Admin - Users]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Activated }
+ *       403: { description: Forbidden }
+ *       404: { description: Not found }
+ */
+router.patch(
+  '/users/:id/activate',
+  roleGuard(Role.SUPER_ADMIN),
+  validate({ params: idParamSchema }),
+  userController.activate,
+);
+
 // ---------------------------------------------------------------------------
 // Audit logs (SUPER_ADMIN only)
 // ---------------------------------------------------------------------------
@@ -717,10 +918,10 @@ router.patch(
  *         description: Filter by the admin who performed the action
  *       - in: query
  *         name: action
- *         schema: { type: string, enum: [CREATE, UPDATE, DELETE, PUBLISH, UNPUBLISH, DEACTIVATE, IMAGE_UPLOAD] }
+ *         schema: { type: string, enum: [CREATE, UPDATE, DELETE, PUBLISH, UNPUBLISH, DEACTIVATE, IMAGE_UPLOAD, SUBMIT, APPROVE, REJECT, APPROVE_USER, REJECT_USER, APPROVE_INSTITUTION, REJECT_INSTITUTION, EXHIBITION_CREATE, EXHIBITION_UPDATE, EXHIBITION_DELETE, APPROVE_EXHIBITION, REJECT_EXHIBITION] }
  *       - in: query
  *         name: targetModel
- *         schema: { type: string, enum: [INSTITUTION, USER] }
+ *         schema: { type: string, enum: [INSTITUTION, USER, SUBCATEGORY, TAG, EXHIBITION] }
  *       - in: query
  *         name: from
  *         schema: { type: string, format: date-time }

@@ -1,10 +1,11 @@
 import { Role } from '@prisma/client';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bearer, signAccess } from './helpers';
+import { bearer, signAccess, stubActiveUser } from './helpers';
 
 const mocks = vi.hoisted(() => ({
   prisma: {
+    user: { findUnique: vi.fn() },
     subCategory: {
       findMany: vi.fn(),
       count: vi.fn(),
@@ -38,6 +39,7 @@ const stored = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
   mocks.redis.scan.mockResolvedValue(['0', []]);
   mocks.redis.del.mockResolvedValue(0);
   mocks.prisma.auditLog.create.mockResolvedValue({});
@@ -45,6 +47,8 @@ beforeEach(() => {
 
 describe('POST /api/v1/admin/subcategories', () => {
   it('403s for a USER role', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.USER, { id: 'user_1' });
+
     const res = await request(app)
       .post('/api/v1/admin/subcategories')
       .set(userToken)

@@ -62,6 +62,8 @@ All variables are validated at startup ([`src/config/env.ts`](./src/config/env.t
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | S3 IAM credentials |
 | `AWS_REGION` / `AWS_S3_BUCKET_NAME` | S3 bucket location |
 | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Upstash REST credentials |
+| `RESEND_API_KEY` | Optional — mailer no-ops until set (password reset, submission, welcome emails) |
+| `EMAIL_FROM` / `FRONTEND_URL` | Resend sender + public app URL for email links |
 | `SEED_SUPER_ADMIN_*` | Default Super Admin for the seed script |
 
 ### 4. Database
@@ -123,7 +125,7 @@ Protected routes require `Authorization: Bearer <accessToken>`. The full, always
 | POST | `/auth/reset-password` | Public | Set a new password using a reset token |
 | GET | `/auth/me` | User | Current authenticated profile |
 | POST | `/auth/change-password` | User | Change own password (revokes other sessions) |
-| POST | `/auth/register` | Super | Create an admin account |
+| POST | `/auth/register` | Super | Legacy alias — prefer `POST /admin/users` to create staff |
 
 ¹ No access token, but a valid `refreshToken` is required in the body.
 
@@ -135,7 +137,7 @@ Protected routes require `Authorization: Bearer <accessToken>`. The full, always
 | GET | `/institutions/:id` | Public | Single published venue |
 | GET | `/institutions/:id/exhibitions` | Public | Approved exhibitions for a venue |
 | GET | `/subcategories` | Public | Sub-categories (filter `type`) |
-| GET | `/tags` | Public | Tags (filter `search`) |
+| GET | `/tags` | Public | Tags (filters `search`, `category`) |
 
 ### Submissions — `/submissions`
 | Method | Path | Auth | Purpose |
@@ -146,26 +148,32 @@ Protected routes require `Authorization: Bearer <accessToken>`. The full, always
 ### Admin — `/admin`
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/admin/dashboard` | Admin | Aggregate counts |
+| GET | `/admin/dashboard` | Admin | Aggregate counts (`admins` = staff; also `publicUsers`) |
+| GET | `/admin/institutions` | Admin | Full catalogue (drafts / unpublished / pending) |
+| GET | `/admin/institutions/:id` | Admin | Single venue (admin view) |
 | POST | `/admin/institutions` | Admin | Create a venue |
 | PUT | `/admin/institutions/:id` | Admin | Update a venue |
 | DELETE | `/admin/institutions/:id` | Admin | Soft-delete a venue |
 | POST | `/admin/institutions/:id/publish` | Admin | Toggle publish status |
 | POST | `/admin/institutions/:id/images` | Admin | Upload an image (multipart, field `image`) |
+| DELETE | `/admin/institutions/:id/images` | Admin | Remove an image (`{ url }`) |
 | POST | `/admin/institutions/:id/exhibitions` | Admin | Create an exhibition |
 | PUT | `/admin/institutions/:id/exhibitions/:exhibitionId` | Admin | Update an exhibition |
 | DELETE | `/admin/institutions/:id/exhibitions/:exhibitionId` | Admin | Delete an exhibition |
 | POST | `/admin/institutions/:id/exhibitions/:exhibitionId/image` | Admin | Upload exhibition image (multipart, field `image`) |
-| GET | `/admin/submissions` | Admin | Review queue (filter `status`, default `PENDING`) |
-| POST | `/admin/institutions/:id/approve` | Admin | Approve a submission (does **not** publish) |
-| POST | `/admin/institutions/:id/reject` | Admin | Reject with a required `reviewNote` |
+| POST | `/admin/institutions/:id/exhibitions/:exhibitionId/activate` | Admin | Set `{ isActive }` |
+| DELETE | `/admin/institutions/:id/exhibitions/:exhibitionId/images` | Admin | Remove exhibition image (`{ url }`) |
+| GET | `/admin/submissions` | Admin | Review queue (user submissions only; filter `status`) |
+| POST | `/admin/institutions/:id/approve` | Admin | Approve a submission (does **not** publish; emails submitter) |
+| POST | `/admin/institutions/:id/reject` | Admin | Reject with required `reviewNote` (emails submitter) |
 | GET / POST | `/admin/subcategories` | Admin | List / create sub-categories |
 | PUT / DELETE | `/admin/subcategories/:id` | Admin | Update / delete a sub-category |
 | GET / POST | `/admin/tags` | Admin | List / create tags |
 | PUT / DELETE | `/admin/tags/:id` | Admin | Update / delete a tag |
-| GET | `/admin/users` | Super | List admin users |
-| POST | `/admin/users` | Super | Create an admin user |
-| PATCH | `/admin/users/:id/deactivate` | Super | Deactivate an admin user |
+| GET | `/admin/users` | Super | List staff users (canonical staff management) |
+| POST | `/admin/users` | Super | Create a staff user (sends welcome email when Resend is configured) |
+| PATCH | `/admin/users/:id/deactivate` | Super | Deactivate a staff user |
+| PATCH | `/admin/users/:id/activate` | Super | Reactivate a staff user |
 | GET | `/admin/audit-logs` | Super | Paginated audit trail (filters `actorId`, `action`, `targetModel`, `from`, `to`) |
 
 A Postman collection is in [`docs/ArtExplore.postman_collection.json`](./docs/ArtExplore.postman_collection.json).
@@ -261,7 +269,7 @@ const { data, pagination } = await (await fetch(`${BASE}/institutions?${qs}`)).j
 - `area`: `ISLAND` · `MAINLAND` · `OTHER`
 - `type`: `ART_GALLERY` · `MUSEUM` · `INSTITUTE` · `FOUNDATION` · `STUDIO` · `CULTURAL_SPACE`
 - `subCategoryId`: an id from `GET /subcategories`
-- `tag`: a tag name/slug from `GET /tags`
+- `tag`: a tag id **or** slug (`name`) from `GET /tags`
 - `search`: free text over name, description, tags
 - `limit` max is `100`.
 

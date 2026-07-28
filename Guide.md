@@ -2,6 +2,11 @@
 **Role:** Senior Backend Engineer | **Developer:** Shinaayomi Olanrewaju (Tee Shine)
 **Client:** Art Explore Inc. | **Contract Value:** ₦200,000 | **Timeline:** 3 weeks from signing
 
+> **Superseded for current API scope.** This Guide was the original MVP contract.
+> The live product surface, roles (`USER` signup, exhibitions, Resend email, taxonomy),
+> and endpoint catalogue are documented in [`docs/backend-prd.md`](docs/backend-prd.md)
+> and [`README.md`](README.md). Prefer those over Sections 3–4 below when they conflict.
+
 ---
 
 ## 1. Project Overview

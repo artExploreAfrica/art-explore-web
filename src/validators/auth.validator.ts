@@ -1,11 +1,13 @@
 import { Role } from '@prisma/client';
 import { z } from 'zod';
+import { staffRoleSchema } from './user.validator';
 
+/** Legacy Super-Admin staff create (prefer POST /admin/users). Staff roles only. */
 export const registerSchema = z.object({
   fullName: z.string().min(2, 'fullName must be at least 2 characters'),
   email: z.string().email(),
   password: z.string().min(8, 'password must be at least 8 characters'),
-  role: z.nativeEnum(Role).optional().default(Role.ADMIN),
+  role: staffRoleSchema.optional().default(Role.ADMIN),
 });
 
 /**

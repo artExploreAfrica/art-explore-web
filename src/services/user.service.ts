@@ -4,10 +4,14 @@ import prisma from '../config/db';
 import { redis } from '../config/redis';
 import { AppError, ConflictError, NotFoundError } from '../utils/AppError';
 import { auditLog } from '../utils/auditLogger';
+import { sendWelcomeEmail } from '../utils/mailer';
 import { PaginationMeta } from '../utils/response';
 import { CreateUserInput, PaginationQuery } from '../validators/user.validator';
 
 const BCRYPT_ROUNDS = 10;
+
+/** Staff accounts managed via the Super Admin user panel. */
+const STAFF_ROLES: Role[] = [Role.SUPER_ADMIN, Role.ADMIN];
 
 /** Never return password hashes from this service. */
 const SAFE_SELECT = {
@@ -27,17 +31,19 @@ interface ListResult {
   pagination: PaginationMeta;
 }
 
-/** List all admin users (Super Admin only). */
+/** List staff users only (Super Admin only). */
 export const list = async (query: PaginationQuery): Promise<ListResult> => {
   const { page, limit } = query;
+  const where: Prisma.UserWhereInput = { role: { in: STAFF_ROLES } };
   const [data, total] = await Promise.all([
     prisma.user.findMany({
+      where,
       select: SAFE_SELECT,
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
     }),
-    prisma.user.count(),
+    prisma.user.count({ where }),
   ]);
 
   return {
@@ -46,7 +52,7 @@ export const list = async (query: PaginationQuery): Promise<ListResult> => {
   };
 };
 
-/** Create a new admin user (Super Admin only). */
+/** Create a new staff user (Super Admin only). */
 export const create = async (
   actorId: string,
   input: CreateUserInput,
@@ -69,10 +75,14 @@ export const create = async (
     email: user.email,
     role: user.role,
   });
+
+  // Best-effort welcome email — never fail the create if Resend is unset/down.
+  void sendWelcomeEmail(user.email, user.fullName, user.role);
+
   return user;
 };
 
-/** Deactivate an admin user and revoke their refresh token. */
+/** Deactivate a staff user and revoke their refresh token. */
 export const deactivate = async (actorId: string, targetId: string): Promise<SafeUser> => {
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw NotFoundError('User');
@@ -97,5 +107,27 @@ export const deactivate = async (actorId: string, targetId: string): Promise<Saf
   return user;
 };
 
-/** Used by the dashboard counts. */
-export const countAdmins = (): Promise<number> => prisma.user.count();
+/** Reactivate a previously deactivated staff user. */
+export const activate = async (actorId: string, targetId: string): Promise<SafeUser> => {
+  const target = await prisma.user.findUnique({ where: { id: targetId } });
+  if (!target) throw NotFoundError('User');
+
+  if (!STAFF_ROLES.includes(target.role)) {
+    throw new AppError('Only staff accounts can be activated via this endpoint', 400);
+  }
+
+  const user = await prisma.user.update({
+    where: { id: targetId },
+    data: { isActive: true },
+    select: SAFE_SELECT,
+  });
+
+  await auditLog(actorId, AuditAction.UPDATE, TargetModel.USER, targetId, {
+    action: 'ACTIVATE',
+  });
+  return user;
+};
+
+/** Used by the dashboard counts — staff roles only. */
+export const countAdmins = (): Promise<number> =>
+  prisma.user.count({ where: { role: { in: STAFF_ROLES } } });

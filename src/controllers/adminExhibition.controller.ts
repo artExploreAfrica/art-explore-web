@@ -51,3 +51,26 @@ export const uploadImageHandler = asyncHandler(async (req: Request, res: Respons
   );
   return successResponse(res, exhibition, 'Image uploaded', 201);
 });
+
+export const setActive = asyncHandler(async (req: Request, res: Response) => {
+  const { isActive } = req.body as { isActive: boolean };
+  const exhibition = await exhibitionService.setActive(
+    actorId(req),
+    req.params.id,
+    req.params.exhibitionId,
+    isActive,
+  );
+  const message = exhibition.isActive ? 'Exhibition activated' : 'Exhibition deactivated';
+  return successResponse(res, exhibition, message);
+});
+
+export const removeImageHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { url } = req.body as { url: string };
+  const exhibition = await exhibitionService.removeImage(
+    actorId(req),
+    req.params.id,
+    req.params.exhibitionId,
+    url,
+  );
+  return successResponse(res, exhibition, 'Image removed');
+});

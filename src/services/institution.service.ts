@@ -6,7 +6,7 @@ import {
   TargetModel,
 } from '@prisma/client';
 import prisma from '../config/db';
-import { NotFoundError } from '../utils/AppError';
+import { AppError, NotFoundError } from '../utils/AppError';
 import { auditLog } from '../utils/auditLogger';
 import {
   getCached,
@@ -15,8 +15,14 @@ import {
   MAP_CACHE_KEY,
   setCached,
 } from '../utils/institutionCache';
-import { PaginationMeta } from '../utils/response';
 import {
+  sendSubmissionApprovedEmail,
+  sendSubmissionRejectedEmail,
+} from '../utils/mailer';
+import { PaginationMeta } from '../utils/response';
+import { deleteS3ObjectByUrl } from '../utils/s3Uploader';
+import {
+  AdminListInstitutionsQuery,
   CreateInstitutionInput,
   ListInstitutionsQuery,
   UpdateInstitutionInput,
@@ -50,7 +56,8 @@ export const listPublished = async (query: ListInstitutionsQuery): Promise<ListR
     ...(area && { area }),
     ...(type && { type }),
     ...(subCategoryId && { subCategoryId }),
-    ...(tag && { tags: { some: { id: tag } } }),
+    // Tag filter accepts either the tag id or the slug (`name`).
+    ...(tag && { tags: { some: { OR: [{ id: tag }, { name: tag }] } } }),
     ...(search && {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
@@ -118,6 +125,63 @@ export const getMapPins = async (): Promise<MapPin[]> => {
 
   await setCached(MAP_CACHE_KEY, pins);
   return pins;
+};
+
+// ---------------------------------------------------------------------------
+// Admin reads — full catalogue (drafts, unpublished, pending); not soft-deleted.
+// ---------------------------------------------------------------------------
+
+export const listForAdmin = async (query: AdminListInstitutionsQuery): Promise<ListResult> => {
+  const { page, limit, area, type, subCategoryId, tag, search, isPublished, approvalStatus } =
+    query;
+
+  const where: Prisma.InstitutionWhereInput = {
+    deletedAt: null,
+    ...(area && { area }),
+    ...(type && { type }),
+    ...(subCategoryId && { subCategoryId }),
+    ...(tag && { tags: { some: { OR: [{ id: tag }, { name: tag }] } } }),
+    ...(isPublished !== undefined && { isPublished }),
+    ...(approvalStatus && { approvalStatus }),
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { tags: { some: { name: { contains: search, mode: 'insensitive' } } } },
+      ],
+    }),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.institution.findMany({
+      where,
+      include: { tags: true, subCategory: true },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.institution.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit) || 0,
+    },
+  };
+};
+
+/** Admin detail — any non-deleted institution regardless of publish/approval. */
+export const getByIdForAdmin = async (id: string): Promise<Institution> => {
+  const institution = await prisma.institution.findFirst({
+    where: { id, deletedAt: null },
+    include: { tags: true, subCategory: true },
+  });
+  if (!institution) throw NotFoundError('Institution');
+  return institution;
 };
 
 // ---------------------------------------------------------------------------
@@ -235,6 +299,32 @@ export const addImage = async (
   return institution;
 };
 
+/** Remove an image URL from the institution and best-effort delete the S3 object. */
+export const removeImage = async (
+  actorId: string,
+  id: string,
+  imageUrl: string,
+): Promise<Institution> => {
+  const current = await ensureExists(id);
+
+  if (!current.images.includes(imageUrl)) {
+    throw new AppError('Image URL not found on this institution', 404);
+  }
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: { images: current.images.filter((url) => url !== imageUrl) },
+  });
+
+  await deleteS3ObjectByUrl(imageUrl);
+
+  await auditLog(actorId, AuditAction.UPDATE, TargetModel.INSTITUTION, id, {
+    removedImageUrl: imageUrl,
+  });
+  await invalidateInstitutionCache();
+  return institution;
+};
+
 // ---------------------------------------------------------------------------
 // Submission / approval workflow (Feature 5)
 // ---------------------------------------------------------------------------
@@ -294,7 +384,7 @@ export const listMine = async (
   };
 };
 
-/** Admin review queue, filtered by approval status (defaults to PENDING). */
+/** Admin review queue — user-submitted venues only, filtered by approval status. */
 export const listSubmissions = async (
   query: ListSubmissionsQuery,
 ): Promise<ListResult> => {
@@ -302,6 +392,7 @@ export const listSubmissions = async (
   const where: Prisma.InstitutionWhereInput = {
     approvalStatus: status,
     deletedAt: null,
+    submittedById: { not: null },
   };
 
   const [data, total] = await Promise.all([
@@ -323,7 +414,11 @@ export const listSubmissions = async (
 
 /** Approve a submission. Does not publish — admin publishes separately. */
 export const approve = async (actorId: string, id: string): Promise<Institution> => {
-  await ensureExists(id);
+  const current = await prisma.institution.findFirst({
+    where: { id, deletedAt: null },
+    include: { submittedBy: { select: { email: true, fullName: true } } },
+  });
+  if (!current) throw NotFoundError('Institution');
 
   const institution = await prisma.institution.update({
     where: { id },
@@ -335,7 +430,16 @@ export const approve = async (actorId: string, id: string): Promise<Institution>
     },
   });
 
-  await auditLog(actorId, AuditAction.APPROVE, TargetModel.INSTITUTION, id);
+  await auditLog(actorId, AuditAction.APPROVE_INSTITUTION, TargetModel.INSTITUTION, id);
+
+  if (current.submittedBy) {
+    void sendSubmissionApprovedEmail(
+      current.submittedBy.email,
+      current.submittedBy.fullName,
+      current.name,
+    );
+  }
+
   return institution;
 };
 
@@ -345,7 +449,11 @@ export const reject = async (
   id: string,
   reviewNote: string,
 ): Promise<Institution> => {
-  await ensureExists(id);
+  const current = await prisma.institution.findFirst({
+    where: { id, deletedAt: null },
+    include: { submittedBy: { select: { email: true, fullName: true } } },
+  });
+  if (!current) throw NotFoundError('Institution');
 
   const institution = await prisma.institution.update({
     where: { id },
@@ -358,8 +466,20 @@ export const reject = async (
     },
   });
 
-  await auditLog(actorId, AuditAction.REJECT, TargetModel.INSTITUTION, id, { reviewNote });
+  await auditLog(actorId, AuditAction.REJECT_INSTITUTION, TargetModel.INSTITUTION, id, {
+    reviewNote,
+  });
   await invalidateInstitutionCache();
+
+  if (current.submittedBy) {
+    void sendSubmissionRejectedEmail(
+      current.submittedBy.email,
+      current.submittedBy.fullName,
+      current.name,
+      reviewNote,
+    );
+  }
+
   return institution;
 };
 

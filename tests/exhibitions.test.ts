@@ -1,10 +1,11 @@
 import { Role } from '@prisma/client';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bearer, signAccess } from './helpers';
+import { bearer, signAccess, stubActiveUser } from './helpers';
 
 const mocks = vi.hoisted(() => ({
   prisma: {
+    user: { findUnique: vi.fn() },
     institution: { findFirst: vi.fn(), update: vi.fn() },
     exhibition: {
       create: vi.fn(),
@@ -56,6 +57,7 @@ const validBody = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
   mocks.redis.scan.mockResolvedValue(['0', []]);
   mocks.redis.del.mockResolvedValue(0);
   mocks.prisma.auditLog.create.mockResolvedValue({});
@@ -107,7 +109,7 @@ describe('GET /api/v1/institutions/:id/exhibitions (public)', () => {
     expect(res.status).toBe(404);
   });
 
-  it('200s and returns exhibitions for a published institution', async () => {
+  it('200s and returns only active approved exhibitions', async () => {
     mocks.prisma.institution.findFirst.mockResolvedValue({ id: 'inst_1' });
     mocks.prisma.exhibition.findMany.mockResolvedValue([exhibition]);
 
@@ -115,5 +117,23 @@ describe('GET /api/v1/institutions/:id/exhibitions (public)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(1);
+    const whereArg = mocks.prisma.exhibition.findMany.mock.calls[0][0].where;
+    expect(whereArg).toMatchObject({
+      approvalStatus: 'APPROVED',
+      isActive: true,
+    });
+  });
+
+  it('activates an exhibition via admin toggle', async () => {
+    mocks.prisma.exhibition.findFirst.mockResolvedValue(exhibition);
+    mocks.prisma.exhibition.update.mockResolvedValue({ ...exhibition, isActive: false });
+
+    const res = await request(app)
+      .post('/api/v1/admin/institutions/inst_1/exhibitions/ex_1/activate')
+      .set(adminToken)
+      .send({ isActive: false });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.isActive).toBe(false);
   });
 });

@@ -5,9 +5,10 @@ import {
   TargetModel,
 } from '@prisma/client';
 import prisma from '../config/db';
-import { NotFoundError } from '../utils/AppError';
+import { AppError, NotFoundError } from '../utils/AppError';
 import { auditLog } from '../utils/auditLogger';
 import { invalidateInstitutionCache } from '../utils/institutionCache';
+import { deleteS3ObjectByUrl } from '../utils/s3Uploader';
 import {
   CreateExhibitionInput,
   UpdateExhibitionInput,
@@ -63,7 +64,11 @@ export const listForInstitution = async (
   if (!institution) throw NotFoundError('Institution');
 
   return prisma.exhibition.findMany({
-    where: { institutionId, approvalStatus: ApprovalStatus.APPROVED },
+    where: {
+      institutionId,
+      approvalStatus: ApprovalStatus.APPROVED,
+      isActive: true,
+    },
     orderBy: { startDate: 'desc' },
   });
 };
@@ -163,6 +168,59 @@ export const addImage = async (
   await auditLog(actorId, AuditAction.IMAGE_UPLOAD, TargetModel.EXHIBITION, exhibitionId, {
     institutionId,
     imageUrl,
+  });
+  await invalidateInstitutionCache();
+  return exhibition;
+};
+
+/** Toggle whether an exhibition is publicly active. */
+export const setActive = async (
+  actorId: string,
+  institutionId: string,
+  exhibitionId: string,
+  isActive: boolean,
+): Promise<Exhibition> => {
+  await ensureExhibition(institutionId, exhibitionId);
+
+  const exhibition = await prisma.exhibition.update({
+    where: { id: exhibitionId },
+    data: { isActive },
+  });
+
+  await auditLog(
+    actorId,
+    AuditAction.EXHIBITION_UPDATE,
+    TargetModel.EXHIBITION,
+    exhibitionId,
+    { institutionId, isActive },
+  );
+  await invalidateInstitutionCache();
+  return exhibition;
+};
+
+/** Remove an image URL from an exhibition and best-effort delete the S3 object. */
+export const removeImage = async (
+  actorId: string,
+  institutionId: string,
+  exhibitionId: string,
+  imageUrl: string,
+): Promise<Exhibition> => {
+  const current = await ensureExhibition(institutionId, exhibitionId);
+
+  if (!current.images.includes(imageUrl)) {
+    throw new AppError('Image URL not found on this exhibition', 404);
+  }
+
+  const exhibition = await prisma.exhibition.update({
+    where: { id: exhibitionId },
+    data: { images: current.images.filter((url) => url !== imageUrl) },
+  });
+
+  await deleteS3ObjectByUrl(imageUrl);
+
+  await auditLog(actorId, AuditAction.EXHIBITION_UPDATE, TargetModel.EXHIBITION, exhibitionId, {
+    institutionId,
+    removedImageUrl: imageUrl,
   });
   await invalidateInstitutionCache();
   return exhibition;

@@ -24,5 +24,10 @@ export const exhibitionParamsSchema = z.object({
   exhibitionId: z.string().min(1),
 });
 
+export const setExhibitionActiveSchema = z.object({
+  isActive: z.boolean(),
+});
+
 export type CreateExhibitionInput = z.infer<typeof createExhibitionSchema>;
 export type UpdateExhibitionInput = z.infer<typeof updateExhibitionSchema>;
+export type SetExhibitionActiveInput = z.infer<typeof setExhibitionActiveSchema>;

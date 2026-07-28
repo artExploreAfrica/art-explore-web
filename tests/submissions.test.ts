@@ -1,10 +1,11 @@
 import { Role } from '@prisma/client';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bearer, signAccess } from './helpers';
+import { bearer, signAccess, stubActiveUser } from './helpers';
 
 const mocks = vi.hoisted(() => ({
   prisma: {
+    user: { findUnique: vi.fn() },
     institution: {
       create: vi.fn(),
       findFirst: vi.fn(),
@@ -46,6 +47,10 @@ const stored = {
   subCategoryId: null,
   approvalStatus: 'PENDING',
   submittedById: 'user_1',
+  submittedBy: {
+    email: 'user@test.dev',
+    fullName: 'Submitter',
+  },
   isPublished: false,
   deletedAt: null,
   createdAt: new Date(),
@@ -61,6 +66,8 @@ beforeEach(() => {
 
 describe('POST /api/v1/submissions (USER)', () => {
   it('403s for an ADMIN (wrong role)', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
+
     const res = await request(app)
       .post('/api/v1/submissions')
       .set(adminToken)
@@ -70,6 +77,10 @@ describe('POST /api/v1/submissions (USER)', () => {
   });
 
   it('201s, creates a PENDING record, and logs SUBMIT', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.USER, {
+      id: 'user_1',
+      email: 'user@test.dev',
+    });
     mocks.prisma.institution.create.mockResolvedValue(stored);
 
     const res = await request(app)
@@ -91,11 +102,14 @@ describe('POST /api/v1/submissions (USER)', () => {
 
 describe('admin review', () => {
   it('USER cannot reach the admin review queue (403)', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.USER, { id: 'user_1' });
+
     const res = await request(app).get('/api/v1/admin/submissions').set(userToken);
     expect(res.status).toBe(403);
   });
 
-  it('approve sets APPROVED + reviewer and logs APPROVE', async () => {
+  it('approve sets APPROVED + reviewer and logs APPROVE_INSTITUTION', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
     mocks.prisma.institution.findFirst.mockResolvedValue(stored);
     mocks.prisma.institution.update.mockResolvedValue({ ...stored, approvalStatus: 'APPROVED' });
 
@@ -108,11 +122,13 @@ describe('admin review', () => {
     expect(updateData.approvalStatus).toBe('APPROVED');
     expect(updateData.reviewedById).toBe('admin_1');
     expect(mocks.prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({
-      action: 'APPROVE',
+      action: 'APPROVE_INSTITUTION',
     });
   });
 
   it('reject requires a reviewNote (400 without it)', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
+
     const res = await request(app)
       .post('/api/v1/admin/institutions/inst_1/reject')
       .set(adminToken)
@@ -121,7 +137,8 @@ describe('admin review', () => {
     expect(res.status).toBe(400);
   });
 
-  it('reject sets REJECTED with the note and logs REJECT', async () => {
+  it('reject sets REJECTED with the note and logs REJECT_INSTITUTION', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
     mocks.prisma.institution.findFirst.mockResolvedValue(stored);
     mocks.prisma.institution.update.mockResolvedValue({ ...stored, approvalStatus: 'REJECTED' });
 
@@ -135,7 +152,7 @@ describe('admin review', () => {
     expect(updateData.approvalStatus).toBe('REJECTED');
     expect(updateData.reviewNote).toBe('Not enough detail');
     expect(mocks.prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({
-      action: 'REJECT',
+      action: 'REJECT_INSTITUTION',
     });
   });
 });

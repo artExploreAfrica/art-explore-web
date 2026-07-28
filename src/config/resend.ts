@@ -2,7 +2,12 @@ import { Resend } from 'resend';
 import { env } from './env';
 
 /**
- * Resend client (singleton). Used only for transactional email — password
- * resets and submission-review notifications (see src/utils/mailer.ts).
+ * Resend client (singleton). Used for transactional email — password resets,
+ * submission-review notifications, and staff welcome emails
+ * (see src/utils/mailer.ts).
+ *
+ * When RESEND_API_KEY is unset, `resend` is null and the mailer no-ops.
  */
-export const resend = new Resend(env.RESEND_API_KEY);
+export const resend: Resend | null = env.RESEND_API_KEY
+  ? new Resend(env.RESEND_API_KEY)
+  : null;

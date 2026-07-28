@@ -1,14 +1,20 @@
 import { Role } from '@prisma/client';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bearer, signAccess } from './helpers';
+import { bearer, signAccess, stubActiveUser } from './helpers';
 
 const mocks = vi.hoisted(() => ({
   prisma: {
-    institution: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+    user: { findUnique: vi.fn() },
+    institution: {
+      create: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+      update: vi.fn(),
+    },
     auditLog: { create: vi.fn() },
   },
-  // Cache invalidation scans then deletes; return an empty key set.
   redis: { scan: vi.fn(), del: vi.fn() },
 }));
 
@@ -46,7 +52,8 @@ const adminToken = bearer(signAccess(Role.ADMIN, 'admin_1'));
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.redis.scan.mockResolvedValue(['0', []]); // single empty page → loop ends
+  stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
+  mocks.redis.scan.mockResolvedValue(['0', []]);
   mocks.redis.del.mockResolvedValue(0);
   mocks.prisma.auditLog.create.mockResolvedValue({});
 });
@@ -82,6 +89,34 @@ describe('POST /api/v1/admin/institutions', () => {
       targetModel: 'INSTITUTION',
       targetId: 'inst_1',
     });
+  });
+});
+
+describe('GET /api/v1/admin/institutions', () => {
+  it('lists drafts and unpublished venues', async () => {
+    mocks.prisma.institution.findMany.mockResolvedValue([stored]);
+    mocks.prisma.institution.count.mockResolvedValue(1);
+
+    const res = await request(app)
+      .get('/api/v1/admin/institutions?isPublished=false')
+      .set(adminToken);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveLength(1);
+    const whereArg = mocks.prisma.institution.findMany.mock.calls[0][0].where;
+    expect(whereArg.isPublished).toBe(false);
+    expect(whereArg.deletedAt).toBeNull();
+  });
+
+  it('returns admin detail for an unpublished venue', async () => {
+    mocks.prisma.institution.findFirst.mockResolvedValue(stored);
+
+    const res = await request(app)
+      .get('/api/v1/admin/institutions/inst_1')
+      .set(adminToken);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.id).toBe('inst_1');
   });
 });
 
@@ -130,6 +165,23 @@ describe('POST /api/v1/admin/institutions/:id/publish', () => {
     expect(res.body.data.isPublished).toBe(true);
     expect(mocks.prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({
       action: 'PUBLISH',
+    });
+  });
+});
+
+describe('PUT /api/v1/admin/institutions/:id', () => {
+  it('updates fields and logs UPDATE', async () => {
+    mocks.prisma.institution.findFirst.mockResolvedValue(stored);
+    mocks.prisma.institution.update.mockResolvedValue({ ...stored, name: 'Renamed' });
+
+    const res = await request(app)
+      .put('/api/v1/admin/institutions/inst_1')
+      .set(adminToken)
+      .send({ name: 'Renamed' });
+
+    expect(res.status).toBe(200);
+    expect(mocks.prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({
+      action: 'UPDATE',
     });
   });
 });

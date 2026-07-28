@@ -20,3 +20,8 @@ export const deactivate = asyncHandler(async (req: Request, res: Response) => {
   const user = await userService.deactivate(req.user!.id, req.params.id);
   return successResponse(res, user, 'Admin user deactivated');
 });
+
+export const activate = asyncHandler(async (req: Request, res: Response) => {
+  const user = await userService.activate(req.user!.id, req.params.id);
+  return successResponse(res, user, 'Admin user activated');
+});
