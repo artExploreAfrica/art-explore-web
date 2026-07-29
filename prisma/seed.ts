@@ -69,6 +69,7 @@ interface GallerySeed {
   lat: number;
   lng: number;
   website?: string;
+  instagram?: string;
   phone?: string;
   email?: string;
   openingHours?: Prisma.InputJsonValue;
@@ -77,6 +78,7 @@ interface GallerySeed {
 }
 
 const CSV_CANDIDATES = [
+  'ArtandCulturalSpacesDB-latest-4.csv',
   'ArtandCulturalSpacesDB-latest.csv',
   'institutions-with-images.csv',
 ] as const;
@@ -133,6 +135,15 @@ function cleanPhone(raw: string | undefined): string | undefined {
   }
   return phone;
 }
+
+function cleanInstagram(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const handle = raw.trim();
+  if (!handle) return undefined;
+  // keep @handle, or strip @: return handle.replace(/^@/, '');
+  return handle.startsWith('@') ? handle : `@${handle}`;
+}
+
 
 /** Split a single CSV line, honouring quoted fields and "" escapes. */
 function parseCsvRow(line: string): string[] {
@@ -228,6 +239,7 @@ function loadGalleriesFromCsv(): GallerySeed[] {
       lat,
       lng,
       website: row.website || undefined,
+      instagram: cleanInstagram(row.instagram),
       phone: cleanPhone(row.phone),
       email: row.email || undefined,
       openingHours,
@@ -279,6 +291,7 @@ async function seedGalleries(): Promise<void> {
       lat: g.lat,
       lng: g.lng,
       website: g.website ?? null,
+      instagram: g.instagram ?? null,
       phone: g.phone ?? null,
       email: g.email ?? null,
       openingHours: g.openingHours ?? Prisma.JsonNull,
