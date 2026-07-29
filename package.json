@@ -21,8 +21,12 @@
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "seed": "prisma db seed"
+    "seed": "prisma db seed",
+    "sync:s3-images": "ts-node scripts/sync-s3-images-to-db.ts",
+    "sync:s3-images:dry": "ts-node scripts/sync-s3-images-to-db.ts --dry-run",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "art-explore",

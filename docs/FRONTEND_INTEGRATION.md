@@ -35,7 +35,7 @@ and gets data in **exactly the old mock shape**. No component logic had to chang
 
 1. Start the **backend** (from the project root):
    ```bash
-   npm run dev          # serves the API on http://localhost:4555
+   npm run dev          # serves the API on http://localhost:4000 (override with PORT)
    ```
    Make sure the DB is seeded so there's data to show:
    ```bash
@@ -43,16 +43,16 @@ and gets data in **exactly the old mock shape**. No component logic had to chang
    ```
 2. Configure the **frontend** (from `frontend/`):
    ```bash
-   cp .env.example .env   # then edit if your API isn't on :4555
+   cp .env.example .env   # then edit if your API isn't on :4000
    npm install
    npm run dev            # Vite dev server, usually http://localhost:5173
    ```
    `.env` only needs one line:
    ```
-   VITE_API_URL=http://localhost:4555
+   VITE_API_URL=http://localhost:4000
    ```
-   > CORS is already open on the backend when `ALLOWED_ORIGINS` is empty, so the
-   > browser can call `:4555` from `:5173` directly. No proxy needed.
+   > CORS is already open on the backend when `ALLOWED_ORIGINS` is empty (dev/test),
+   > so the browser can call `:4000` from `:5173` directly. No proxy needed.
 
 That's it. Open the app — the **Search** section (`ArtGalleryApp`) is already
 pulling live data from the API.
@@ -61,7 +61,7 @@ pulling live data from the API.
 
 ## 3. The API endpoints you'll use
 
-Base path for everything: `http://localhost:4555/api/v1`
+Base path for everything: `http://localhost:4000/api/v1`
 
 | Method | Path | What it returns | Auth |
 |--------|------|-----------------|------|
@@ -79,7 +79,8 @@ Base path for everything: `http://localhost:4555/api/v1`
 `search` (free text over name/description/tags).
 
 Full interactive docs (try every endpoint in the browser):
-**http://localhost:4555/api-docs**
+**http://localhost:4000/api-docs**
+
 
 ---
 

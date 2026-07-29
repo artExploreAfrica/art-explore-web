@@ -53,11 +53,12 @@ async function seedSuperAdmin(): Promise<void> {
 /**
  * Gallery import.
  *
- * Source of truth is `institutions-with-images.csv` at the repo root (produced
- * from the client's Google Sheet). Each row is upserted idempotently, keyed by
- * name + address. Text fields only — the `images` column is intentionally not
- * imported; images are curated and uploaded later via the admin UI, and the
- * update path below never touches `images`, so re-seeding preserves them.
+ * Source of truth is `ArtandCulturalSpacesDB-latest.csv` at the repo root
+ * (client Google Sheet export). Falls back to `institutions-with-images.csv`
+ * for older envs. Each row is upserted idempotently by name (case-insensitive).
+ * Text fields only — the `images` column is intentionally not imported; images
+ * are curated via the admin UI / S3, and the update path never touches
+ * `images`, so re-seeding preserves them.
  */
 interface GallerySeed {
   name: string;
@@ -68,12 +69,81 @@ interface GallerySeed {
   lat: number;
   lng: number;
   website?: string;
+  instagram?: string;
   phone?: string;
   email?: string;
   openingHours?: Prisma.InputJsonValue;
   tags?: string[];
   isPublished?: boolean;
 }
+
+const CSV_CANDIDATES = [
+  'ArtandCulturalSpacesDB-latest-4.csv',
+  'ArtandCulturalSpacesDB-latest.csv',
+  'institutions-with-images.csv',
+] as const;
+
+/** Map sheet labels / enum strings → Prisma InstitutionType. */
+function mapInstitutionType(rawType: string, name: string): InstitutionType | null {
+  const t = rawType.trim();
+  const upper = t.toUpperCase().replace(/[\s/-]+/g, '_');
+
+  // Already a Prisma enum value (legacy CSV).
+  if ((Object.values(InstitutionType) as string[]).includes(upper)) {
+    return upper as InstitutionType;
+  }
+  if ((Object.values(InstitutionType) as string[]).includes(t)) {
+    return t as InstitutionType;
+  }
+
+  const label = t.toLowerCase();
+  const n = name.toLowerCase();
+
+  if (label === 'art galleries' || label === 'gallery') {
+    return InstitutionType.ART_GALLERY;
+  }
+  if (label === 'museums' || label === 'museum') {
+    return InstitutionType.MUSEUM;
+  }
+  // No FESTIVAL enum — festivals / fairs live under cultural spaces.
+  if (label === 'art festivals' || label.includes('festival')) {
+    return InstitutionType.CULTURAL_SPACE;
+  }
+
+  if (label === 'art hubs/institutions' || label === 'art hubs' || label.includes('hub')) {
+    if (/\bfoundation\b/.test(n)) return InstitutionType.FOUNDATION;
+    if (/\bmuseum\b/.test(n)) return InstitutionType.MUSEUM;
+    if (/\bstudio/.test(n)) return InstitutionType.STUDIO;
+    if (/\binstitut/.test(n) || /\binstitute\b/.test(n)) return InstitutionType.INSTITUTE;
+    if (/\bgallery\b/.test(n)) return InstitutionType.ART_GALLERY;
+    return InstitutionType.CULTURAL_SPACE;
+  }
+
+  return null;
+}
+
+/** Normalize phone strings that Excel exported as floats (e.g. 2348055….0). */
+function cleanPhone(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  let phone = raw.trim();
+  if (!phone) return undefined;
+  if (/^\d+\.0$/.test(phone)) {
+    phone = phone.slice(0, -2);
+  }
+  if (/^\d{10,15}$/.test(phone) && !phone.startsWith('+')) {
+    phone = `+${phone}`;
+  }
+  return phone;
+}
+
+function cleanInstagram(raw: string | undefined): string | undefined {
+  if (!raw) return undefined;
+  const handle = raw.trim();
+  if (!handle) return undefined;
+  // keep @handle, or strip @: return handle.replace(/^@/, '');
+  return handle.startsWith('@') ? handle : `@${handle}`;
+}
+
 
 /** Split a single CSV line, honouring quoted fields and "" escapes. */
 function parseCsvRow(line: string): string[] {
@@ -102,21 +172,28 @@ function parseCsvRow(line: string): string[] {
 
 /** Parse and validate the gallery CSV into GallerySeed rows. */
 function loadGalleriesFromCsv(): GallerySeed[] {
-  const csvPath = path.resolve(__dirname, '..', 'institutions-with-images.csv');
+  let csvPath: string | null = null;
+  for (const file of CSV_CANDIDATES) {
+    const candidate = path.resolve(__dirname, '..', file);
+    if (fs.existsSync(candidate)) {
+      csvPath = candidate;
+      break;
+    }
+  }
 
-  let content: string;
-  try {
-    content = fs.readFileSync(csvPath, 'utf-8');
-  } catch {
+  if (!csvPath) {
     console.warn(
-      '⚠️  institutions-with-images.csv not found at repo root — skipping gallery import.',
+      '⚠️  No gallery CSV found (tried ArtandCulturalSpacesDB-latest.csv, ' +
+        'institutions-with-images.csv) — skipping gallery import.',
     );
     return [];
   }
 
+  console.log(`📄 Loading galleries from ${path.basename(csvPath)}`);
+
+  const content = fs.readFileSync(csvPath, 'utf-8');
   const lines = content.replace(/\r\n/g, '\n').split('\n').filter((l) => l.trim());
   const headers = parseCsvRow(lines[0]);
-  const validTypes = new Set<string>(Object.values(InstitutionType));
   const validAreas = new Set<string>(Object.values(Area));
 
   const galleries: GallerySeed[] = [];
@@ -131,15 +208,14 @@ function loadGalleriesFromCsv(): GallerySeed[] {
 
     const lat = Number(row.lat);
     const lng = Number(row.lng);
+    const type = mapInstitutionType(row.type ?? '', row.name ?? '');
+    // Sheet export leaves area blank for city-wide festivals / some hubs.
+    const areaRaw = (row.area ?? '').toUpperCase();
+    const area = validAreas.has(areaRaw) ? areaRaw : Area.OTHER;
+
     // Drop any row that fails the hard constraints — this also filters out
     // garbage produced if a description ever contained an embedded newline.
-    if (
-      !row.name ||
-      !validTypes.has(row.type) ||
-      !validAreas.has(row.area) ||
-      !Number.isFinite(lat) ||
-      !Number.isFinite(lng)
-    ) {
+    if (!row.name || !type || !Number.isFinite(lat) || !Number.isFinite(lng)) {
       skipped++;
       continue;
     }
@@ -149,6 +225,7 @@ function loadGalleriesFromCsv(): GallerySeed[] {
       try {
         openingHours = JSON.parse(row.openingHours);
       } catch {
+        // Free-text hours (e.g. "Tue-Sat 9am-5pm") are left unset.
         openingHours = undefined;
       }
     }
@@ -156,13 +233,14 @@ function loadGalleriesFromCsv(): GallerySeed[] {
     galleries.push({
       name: row.name,
       description: row.description || undefined,
-      type: row.type as InstitutionType,
-      address: row.address,
-      area: row.area as Area,
+      type,
+      address: row.address || 'Lagos',
+      area: area as Area,
       lat,
       lng,
       website: row.website || undefined,
-      phone: row.phone || undefined,
+      instagram: cleanInstagram(row.instagram),
+      phone: cleanPhone(row.phone),
       email: row.email || undefined,
       openingHours,
     });
@@ -182,10 +260,16 @@ async function seedGalleries(): Promise<void> {
     return;
   }
 
+  let created = 0;
+  let updated = 0;
+
   for (const g of galleries) {
-    // Find an existing match first (no natural unique key on Institution).
+    // Match by name (case-insensitive) so address/coord updates don't duplicate.
     const existing = await prisma.institution.findFirst({
-      where: { name: g.name, address: g.address },
+      where: {
+        name: { equals: g.name, mode: 'insensitive' },
+        deletedAt: null,
+      },
       select: { id: true },
     });
 
@@ -207,6 +291,7 @@ async function seedGalleries(): Promise<void> {
       lat: g.lat,
       lng: g.lng,
       website: g.website ?? null,
+      instagram: g.instagram ?? null,
       phone: g.phone ?? null,
       email: g.email ?? null,
       openingHours: g.openingHours ?? Prisma.JsonNull,
@@ -218,12 +303,14 @@ async function seedGalleries(): Promise<void> {
 
     if (existing) {
       await prisma.institution.update({ where: { id: existing.id }, data });
+      updated++;
     } else {
       await prisma.institution.create({ data });
+      created++;
     }
   }
 
-  console.log(`✅ Imported ${galleries.length} galleries`);
+  console.log(`✅ Imported ${galleries.length} galleries (${created} created, ${updated} updated)`);
 }
 
 /** A small starter set of admin-managed sub-categories, idempotent by (type, name). */

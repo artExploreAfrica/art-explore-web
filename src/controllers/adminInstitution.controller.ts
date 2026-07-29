@@ -5,7 +5,9 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { successResponse } from '../utils/response';
 import { uploadInstitutionImage } from '../utils/s3Uploader';
 import {
+  AdminListInstitutionsQuery,
   CreateInstitutionInput,
+  RemoveImageInput,
   UpdateInstitutionInput,
 } from '../validators/institution.validator';
 import {
@@ -15,6 +17,17 @@ import {
 
 /** All handlers assume `authenticate` + `roleGuard` ran first, so req.user exists. */
 const actorId = (req: Request): string => req.user!.id;
+
+export const list = asyncHandler(async (req: Request, res: Response) => {
+  const query = req.query as unknown as AdminListInstitutionsQuery;
+  const { data, pagination } = await institutionService.listForAdmin(query);
+  return successResponse(res, data, 'Institutions retrieved', 200, pagination);
+});
+
+export const getById = asyncHandler(async (req: Request, res: Response) => {
+  const institution = await institutionService.getByIdForAdmin(req.params.id);
+  return successResponse(res, institution, 'Institution retrieved');
+});
 
 export const create = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as CreateInstitutionInput;
@@ -46,6 +59,12 @@ export const uploadImageHandler = asyncHandler(async (req: Request, res: Respons
   const url = await uploadInstitutionImage(req.params.id, req.file);
   const institution = await institutionService.addImage(actorId(req), req.params.id, url);
   return successResponse(res, institution, 'Image uploaded', 201);
+});
+
+export const removeImageHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { url } = req.body as RemoveImageInput;
+  const institution = await institutionService.removeImage(actorId(req), req.params.id, url);
+  return successResponse(res, institution, 'Image removed');
 });
 
 // ---------------------------------------------------------------------------

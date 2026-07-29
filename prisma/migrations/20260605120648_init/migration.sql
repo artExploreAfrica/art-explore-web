@@ -39,6 +39,7 @@ CREATE TABLE "Institution" (
     "lng" DOUBLE PRECISION NOT NULL,
     "images" TEXT[],
     "website" TEXT,
+    
     "phone" TEXT,
     "email" TEXT,
     "openingHours" JSONB,

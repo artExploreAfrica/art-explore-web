@@ -135,12 +135,13 @@ source of truth: [`prisma/schema.prisma`](../prisma/schema.prisma).
 
 ## 8. Deployment & CI/CD
 
-GitHub push → GitHub Actions: run tests (vitest) → build frontend (`vite build`) →
-upload `client/dist/` to the S3 static bucket → SSH into EC2 → `git pull` →
-`npm run build` → `pm2 restart`. (architecture.md, "Deployment Flow")
+**Current:** GitHub Actions runs typecheck, lint, and tests only
+(`.github/workflows/ci.yml`). Production deploy is **manual** (SSH → `git pull` →
+`npm ci` → `npm run build` → `npm run prisma:deploy` → `pm2 restart`). See
+[`docs/deployment.md`](./deployment.md).
 
-Target monorepo layout: `src/` (API), `prisma/` (schema), `client/` (React);
-production builds the client to S3, EC2 runs only the API.
+**Aspirational (architecture.md):** Actions → build frontend → upload to S3 →
+SSH EC2 → pm2 restart. Not automated in this repo yet.
 
 ## 9. Out of Scope / Future
 

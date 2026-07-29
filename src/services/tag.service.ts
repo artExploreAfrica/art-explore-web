@@ -15,11 +15,12 @@ interface ListResult {
   pagination: PaginationMeta;
 }
 
-/** Paginated tag list with optional name search. */
+/** Paginated tag list with optional name search and category filter. */
 export const list = async (query: ListTagsQuery): Promise<ListResult> => {
-  const { page, limit, search } = query;
+  const { page, limit, search, category } = query;
   const where: Prisma.TagWhereInput = {
     ...(search && { name: { contains: search, mode: 'insensitive' } }),
+    ...(category && { category }),
   };
 
   const [data, total] = await Promise.all([

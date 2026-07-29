@@ -1,8 +1,14 @@
-import { Area, InstitutionType } from '@prisma/client';
+import { ApprovalStatus, Area, InstitutionType } from '@prisma/client';
 import { z } from 'zod';
 
 /** Reusable opening-hours JSON shape: { "mon": "9am-5pm", ... }. */
 const openingHoursSchema = z.record(z.string(), z.string());
+
+/** Query-string boolean (`true`/`false`). */
+const booleanQuerySchema = z
+  .enum(['true', 'false'])
+  .optional()
+  .transform((v) => (v === undefined ? undefined : v === 'true'));
 
 export const createInstitutionSchema = z.object({
   name: z.string().min(1, 'name is required'),
@@ -39,10 +45,22 @@ export const listInstitutionsQuerySchema = z.object({
   search: z.string().trim().optional(),
 });
 
+/** Admin catalogue list — includes drafts / unpublished / pending. */
+export const adminListInstitutionsQuerySchema = listInstitutionsQuerySchema.extend({
+  isPublished: booleanQuerySchema,
+  approvalStatus: z.nativeEnum(ApprovalStatus).optional(),
+});
+
 export const idParamSchema = z.object({
   id: z.string().min(1),
+});
+
+export const removeImageSchema = z.object({
+  url: z.string().url('url must be a valid image URL'),
 });
 
 export type CreateInstitutionInput = z.infer<typeof createInstitutionSchema>;
 export type UpdateInstitutionInput = z.infer<typeof updateInstitutionSchema>;
 export type ListInstitutionsQuery = z.infer<typeof listInstitutionsQuerySchema>;
+export type AdminListInstitutionsQuery = z.infer<typeof adminListInstitutionsQuerySchema>;
+export type RemoveImageInput = z.infer<typeof removeImageSchema>;

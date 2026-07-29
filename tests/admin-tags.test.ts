@@ -1,10 +1,11 @@
 import { Prisma, Role } from '@prisma/client';
 import request from 'supertest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { bearer, signAccess } from './helpers';
+import { bearer, signAccess, stubActiveUser } from './helpers';
 
 const mocks = vi.hoisted(() => ({
   prisma: {
+    user: { findUnique: vi.fn() },
     tag: {
       findMany: vi.fn(),
       count: vi.fn(),
@@ -36,6 +37,7 @@ const stored = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
   mocks.redis.scan.mockResolvedValue(['0', []]);
   mocks.redis.del.mockResolvedValue(0);
   mocks.prisma.auditLog.create.mockResolvedValue({});

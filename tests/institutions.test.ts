@@ -89,6 +89,18 @@ describe('GET /api/v1/institutions', () => {
       some: { name: { contains: 'modern', mode: 'insensitive' } },
     });
   });
+
+  it('filters by tag id or slug', async () => {
+    mocks.prisma.institution.findMany.mockResolvedValue([]);
+    mocks.prisma.institution.count.mockResolvedValue(0);
+
+    await request(app).get('/api/v1/institutions?tag=CONTEMPORARY');
+
+    const whereArg = mocks.prisma.institution.findMany.mock.calls[0][0].where;
+    expect(whereArg.tags).toEqual({
+      some: { OR: [{ id: 'CONTEMPORARY' }, { name: 'CONTEMPORARY' }] },
+    });
+  });
 });
 
 describe('GET /api/v1/institutions/map', () => {

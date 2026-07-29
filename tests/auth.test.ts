@@ -107,6 +107,8 @@ describe('POST /api/v1/auth/change-password', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('400s when the new password is too short', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue(activeUser);
+
     const res = await request(app)
       .post('/api/v1/auth/change-password')
       .set(bearer(signAccess(Role.ADMIN, activeUser.id, activeUser.email)))
@@ -122,6 +124,16 @@ describe('POST /api/v1/auth/change-password', () => {
       .post('/api/v1/auth/change-password')
       .set(bearer(signAccess(Role.ADMIN, activeUser.id, activeUser.email)))
       .send({ currentPassword: 'wrong-password', newPassword: 'newpassword123' });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('401s when the account is deactivated', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({ ...activeUser, isActive: false });
+
+    const res = await request(app)
+      .get('/api/v1/auth/me')
+      .set(bearer(signAccess(Role.ADMIN, activeUser.id, activeUser.email)));
 
     expect(res.status).toBe(401);
   });
