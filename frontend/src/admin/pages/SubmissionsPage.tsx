@@ -1,101 +1,153 @@
 import React, { useEffect, useState } from "react";
-import { adminApi } from "../api";
+import { adminApi, Pagination } from "../api";
 
 interface Submission {
   id: string;
   name: string;
-  approvalStatus: string;
-  submittedById: string;
+  city?: string;
+  country?: string;
+  submittedByEmail?: string;
+  status: string;
+  createdAt?: string;
+  [key: string]: any;
 }
 
 export function SubmissionsPage() {
   const [items, setItems] = useState<Submission[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [actingOn, setActingOn] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
     adminApi
-      .submissionsQueue()
-      .then((result) => setItems(result.data))
+      .submissionsQueue(page)
+      .then((result) => {
+        setItems(result.data);
+        setPagination(result.pagination);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
-  async function handleApprove(id: string, name: string) {
-    if (!confirm(`Approve "${name}"? It will become a real, visible gallery. Note: you'll still need to publish it separately afterward.`)) return;
-    setActingOn(id);
+  async function handleApprove(id: string) {
+    setBusyId(id);
+    setError(null);
     try {
       await adminApi.approveSubmission(id);
       load();
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setActingOn(null);
+      setBusyId(null);
     }
   }
 
-  async function handleReject(id: string, name: string) {
-    const reviewNote = prompt(`Reason for rejecting "${name}"? (shown to the person who submitted it)`);
-    if (reviewNote === null) return; // cancelled
-    setActingOn(id);
+  async function handleReject(id: string) {
+    setBusyId(id);
+    setError(null);
     try {
-      await adminApi.rejectSubmission(id, reviewNote || "No reason given");
+      await adminApi.rejectSubmission(id, reason);
+      setRejectingId(null);
+      setReason("");
       load();
     } catch (err: any) {
       setError(err.message);
     } finally {
-      setActingOn(null);
+      setBusyId(null);
     }
   }
 
   return (
     <div>
-      <h1 className="admin-page-title">Submissions</h1>
+      <div className="admin-page-header">
+        <h1 className="admin-page-title">Submissions</h1>
+      </div>
+      <p className="admin-page-note">Galleries waiting for review before they go live on the public site.</p>
+
       {error && <p className="admin-error">{error}</p>}
       {loading && <p>Loading...</p>}
-      {!loading && items.length === 0 && <p>No pending submissions right now.</p>}
+
+      {!loading && items.length === 0 && <p className="admin-page-note">No pending submissions.</p>}
+
       {!loading && items.length > 0 && (
         <table className="admin-table">
           <thead>
             <tr>
               <th>Name</th>
-              <th>Status</th>
+              <th>Location</th>
               <th>Submitted by</th>
+              <th>Status</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {items.map((item) => (
-              <tr key={item.id}>
-                <td>{item.name}</td>
-                <td>
-                  <span className="admin-badge admin-badge-neutral">{item.approvalStatus}</span>
-                </td>
-                <td>{item.submittedById}</td>
-                <td>
-                  <button
-                    className="admin-btn admin-btn-success"
-                    disabled={actingOn === item.id}
-                    onClick={() => handleApprove(item.id, item.name)}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    className="admin-btn admin-btn-danger"
-                    disabled={actingOn === item.id}
-                    onClick={() => handleReject(item.id, item.name)}
-                  >
-                    Reject
-                  </button>
-                </td>
-              </tr>
+              <React.Fragment key={item.id}>
+                <tr>
+                  <td>{item.name}</td>
+                  <td>{[item.city, item.country].filter(Boolean).join(", ") || "—"}</td>
+                  <td>{item.submittedByEmail || "—"}</td>
+                  <td>
+                    <span className="admin-badge admin-badge-neutral">{item.status}</span>
+                  </td>
+                  <td>
+                    <button
+                      className="admin-btn admin-btn-success"
+                      disabled={busyId === item.id}
+                      onClick={() => handleApprove(item.id)}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="admin-btn admin-btn-danger"
+                      disabled={busyId === item.id}
+                      onClick={() => setRejectingId(rejectingId === item.id ? null : item.id)}
+                    >
+                      Reject
+                    </button>
+                  </td>
+                </tr>
+                {rejectingId === item.id && (
+                  <tr className="admin-detail-row">
+                    <td colSpan={5}>
+                      <div className="admin-form-row">
+                        <label>Reason for rejection</label>
+                        <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Let the submitter know why" />
+                      </div>
+                      <button className="admin-btn admin-btn-danger" disabled={busyId === item.id} onClick={() => handleReject(item.id)}>
+                        Confirm reject
+                      </button>
+                      <button className="admin-btn" onClick={() => setRejectingId(null)}>
+                        Cancel
+                      </button>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
+      )}
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="admin-pagination">
+          <button className="admin-btn" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {pagination.page} of {pagination.totalPages} — {pagination.total} total
+          </span>
+          <button className="admin-btn" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
+            Next
+          </button>
+        </div>
       )}
     </div>
   );

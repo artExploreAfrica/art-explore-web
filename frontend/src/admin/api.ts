@@ -9,19 +9,23 @@ const REFRESH_TOKEN_KEY = "artexplore_refresh_token";
 export function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
-
 export function getRefreshToken(): string | null {
   return localStorage.getItem(REFRESH_TOKEN_KEY);
 }
-
 export function setTokens(accessToken: string, refreshToken: string) {
   localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
-
 export function clearTokens() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+export interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 }
 
 interface ApiOptions {
@@ -32,8 +36,8 @@ interface ApiOptions {
 }
 
 // Tries once, and if it gets a 401 (expired token), refreshes and retries
-// exactly once before giving up. This mirrors the token-expiry behaviour
-// we ran into constantly during manual testing (15-minute token lifespan).
+// exactly once before giving up. Mirrors the token-expiry behaviour we ran
+// into constantly during manual testing (15-minute token lifespan).
 export async function apiRequest<T = any>(path: string, options: ApiOptions = {}): Promise<T> {
   const { method = "GET", body, skipAuth = false, isFormData = false } = options;
 
@@ -44,28 +48,24 @@ export async function apiRequest<T = any>(path: string, options: ApiOptions = {}
       const token = getAccessToken();
       if (token) headers.Authorization = `Bearer ${token}`;
     }
-    const res = await fetch(`${API_BASE_URL}${path}`, {
+    return fetch(`${API_BASE_URL}${path}`, {
       method,
       headers,
       body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
     });
-    return res;
   };
 
   let res = await doFetch();
 
   if (res.status === 401 && !skipAuth) {
     const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      res = await doFetch();
-    }
+    if (refreshed) res = await doFetch();
   }
 
   const json = await res.json().catch(() => null);
 
   if (!res.ok || (json && json.success === false)) {
-    const message = json?.message || `Request failed with status ${res.status}`;
-    throw new Error(message);
+    throw new Error(json?.message || `Request failed with status ${res.status}`);
   }
 
   return json;
@@ -74,7 +74,6 @@ export async function apiRequest<T = any>(path: string, options: ApiOptions = {}
 async function tryRefreshToken(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
-
   try {
     const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
       method: "POST",
@@ -87,13 +86,16 @@ async function tryRefreshToken(): Promise<boolean> {
       return true;
     }
   } catch {
-    // fall through to false below
+    // fall through
   }
-
   clearTokens();
   return false;
 }
 
+// Every list endpoint on this backend paginates (default 20 per page) and
+// returns a `pagination` object alongside `data`. Pass `page` to fetch a
+// specific page — the page components use this to add Previous/Next controls
+// instead of silently only ever showing the first 20 results.
 export const adminApi = {
   // auth
   login: (email: string, password: string) =>
@@ -104,15 +106,13 @@ export const adminApi = {
   dashboard: () => apiRequest("/api/v1/admin/dashboard"),
 
   // institutions
-  institutions: () => apiRequest("/api/v1/admin/institutions"),
+  institutions: (page = 1) => apiRequest(`/api/v1/admin/institutions?page=${page}`),
   createInstitution: (data: Record<string, unknown>) =>
     apiRequest("/api/v1/admin/institutions", { method: "POST", body: data }),
   updateInstitution: (id: string, data: Record<string, unknown>) =>
     apiRequest(`/api/v1/admin/institutions/${id}`, { method: "PUT", body: data }),
-  publishInstitution: (id: string) =>
-    apiRequest(`/api/v1/admin/institutions/${id}/publish`, { method: "POST" }),
-  deleteInstitution: (id: string) =>
-    apiRequest(`/api/v1/admin/institutions/${id}`, { method: "DELETE" }),
+  publishInstitution: (id: string) => apiRequest(`/api/v1/admin/institutions/${id}/publish`, { method: "POST" }),
+  deleteInstitution: (id: string) => apiRequest(`/api/v1/admin/institutions/${id}`, { method: "DELETE" }),
   uploadInstitutionImage: (id: string, file: File) => {
     const form = new FormData();
     form.append("image", file);
@@ -126,22 +126,23 @@ export const adminApi = {
     apiRequest(`/api/v1/admin/institutions/${institutionId}/exhibitions/${exhibitionId}`, { method: "PUT", body: data }),
   deleteExhibition: (institutionId: string, exhibitionId: string) =>
     apiRequest(`/api/v1/admin/institutions/${institutionId}/exhibitions/${exhibitionId}`, { method: "DELETE" }),
+  institutionExhibitions: (institutionId: string) => apiRequest(`/api/v1/institutions/${institutionId}/exhibitions`),
 
   // submissions
-  submissionsQueue: () => apiRequest("/api/v1/admin/submissions"),
+  submissionsQueue: (page = 1) => apiRequest(`/api/v1/admin/submissions?page=${page}`),
   approveSubmission: (id: string) => apiRequest(`/api/v1/admin/institutions/${id}/approve`, { method: "POST" }),
   rejectSubmission: (id: string, reviewNote: string) =>
     apiRequest(`/api/v1/admin/institutions/${id}/reject`, { method: "POST", body: { reviewNote } }),
 
   // tags
-  tags: () => apiRequest("/api/v1/admin/tags"),
+  tags: (page = 1) => apiRequest(`/api/v1/admin/tags?page=${page}`),
   createTag: (data: Record<string, unknown>) => apiRequest("/api/v1/admin/tags", { method: "POST", body: data }),
   updateTag: (id: string, data: Record<string, unknown>) =>
     apiRequest(`/api/v1/admin/tags/${id}`, { method: "PUT", body: data }),
   deleteTag: (id: string) => apiRequest(`/api/v1/admin/tags/${id}`, { method: "DELETE" }),
 
   // subcategories
-  subcategories: () => apiRequest("/api/v1/admin/subcategories"),
+  subcategories: (page = 1) => apiRequest(`/api/v1/admin/subcategories?page=${page}`),
   createSubcategory: (data: Record<string, unknown>) =>
     apiRequest("/api/v1/admin/subcategories", { method: "POST", body: data }),
   updateSubcategory: (id: string, data: Record<string, unknown>) =>
@@ -149,14 +150,10 @@ export const adminApi = {
   deleteSubcategory: (id: string) => apiRequest(`/api/v1/admin/subcategories/${id}`, { method: "DELETE" }),
 
   // users
-  users: () => apiRequest("/api/v1/admin/users"),
+  users: (page = 1) => apiRequest(`/api/v1/admin/users?page=${page}`),
   createAdminUser: (data: Record<string, unknown>) => apiRequest("/api/v1/admin/users", { method: "POST", body: data }),
   deactivateUser: (id: string) => apiRequest(`/api/v1/admin/users/${id}/deactivate`, { method: "PATCH" }),
 
   // audit log
-  auditLogs: () => apiRequest("/api/v1/admin/audit-logs"),
-
-  // public read used by the admin panel to list an institution's exhibitions
-  institutionExhibitions: (institutionId: string) =>
-    apiRequest(`/api/v1/institutions/${institutionId}/exhibitions`),
+  auditLogs: (page = 1) => apiRequest(`/api/v1/admin/audit-logs?page=${page}`),
 };

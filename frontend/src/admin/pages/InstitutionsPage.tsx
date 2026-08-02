@@ -1,97 +1,104 @@
 import React, { useEffect, useState } from "react";
-import { adminApi } from "../api";
+import { adminApi, Pagination } from "../api";
 
 interface Institution {
   id: string;
   name: string;
-  type: string;
-  address: string;
-  area: string;
-  lat: number;
-  lng: number;
-  isPublished: boolean;
+  description?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  website?: string;
+  isPublished?: boolean;
+  imageUrl?: string | null;
+  coverImageUrl?: string | null;
+  logoUrl?: string | null;
+  image?: string | null;
+  [key: string]: any;
 }
 
 interface Exhibition {
   id: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  startTime: string;
-  endTime: string;
+  title: string;
+  startDate?: string;
+  endDate?: string;
+  [key: string]: any;
 }
 
-const emptyInstitutionForm = {
-  name: "",
-  type: "ART_GALLERY",
-  address: "",
-  area: "MAINLAND",
-  lat: "",
-  lng: "",
-};
+const emptyForm = { name: "", description: "", address: "", city: "", country: "", website: "" };
 
-const emptyExhibitionForm = { name: "", startDate: "", endDate: "", startTime: "10:00", endTime: "18:00" };
+// The backend model doesn't always use the same field name for the cover
+// image (imageUrl / coverImageUrl / logoUrl / image), so check all of them
+// rather than guessing wrong and showing "no image" for institutions that
+// actually have one.
+function getImageUrl(inst: Institution): string | null {
+  return inst.imageUrl || inst.coverImageUrl || inst.logoUrl || inst.image || null;
+}
 
 export function InstitutionsPage() {
   const [items, setItems] = useState<Institution[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState(emptyInstitutionForm);
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // expandable "Manage" row state
+  const [manageId, setManageId] = useState<string | null>(null);
   const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
-  const [exhibitionsLoading, setExhibitionsLoading] = useState(false);
-  const [showExhibitionForm, setShowExhibitionForm] = useState(false);
-  const [exhibitionForm, setExhibitionForm] = useState(emptyExhibitionForm);
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
+  const [exLoading, setExLoading] = useState(false);
+  const [exForm, setExForm] = useState({ title: "", startDate: "", endDate: "" });
+  const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   function load() {
     setLoading(true);
     adminApi
-      .institutions()
-      .then((result) => setItems(result.data))
+      .institutions(page)
+      .then((result) => {
+        setItems(result.data);
+        setPagination(result.pagination);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   function startCreate() {
     setEditingId(null);
-    setForm(emptyInstitutionForm);
-    setShowCreateForm(true);
+    setForm(emptyForm);
+    setShowForm(true);
   }
 
-  function startEdit(item: Institution) {
-    setEditingId(item.id);
+  function startEdit(inst: Institution) {
+    setEditingId(inst.id);
     setForm({
-      name: item.name,
-      type: item.type,
-      address: item.address,
-      area: item.area,
-      lat: String(item.lat),
-      lng: String(item.lng),
+      name: inst.name || "",
+      description: inst.description || "",
+      address: inst.address || "",
+      city: inst.city || "",
+      country: inst.country || "",
+      website: inst.website || "",
     });
-    setShowCreateForm(true);
-    setExpandedId(null);
+    setShowForm(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
-    const payload = { ...form, lat: parseFloat(form.lat), lng: parseFloat(form.lng) };
     try {
       if (editingId) {
-        await adminApi.updateInstitution(editingId, payload);
+        await adminApi.updateInstitution(editingId, form);
       } else {
-        await adminApi.createInstitution(payload);
+        await adminApi.createInstitution(form);
       }
-      setShowCreateForm(false);
+      setShowForm(false);
       load();
     } catch (err: any) {
       setError(err.message);
@@ -100,79 +107,77 @@ export function InstitutionsPage() {
     }
   }
 
-  async function handlePublishToggle(item: Institution) {
+  async function handlePublish(id: string) {
+    setBusyId(id);
     try {
-      await adminApi.publishInstitution(item.id);
+      await adminApi.publishInstitution(id);
       load();
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setBusyId(null);
     }
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Delete "${name}"? This is a soft delete and can be reversed by a developer, but it disappears from the site immediately.`))
-      return;
+    if (!confirm(`Delete "${name}"? This can't be undone.`)) return;
+    setBusyId(id);
     try {
       await adminApi.deleteInstitution(id);
       load();
     } catch (err: any) {
       setError(err.message);
+    } finally {
+      setBusyId(null);
     }
   }
 
-  function toggleExpand(id: string) {
-    if (expandedId === id) {
-      setExpandedId(null);
-      return;
-    }
-    setExpandedId(id);
-    setShowExhibitionForm(false);
-    setExhibitionsLoading(true);
-    adminApi
-      .institutionExhibitions(id)
-      .then((result) => setExhibitions(result.data))
-      .catch((err) => setError(err.message))
-      .finally(() => setExhibitionsLoading(false));
-  }
-
-  async function handleImageUpload(id: string, file: File) {
-    setUploadingId(id);
-    setError(null);
+  async function handleUpload(id: string, file: File) {
+    setUploadError(null);
     try {
       await adminApi.uploadInstitutionImage(id, file);
       load();
     } catch (err: any) {
-      // Known issue from testing: the backend's storage bucket may not exist yet.
-      // If you see "the specified bucket does not exist", that's a backend config
-      // problem, not this frontend code — see the endpoint testing report.
-      setError(err.message);
+      // The two upload endpoints on this backend are known to fail with
+      // "The specified bucket does not exist" until the S3 bucket config
+      // is fixed server-side — surface that clearly instead of a vague error.
+      setUploadError(err.message);
     } finally {
-      setUploadingId(null);
+      setUploadTargetId(null);
     }
   }
 
-  async function handleCreateExhibition(institutionId: string, e: React.FormEvent) {
-    e.preventDefault();
+  function toggleManage(id: string) {
+    if (manageId === id) {
+      setManageId(null);
+      return;
+    }
+    setManageId(id);
+    setExLoading(true);
+    adminApi
+      .institutionExhibitions(id)
+      .then((result) => setExhibitions(result.data || result))
+      .catch((err) => setError(err.message))
+      .finally(() => setExLoading(false));
+  }
+
+  async function handleAddExhibition(institutionId: string) {
     try {
-      await adminApi.createExhibition(institutionId, {
-        ...exhibitionForm,
-        startDate: new Date(exhibitionForm.startDate).toISOString(),
-        endDate: new Date(exhibitionForm.endDate).toISOString(),
-      });
-      setShowExhibitionForm(false);
-      setExhibitionForm(emptyExhibitionForm);
-      toggleExpand(institutionId);
-      toggleExpand(institutionId);
+      await adminApi.createExhibition(institutionId, exForm);
+      setExForm({ title: "", startDate: "", endDate: "" });
+      const result = await adminApi.institutionExhibitions(institutionId);
+      setExhibitions(result.data || result);
     } catch (err: any) {
       setError(err.message);
     }
   }
 
-  async function handleDeleteExhibition(institutionId: string, exhibitionId: string, name: string) {
-    if (!confirm(`Delete the exhibition "${name}"?`)) return;
+  async function handleDeleteExhibition(institutionId: string, exhibitionId: string) {
+    if (!confirm("Delete this exhibition?")) return;
     try {
       await adminApi.deleteExhibition(institutionId, exhibitionId);
-      setExhibitions((prev) => prev.filter((e) => e.id !== exhibitionId));
+      const result = await adminApi.institutionExhibitions(institutionId);
+      setExhibitions(result.data || result);
     } catch (err: any) {
       setError(err.message);
     }
@@ -183,193 +188,182 @@ export function InstitutionsPage() {
       <div className="admin-page-header">
         <h1 className="admin-page-title">Institutions</h1>
         <button className="admin-btn admin-btn-primary" onClick={startCreate}>
-          + New gallery
+          + New institution
         </button>
       </div>
 
-      {showCreateForm && (
+      {showForm && (
         <form className="admin-form-card" onSubmit={handleSubmit}>
           <div className="admin-form-row">
             <label>Name</label>
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </div>
           <div className="admin-form-row">
-            <label>Type</label>
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              <option value="ART_GALLERY">Art gallery</option>
-              <option value="STUDIO">Studio</option>
-              <option value="CULTURAL_SPACE">Cultural space</option>
-              <option value="MUSEUM">Museum</option>
-            </select>
+            <label>Description</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div className="admin-form-row">
             <label>Address</label>
-            <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
+            <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           </div>
           <div className="admin-form-row">
-            <label>Area</label>
-            <select value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })}>
-              <option value="MAINLAND">Mainland</option>
-              <option value="ISLAND">Island</option>
-              <option value="OTHER">Other</option>
-            </select>
+            <label>City</label>
+            <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
           </div>
           <div className="admin-form-row">
-            <label>Latitude</label>
-            <input value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })} required />
+            <label>Country</label>
+            <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
           </div>
           <div className="admin-form-row">
-            <label>Longitude</label>
-            <input value={form.lng} onChange={(e) => setForm({ ...form, lng: e.target.value })} required />
+            <label>Website</label>
+            <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
           </div>
+          <p className="admin-page-note" style={{ marginTop: 0 }}>
+            If your backend needs more fields here (opening hours, category, coordinates), tell Claude and they'll get added.
+          </p>
           <button className="admin-btn admin-btn-primary" type="submit" disabled={saving}>
-            {saving ? "Saving..." : editingId ? "Save changes" : "Create gallery"}
+            {saving ? "Saving..." : editingId ? "Save changes" : "Create institution"}
           </button>
-          <button className="admin-btn" type="button" onClick={() => setShowCreateForm(false)}>
+          <button className="admin-btn" type="button" onClick={() => setShowForm(false)}>
             Cancel
           </button>
         </form>
       )}
 
       {error && <p className="admin-error">{error}</p>}
+      {uploadError && (
+        <p className="admin-error">
+          Image upload failed: {uploadError}. This matches the known backend bug where the image-storage bucket is
+          misconfigured — it isn't something this panel can fix on its own.
+        </p>
+      )}
       {loading && <p>Loading...</p>}
 
       {!loading && (
         <table className="admin-table">
           <thead>
             <tr>
+              <th>Image</th>
               <th>Name</th>
-              <th>Type</th>
-              <th>Published</th>
+              <th>Location</th>
+              <th>Status</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => (
-              <React.Fragment key={item.id}>
-                <tr>
-                  <td>{item.name}</td>
-                  <td>{item.type}</td>
-                  <td>
-                    <span className={"admin-badge " + (item.isPublished ? "admin-badge-success" : "admin-badge-neutral")}>
-                      {item.isPublished ? "Published" : "Draft"}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="admin-btn" onClick={() => toggleExpand(item.id)}>
-                      {expandedId === item.id ? "Close" : "Manage"}
-                    </button>
-                    <button className="admin-btn" onClick={() => startEdit(item)}>
-                      Edit
-                    </button>
-                    <button className="admin-btn admin-btn-success" onClick={() => handlePublishToggle(item)}>
-                      {item.isPublished ? "Unpublish" : "Publish"}
-                    </button>
-                    <button className="admin-btn admin-btn-danger" onClick={() => handleDelete(item.id, item.name)}>
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-
-                {expandedId === item.id && (
-                  <tr className="admin-detail-row">
-                    <td colSpan={4}>
-                      <p className="admin-page-note" style={{ marginTop: 0 }}>
-                        Photo upload
-                      </p>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={uploadingId === item.id}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleImageUpload(item.id, file);
-                        }}
-                      />
-                      {uploadingId === item.id && <span> Uploading...</span>}
-
-                      <p className="admin-page-note">Exhibitions</p>
-                      {exhibitionsLoading && <p>Loading exhibitions...</p>}
-                      {!exhibitionsLoading && exhibitions.length === 0 && <p>No exhibitions yet.</p>}
-                      {!exhibitionsLoading && exhibitions.length > 0 && (
-                        <table className="admin-table">
-                          <thead>
-                            <tr>
-                              <th>Name</th>
-                              <th>Dates</th>
-                              <th></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {exhibitions.map((ex) => (
-                              <tr key={ex.id}>
-                                <td>{ex.name}</td>
-                                <td>
-                                  {new Date(ex.startDate).toLocaleDateString()} - {new Date(ex.endDate).toLocaleDateString()}
-                                </td>
-                                <td>
-                                  <button
-                                    className="admin-btn admin-btn-danger"
-                                    onClick={() => handleDeleteExhibition(item.id, ex.id, ex.name)}
-                                  >
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-
-                      {!showExhibitionForm && (
-                        <button className="admin-btn" onClick={() => setShowExhibitionForm(true)}>
-                          + Add exhibition
-                        </button>
-                      )}
-
-                      {showExhibitionForm && (
-                        <form className="admin-form-card" onSubmit={(e) => handleCreateExhibition(item.id, e)}>
-                          <div className="admin-form-row">
-                            <label>Name</label>
-                            <input
-                              value={exhibitionForm.name}
-                              onChange={(e) => setExhibitionForm({ ...exhibitionForm, name: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div className="admin-form-row">
-                            <label>Start date</label>
-                            <input
-                              type="date"
-                              value={exhibitionForm.startDate}
-                              onChange={(e) => setExhibitionForm({ ...exhibitionForm, startDate: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div className="admin-form-row">
-                            <label>End date</label>
-                            <input
-                              type="date"
-                              value={exhibitionForm.endDate}
-                              onChange={(e) => setExhibitionForm({ ...exhibitionForm, endDate: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <button className="admin-btn admin-btn-primary" type="submit">
-                            Create exhibition
-                          </button>
-                          <button className="admin-btn" type="button" onClick={() => setShowExhibitionForm(false)}>
-                            Cancel
-                          </button>
-                        </form>
+            {items.map((item) => {
+              const imgUrl = getImageUrl(item);
+              return (
+                <React.Fragment key={item.id}>
+                  <tr>
+                    <td>
+                      {imgUrl ? (
+                        <img className="admin-thumb" src={imgUrl} alt={item.name} onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
+                      ) : (
+                        <div className="admin-thumb-placeholder">No image</div>
                       )}
                     </td>
+                    <td>{item.name}</td>
+                    <td>{[item.city, item.country].filter(Boolean).join(", ") || "—"}</td>
+                    <td>
+                      <span className={`admin-badge ${item.isPublished ? "admin-badge-success" : "admin-badge-neutral"}`}>
+                        {item.isPublished ? "Published" : "Unpublished"}
+                      </span>
+                    </td>
+                    <td>
+                      <button className="admin-btn" onClick={() => startEdit(item)}>
+                        Edit
+                      </button>
+                      {!item.isPublished && (
+                        <button className="admin-btn admin-btn-success" disabled={busyId === item.id} onClick={() => handlePublish(item.id)}>
+                          Publish
+                        </button>
+                      )}
+                      <button className="admin-btn" onClick={() => setUploadTargetId(uploadTargetId === item.id ? null : item.id)}>
+                        Image
+                      </button>
+                      <button className="admin-btn" onClick={() => toggleManage(item.id)}>
+                        Manage
+                      </button>
+                      <button className="admin-btn admin-btn-danger" disabled={busyId === item.id} onClick={() => handleDelete(item.id, item.name)}>
+                        Delete
+                      </button>
+                    </td>
                   </tr>
-                )}
-              </React.Fragment>
-            ))}
+
+                  {uploadTargetId === item.id && (
+                    <tr className="admin-detail-row">
+                      <td colSpan={5}>
+                        <div className="admin-form-row">
+                          <label>Upload a new cover image</label>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUpload(item.id, file);
+                            }}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+
+                  {manageId === item.id && (
+                    <tr className="admin-detail-row">
+                      <td colSpan={5}>
+                        <strong>Exhibitions</strong>
+                        {exLoading && <p>Loading exhibitions...</p>}
+                        {!exLoading && exhibitions.length === 0 && <p className="admin-page-note">No exhibitions yet.</p>}
+                        {!exLoading && exhibitions.length > 0 && (
+                          <ul>
+                            {exhibitions.map((ex) => (
+                              <li key={ex.id}>
+                                {ex.title} {ex.startDate ? `(${ex.startDate}${ex.endDate ? ` – ${ex.endDate}` : ""})` : ""}{" "}
+                                <button className="admin-btn admin-btn-danger" onClick={() => handleDeleteExhibition(item.id, ex.id)}>
+                                  Delete
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <div className="admin-form-row">
+                          <label>New exhibition title</label>
+                          <input value={exForm.title} onChange={(e) => setExForm({ ...exForm, title: e.target.value })} />
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Start date</label>
+                          <input type="date" value={exForm.startDate} onChange={(e) => setExForm({ ...exForm, startDate: e.target.value })} />
+                        </div>
+                        <div className="admin-form-row">
+                          <label>End date</label>
+                          <input type="date" value={exForm.endDate} onChange={(e) => setExForm({ ...exForm, endDate: e.target.value })} />
+                        </div>
+                        <button className="admin-btn admin-btn-primary" onClick={() => handleAddExhibition(item.id)}>
+                          Add exhibition
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
+      )}
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="admin-pagination">
+          <button className="admin-btn" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {pagination.page} of {pagination.totalPages} — {pagination.total} total
+          </span>
+          <button className="admin-btn" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
+            Next
+          </button>
+        </div>
       )}
     </div>
   );

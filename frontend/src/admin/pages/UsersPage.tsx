@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { adminApi } from "../api";
+import { adminApi, Pagination } from "../api";
 
 interface AdminUserRow {
   id: string;
@@ -13,6 +13,8 @@ const emptyForm = { fullName: "", email: "", password: "", role: "ADMIN" };
 
 export function UsersPage() {
   const [items, setItems] = useState<AdminUserRow[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -22,13 +24,16 @@ export function UsersPage() {
   function load() {
     setLoading(true);
     adminApi
-      .users()
-      .then((result) => setItems(result.data))
+      .users(page)
+      .then((result) => {
+        setItems(result.data);
+        setPagination(result.pagination);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -73,12 +78,7 @@ export function UsersPage() {
           </div>
           <div className="admin-form-row">
             <label>Email</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-            />
+            <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
           </div>
           <div className="admin-form-row">
             <label>Temporary password</label>
@@ -141,6 +141,20 @@ export function UsersPage() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="admin-pagination">
+          <button className="admin-btn" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {pagination.page} of {pagination.totalPages} — {pagination.total} total
+          </span>
+          <button className="admin-btn" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
+            Next
+          </button>
+        </div>
       )}
     </div>
   );

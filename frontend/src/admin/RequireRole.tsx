@@ -9,15 +9,8 @@ interface RequireRoleProps {
 
 export function RequireRole({ allowed, children }: RequireRoleProps) {
   const { user, loading } = useAuth();
-
-  if (loading) {
-    return <div className="admin-loading">Checking your session...</div>;
-  }
-  if (!user) {
-    return <Navigate to="/admin/login" replace />;
-  }
-  if (!allowed.includes(user.role)) {
-    return <Navigate to="/admin" replace />;
-  }
+  if (loading) return <div className="admin-loading">Checking your session...</div>;
+  if (!user) return <Navigate to="/admin/login" replace />;
+  if (!allowed.includes(user.role)) return <Navigate to="/admin" replace />;
   return <>{children}</>;
 }

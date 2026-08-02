@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { adminApi } from "../api";
+import { adminApi, Pagination } from "../api";
 
 interface Tag {
   id: string;
@@ -12,6 +12,8 @@ const emptyForm = { name: "", label: "", category: "STYLE" };
 
 export function TagsPage() {
   const [items, setItems] = useState<Tag[]>([]);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -22,13 +24,16 @@ export function TagsPage() {
   function load() {
     setLoading(true);
     adminApi
-      .tags()
-      .then((result) => setItems(result.data))
+      .tags(page)
+      .then((result) => {
+        setItems(result.data);
+        setPagination(result.pagination);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page]);
 
   function startCreate() {
     setEditingId(null);
@@ -84,19 +89,11 @@ export function TagsPage() {
         <form className="admin-form-card" onSubmit={handleSubmit}>
           <div className="admin-form-row">
             <label>Machine name (e.g. CONTEMPORARY)</label>
-            <input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
+            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </div>
           <div className="admin-form-row">
             <label>Display label (e.g. Contemporary)</label>
-            <input
-              value={form.label}
-              onChange={(e) => setForm({ ...form, label: e.target.value })}
-              required
-            />
+            <input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} required />
           </div>
           <div className="admin-form-row">
             <label>Category</label>
@@ -146,6 +143,20 @@ export function TagsPage() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="admin-pagination">
+          <button className="admin-btn" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {pagination.page} of {pagination.totalPages} — {pagination.total} total
+          </span>
+          <button className="admin-btn" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
+            Next
+          </button>
+        </div>
       )}
     </div>
   );
