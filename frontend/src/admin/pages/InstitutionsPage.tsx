@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { adminApi, Pagination } from "../api";
 
 interface Institution {
@@ -36,9 +36,14 @@ function getImageUrl(inst: Institution): string | null {
 }
 
 export function InstitutionsPage() {
-  const [items, setItems] = useState<Institution[]>([]);
+  // allItems holds every institution across every backend page (the backend
+  // only ever returns 20 at a time, so we fetch every page once up front and
+  // keep the full set in memory — with ~100 galleries this is cheap, and it's
+  // what lets search/filter and alphabetical sorting work across all of them
+  // instead of just whatever page happened to be open).
+  const [allItems, setAllItems] = useState<Institution[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -55,19 +60,46 @@ export function InstitutionsPage() {
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  function load() {
+  async function loadAll() {
     setLoading(true);
-    adminApi
-      .institutions(page)
-      .then((result) => {
-        setItems(result.data);
-        setPagination(result.pagination);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
+    setError(null);
+    try {
+      const first = await adminApi.institutions(1);
+      const totalPages = first.pagination?.totalPages || 1;
+      let combined: Institution[] = first.data || [];
+
+      if (totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, i) => adminApi.institutions(i + 2))
+        );
+        combined = combined.concat(...rest.map((r) => r.data || []));
+      }
+
+      setAllItems(combined);
+      setPagination(first.pagination);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  useEffect(load, [page]);
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  // Always alphabetical by name, filtered down to whatever matches the
+  // search box (matches on name, city, or country so you can also type
+  // a location to narrow things down).
+  const visibleItems = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? allItems.filter((inst) =>
+          [inst.name, inst.city, inst.country].filter(Boolean).some((field) => String(field).toLowerCase().includes(q))
+        )
+      : allItems;
+    return [...filtered].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [allItems, search]);
 
   function startCreate() {
     setEditingId(null);
@@ -99,7 +131,7 @@ export function InstitutionsPage() {
         await adminApi.createInstitution(form);
       }
       setShowForm(false);
-      load();
+      loadAll();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -111,7 +143,7 @@ export function InstitutionsPage() {
     setBusyId(id);
     try {
       await adminApi.publishInstitution(id);
-      load();
+      loadAll();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -124,7 +156,7 @@ export function InstitutionsPage() {
     setBusyId(id);
     try {
       await adminApi.deleteInstitution(id);
-      load();
+      loadAll();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -136,7 +168,7 @@ export function InstitutionsPage() {
     setUploadError(null);
     try {
       await adminApi.uploadInstitutionImage(id, file);
-      load();
+      loadAll();
     } catch (err: any) {
       // The two upload endpoints on this backend are known to fail with
       // "The specified bucket does not exist" until the S3 bucket config
@@ -237,6 +269,26 @@ export function InstitutionsPage() {
           misconfigured — it isn't something this panel can fix on its own.
         </p>
       )}
+
+      <div className="admin-search-bar">
+        <input
+          type="text"
+          placeholder="Search institutions by name or location..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {search && (
+          <button className="admin-btn" onClick={() => setSearch("")}>
+            Clear
+          </button>
+        )}
+        <span className="admin-search-count">
+          {loading
+            ? "Loading..."
+            : `Showing ${visibleItems.length} of ${allItems.length} total (sorted A–Z)`}
+        </span>
+      </div>
+
       {loading && <p>Loading...</p>}
 
       {!loading && (
@@ -251,7 +303,7 @@ export function InstitutionsPage() {
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               const imgUrl = getImageUrl(item);
               return (
                 <React.Fragment key={item.id}>
@@ -350,20 +402,6 @@ export function InstitutionsPage() {
             })}
           </tbody>
         </table>
-      )}
-
-      {pagination && pagination.totalPages > 1 && (
-        <div className="admin-pagination">
-          <button className="admin-btn" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-            Previous
-          </button>
-          <span>
-            Page {pagination.page} of {pagination.totalPages} — {pagination.total} total
-          </span>
-          <button className="admin-btn" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
-            Next
-          </button>
-        </div>
       )}
     </div>
   );
