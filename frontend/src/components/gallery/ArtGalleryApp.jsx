@@ -35,8 +35,7 @@ const SORT_OPTIONS = [
 
 function timeToMinutes(str) {
   const [h, m] = str.split(":").map(Number);
-  return;
-  h * 60 + (m || 0);
+  return h * 60 + (m || 0);
 }
 
 function isOpenNow(hours) {

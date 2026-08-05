@@ -59,6 +59,10 @@ async function seedSuperAdmin(): Promise<void> {
  * Text fields only — the `images` column is intentionally not imported; images
  * are curated via the admin UI / S3, and the update path never touches
  * `images`, so re-seeding preserves them.
+ *
+ * The update path is additive for optional fields too: a value in the sheet
+ * overwrites the stored one, but a blank cell leaves it as-is. Curated data
+ * entered through the admin UI therefore survives a re-seed.
  */
 interface GallerySeed {
   name: string;
@@ -183,8 +187,8 @@ function loadGalleriesFromCsv(): GallerySeed[] {
 
   if (!csvPath) {
     console.warn(
-      '⚠️  No gallery CSV found (tried ArtandCulturalSpacesDB-latest.csv, ' +
-        'institutions-with-images.csv) — skipping gallery import.',
+      `⚠️  No gallery CSV found (tried ${CSV_CANDIDATES.join(', ')}) — ` +
+        'skipping gallery import.',
     );
     return [];
   }
@@ -302,7 +306,22 @@ async function seedGalleries(): Promise<void> {
     };
 
     if (existing) {
-      await prisma.institution.update({ where: { id: existing.id }, data });
+      // A blank CSV cell means "the sheet has no value", not "clear the field".
+      // Most rows leave at least one of these empty, so writing them as null
+      // would wipe anything curated in the admin UI on every re-seed.
+      const { description, website, instagram, phone, email, openingHours, ...rest } = data;
+      await prisma.institution.update({
+        where: { id: existing.id },
+        data: {
+          ...rest,
+          ...(g.description && { description }),
+          ...(g.website && { website }),
+          ...(g.instagram && { instagram }),
+          ...(g.phone && { phone }),
+          ...(g.email && { email }),
+          ...(g.openingHours && { openingHours }),
+        },
+      });
       updated++;
     } else {
       await prisma.institution.create({ data });

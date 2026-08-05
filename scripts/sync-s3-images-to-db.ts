@@ -181,24 +181,26 @@ async function main(): Promise<void> {
 
     matched += 1;
     const urls = keys.map(publicUrl);
-    const same =
-      urls.length === inst.images.length &&
-      urls.every((u, i) => u === inst.images[i]);
+    // Append rather than replace: admin uploads live under institutions/{id}/…,
+    // which the slug matcher never sees, and overwriting would drop them from
+    // the DB while orphaning the S3 objects they point at.
+    const added = urls.filter((u) => !inst.images.includes(u));
+    const merged = [...inst.images, ...added];
 
-    if (same) {
+    if (added.length === 0) {
       console.log(`=  ${inst.name} — already synced (${urls.length})`);
       continue;
     }
 
     console.log(
-      `${DRY_RUN ? '~' : '✓'}  ${inst.name} ← ${slug} (${urls.length} image(s))`,
+      `${DRY_RUN ? '~' : '✓'}  ${inst.name} ← ${slug} (+${added.length} of ${urls.length} image(s), ${merged.length} total)`,
     );
-    for (const u of urls) console.log(`     ${u}`);
+    for (const u of added) console.log(`     ${u}`);
 
     if (!DRY_RUN) {
       await prisma.institution.update({
         where: { id: inst.id },
-        data: { images: urls },
+        data: { images: merged },
       });
       updated += 1;
     } else {

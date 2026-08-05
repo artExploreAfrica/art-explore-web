@@ -32,7 +32,7 @@ const TYPE_TO_ARTTYPE = {
   INSTITUTE: 'gallery',
   FOUNDATION: 'gallery',
   STUDIO: 'studio',
-  CULTURAL_SPACE: 'events',
+  CULTURAL_SPACE: 'event',
 };
 
 /** Best-effort neighborhood from an address like "12 X Rd, Lekki Phase I, Lagos". */

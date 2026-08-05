@@ -7,7 +7,7 @@ import { neighbourhoodsGeoJSON, landmarksGeoJSON } from '../../data/lagosGeo';
 import LegendPanel from './LegendPanel';
 import GalleryCard from './GalleryCard';
 
-const MAPTILER_KEY = 'eBsT19HyOExrdi0WUD3x';
+const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY;
 
 const ALL_BOUNDS = [
   [3.343, 6.435],

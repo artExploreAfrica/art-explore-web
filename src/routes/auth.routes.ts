@@ -18,8 +18,13 @@ import {
 
 const router = Router();
 
-// Throttle all auth endpoints to blunt credential brute-forcing.
-router.use(authLimiter);
+// Throttle all auth endpoints to blunt credential brute-forcing. GET /me is the
+// one exemption: it is a read-only profile fetch the admin SPA calls on every
+// page load, and letting it drain the shared per-IP budget would 429 real
+// logins for everyone behind the same NAT.
+router.use((req, res, next) =>
+  req.path === '/me' ? next() : authLimiter(req, res, next),
+);
 
 /**
  * @swagger

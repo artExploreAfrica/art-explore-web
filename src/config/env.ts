@@ -38,10 +38,18 @@ const envSchema = z
 
     // Email (Resend). RESEND_API_KEY is optional — mailer no-ops until set.
     // EMAIL_FROM must be a verified Resend sender/domain; FRONTEND_URL is the
-    // public web app base used to build password-reset and login links.
+    // public web app base used to build password-reset and login links. Both
+    // fall back to dev placeholders so a deployment that runs without email
+    // still boots; the superRefine below demands real values once Resend is on.
     RESEND_API_KEY: z.string().optional(),
-    EMAIL_FROM: z.string().email('EMAIL_FROM must be a valid email address'),
-    FRONTEND_URL: z.string().url('FRONTEND_URL must be a valid URL'),
+    EMAIL_FROM: z
+      .string()
+      .email('EMAIL_FROM must be a valid email address')
+      .default('no-reply@localhost'),
+    FRONTEND_URL: z
+      .string()
+      .url('FRONTEND_URL must be a valid URL')
+      .default('http://localhost:5173'),
 
     // Seed (optional at runtime; required only when running the seed script)
     SEED_SUPER_ADMIN_NAME: z.string().optional(),
@@ -55,6 +63,22 @@ const envSchema = z
         path: ['ALLOWED_ORIGINS'],
         message: 'ALLOWED_ORIGINS is required in production',
       });
+    }
+
+    // Once Resend is configured the placeholders above would produce a bad
+    // sender and dead reset links, so require both to be set explicitly.
+    // Checked against the raw environment so an explicit value that happens to
+    // match a placeholder is still accepted.
+    if (data.RESEND_API_KEY) {
+      for (const key of ['EMAIL_FROM', 'FRONTEND_URL'] as const) {
+        if (!process.env[key]) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [key],
+            message: `${key} is required when RESEND_API_KEY is set`,
+          });
+        }
+      }
     }
   });
 

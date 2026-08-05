@@ -112,10 +112,6 @@ export const activate = async (actorId: string, targetId: string): Promise<SafeU
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw NotFoundError('User');
 
-  if (!STAFF_ROLES.includes(target.role)) {
-    throw new AppError('Only staff accounts can be activated via this endpoint', 400);
-  }
-
   const user = await prisma.user.update({
     where: { id: targetId },
     data: { isActive: true },

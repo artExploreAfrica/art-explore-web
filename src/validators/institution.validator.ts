@@ -19,6 +19,7 @@ export const createInstitutionSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   website: z.string().url().optional(),
+  instagram: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email().optional(),
   openingHours: openingHoursSchema.optional(),

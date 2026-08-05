@@ -111,7 +111,15 @@ export const update = async (
   exhibitionId: string,
   input: UpdateExhibitionInput,
 ): Promise<Exhibition> => {
-  await ensureExhibition(institutionId, exhibitionId);
+  const current = await ensureExhibition(institutionId, exhibitionId);
+
+  // A partial update supplying only one date is validated against the stored
+  // value, so the merged range can never end up inverted.
+  const startDate = input.startDate ?? current.startDate;
+  const endDate = input.endDate ?? current.endDate;
+  if (endDate < startDate) {
+    throw new AppError('endDate must be on or after startDate', 400);
+  }
 
   const exhibition = await prisma.exhibition.update({
     where: { id: exhibitionId },

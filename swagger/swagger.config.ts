@@ -73,6 +73,7 @@ const options: swaggerJsdoc.Options = {
             lng: { type: 'number' },
             images: { type: 'array', items: { type: 'string' } },
             website: { type: 'string', nullable: true },
+            instagram: { type: 'string', nullable: true },
             phone: { type: 'string', nullable: true },
             email: { type: 'string', nullable: true },
             openingHours: { type: 'object', nullable: true },
@@ -115,6 +116,7 @@ const options: swaggerJsdoc.Options = {
             lat: { type: 'number', example: 6.4541 },
             lng: { type: 'number', example: 3.3947 },
             website: { type: 'string' },
+            instagram: { type: 'string', example: '@artexplorelagos' },
             phone: { type: 'string' },
             email: { type: 'string', format: 'email' },
             openingHours: {

@@ -20,7 +20,13 @@ export const validate =
       if (schemas.body) req.body = schemas.body.parse(req.body);
       if (schemas.query) {
         // req.query is read-only in newer Express typings; mutate in place.
-        Object.assign(req.query, schemas.query.parse(req.query));
+        // Clear first rather than merging: keys the schema stripped must not
+        // survive, or an attacker could vary junk params to make every request
+        // a unique response-cache key (see utils/institutionCache).
+        const parsed = schemas.query.parse(req.query);
+        const query = req.query as Record<string, unknown>;
+        for (const key of Object.keys(query)) delete query[key];
+        Object.assign(query, parsed);
       }
       if (schemas.params) {
         Object.assign(req.params, schemas.params.parse(req.params));

@@ -187,6 +187,7 @@ Upstash Redis is used for:
 | `cache:institutions:{queryHash}` | JSON string | 60s | Cache for `GET /api/v1/institutions` |
 | `cache:institutions:map` | JSON string | 60s | Cache for `GET /api/v1/institutions/map` |
 | `reset:{sha256}` | userId | 1 hour | Password-reset token |
+| `reset:user:{userId}` | Token hash | 1 hour | Reverse index — issuing a reset revokes the user's previous token |
 | rate-limit keys | counter | per limiter | Auth endpoint rate limiting |
 
 Caches are invalidated on any admin write that can change a public payload —
