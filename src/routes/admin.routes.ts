@@ -6,6 +6,7 @@ import * as adminSubCategoryController from '../controllers/adminSubCategory.con
 import * as adminTagController from '../controllers/adminTag.controller';
 import * as auditController from '../controllers/audit.controller';
 import * as dashboardController from '../controllers/dashboard.controller';
+import * as reviewController from '../controllers/review.controller';
 import * as userController from '../controllers/user.controller';
 import { authenticate } from '../middleware/authenticate';
 import { roleGuard } from '../middleware/roleGuard';
@@ -39,6 +40,7 @@ import {
   rejectSchema,
 } from '../validators/submission.validator';
 import { auditLogQuerySchema } from '../validators/audit.validator';
+import { listReviewSubmissionsQuerySchema } from '../validators/review.validator';
 import {
   createUserSchema,
   listUsersQuerySchema,
@@ -233,6 +235,34 @@ router.delete(
   roleGuard(Role.SUPER_ADMIN, Role.ADMIN),
   validate({ params: idParamSchema }),
   adminInstitutionController.remove,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/restore:
+ *   post:
+ *     summary: Undo a soft delete
+ *     description: >
+ *       Brings a soft-deleted venue back into the catalogue. It stays
+ *       unpublished — republishing is a separate, separately audited decision.
+ *       Find deleted records with `GET /admin/institutions?deleted=true`.
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Restored }
+ *       400: { description: Institution is not deleted }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/institutions/:id/restore',
+  roleGuard(Role.SUPER_ADMIN, Role.ADMIN),
+  validate({ params: idParamSchema }),
+  adminInstitutionController.restore,
 );
 
 /**
@@ -699,6 +729,113 @@ router.post(
   isAdmin,
   validate({ params: idParamSchema, body: rejectSchema }),
   adminInstitutionController.reject,
+);
+
+// ---------------------------------------------------------------------------
+// Review moderation (ADMIN or SUPER_ADMIN)
+// ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/v1/admin/submissions/reviews:
+ *   get:
+ *     summary: Review moderation queue
+ *     tags: [Admin - Submissions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [PENDING, APPROVED, REJECTED], default: PENDING }
+ *     responses:
+ *       200: { description: Reviews awaiting the chosen status }
+ */
+router.get(
+  '/submissions/reviews',
+  isAdmin,
+  validate({ query: listReviewSubmissionsQuerySchema }),
+  reviewController.listSubmissions,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/reviews/{id}/approve:
+ *   post:
+ *     summary: Approve a review
+ *     description: >
+ *       The review becomes public and joins the venue's average rating, which is
+ *       recomputed immediately.
+ *     tags: [Admin - Submissions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Approved }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/reviews/:id/approve',
+  isAdmin,
+  validate({ params: idParamSchema }),
+  reviewController.approve,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/reviews/{id}/reject:
+ *   post:
+ *     summary: Reject a review with a required moderator note
+ *     tags: [Admin - Submissions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reviewNote]
+ *             properties:
+ *               reviewNote: { type: string }
+ *     responses:
+ *       200: { description: Rejected }
+ *       400: { description: Validation error }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/reviews/:id/reject',
+  isAdmin,
+  validate({ params: idParamSchema, body: rejectSchema }),
+  reviewController.reject,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/reviews/{id}:
+ *   delete:
+ *     summary: Delete any review (spam removal)
+ *     tags: [Admin - Submissions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Deleted }
+ *       404: { description: Not found }
+ */
+router.delete(
+  '/reviews/:id',
+  isAdmin,
+  validate({ params: idParamSchema }),
+  reviewController.removeAsAdmin,
 );
 
 // ---------------------------------------------------------------------------

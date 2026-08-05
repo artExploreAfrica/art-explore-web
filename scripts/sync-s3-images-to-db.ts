@@ -226,6 +226,7 @@ async function main(): Promise<void> {
 
   console.log('\n── Summary ──────────────────────────');
   console.log(`S3 slugs with images: ${bySlug.size}`);
+  console.log(`Skipped (no files):   ${skippedEmpty}`);
   console.log(`Matched:              ${matched}`);
   console.log(`${DRY_RUN ? 'Would update' : 'Updated'}:           ${updated}`);
   console.log(`Unmatched slugs:      ${unmatched}`);

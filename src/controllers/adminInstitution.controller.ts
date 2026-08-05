@@ -46,6 +46,11 @@ export const remove = asyncHandler(async (req: Request, res: Response) => {
   return successResponse(res, institution, 'Institution deleted');
 });
 
+export const restore = asyncHandler(async (req: Request, res: Response) => {
+  const institution = await institutionService.restore(actorId(req), req.params.id);
+  return successResponse(res, institution, 'Institution restored');
+});
+
 export const publish = asyncHandler(async (req: Request, res: Response) => {
   const institution = await institutionService.togglePublish(actorId(req), req.params.id);
   const message = institution.isPublished ? 'Institution published' : 'Institution unpublished';

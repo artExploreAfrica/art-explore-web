@@ -8,7 +8,12 @@ import {
 import prisma from '../config/db';
 import { AppError, NotFoundError } from '../utils/AppError';
 import { auditLog } from '../utils/auditLogger';
-import { invalidateInstitutionCache } from '../utils/institutionCache';
+import {
+  exhibitionListCacheKey,
+  getCached,
+  invalidateInstitutionCache,
+  setCached,
+} from '../utils/institutionCache';
 import {
   sendSubmissionApprovedEmail,
   sendSubmissionRejectedEmail,
@@ -17,8 +22,12 @@ import { PaginationMeta } from '../utils/response';
 import { deleteS3ObjectByUrl } from '../utils/s3Uploader';
 import {
   CreateExhibitionInput,
+  ExhibitionScope,
+  ListExhibitionsQuery,
+  ListPublicExhibitionsQuery,
   SubmitExhibitionInput,
   UpdateExhibitionInput,
+  UpdateSubmittedExhibitionInput,
 } from '../validators/exhibition.validator';
 import {
   ListSubmissionsQuery,
@@ -156,6 +165,146 @@ export const listMine = async (
   return { data, pagination: paginate(page, limit, total) };
 };
 
+/**
+ * Fetch an exhibition submission the given user owns and may still change.
+ * Approved ones are frozen — they are live content the admin now owns.
+ */
+const ensureEditableSubmission = async (
+  userId: string,
+  id: string,
+): Promise<Exhibition> => {
+  const exhibition = await prisma.exhibition.findFirst({
+    where: { id, submittedById: userId },
+  });
+  // Reported as missing rather than forbidden so the response never confirms
+  // that someone else's id exists.
+  if (!exhibition) throw NotFoundError('Submission');
+
+  if (exhibition.approvalStatus === ApprovalStatus.APPROVED) {
+    throw new AppError(
+      'This submission has been approved and can no longer be changed — contact an admin',
+      409,
+    );
+  }
+  return exhibition;
+};
+
+/**
+ * A USER edits their own pending or rejected exhibition submission. A rejected
+ * one returns to PENDING with the reviewer note cleared so it can be fixed and
+ * resubmitted rather than duplicated.
+ */
+export const updateMine = async (
+  userId: string,
+  id: string,
+  input: UpdateSubmittedExhibitionInput,
+): Promise<Exhibition> => {
+  const current = await ensureEditableSubmission(userId, id);
+
+  // A partial update supplying only one date is checked against the stored
+  // value, so the merged range can never end up inverted.
+  const startDate = input.startDate ?? current.startDate;
+  const endDate = input.endDate ?? current.endDate;
+  if (endDate < startDate) {
+    throw new AppError('endDate must be on or after startDate', 400);
+  }
+
+  const exhibition = await prisma.exhibition.update({
+    where: { id },
+    data: {
+      ...input,
+      approvalStatus: ApprovalStatus.PENDING,
+      isActive: false,
+      approvedById: null,
+      approvedAt: null,
+      reviewNote: null,
+    },
+  });
+
+  await auditLog(userId, AuditAction.EXHIBITION_UPDATE, TargetModel.EXHIBITION, id, {
+    institutionId: current.institutionId,
+    fields: Object.keys(input),
+    bySubmitter: true,
+  });
+  return exhibition;
+};
+
+/**
+ * A USER withdraws their own exhibition submission. Exhibitions carry no
+ * `deletedAt`, and a never-approved proposal has no public history worth
+ * keeping, so this is a hard delete — the audit entry is the record.
+ */
+export const withdrawMine = async (userId: string, id: string): Promise<Exhibition> => {
+  const current = await ensureEditableSubmission(userId, id);
+
+  const exhibition = await prisma.exhibition.delete({ where: { id } });
+
+  await recomputeHasExhibition(current.institutionId);
+  await auditLog(userId, AuditAction.WITHDRAW, TargetModel.EXHIBITION, id, {
+    institutionId: current.institutionId,
+    name: current.name,
+  });
+  return exhibition;
+};
+
+/**
+ * Resolve an own editable submission before uploading, so the S3 key can be
+ * built from the real institutionId and an unauthorised id never reaches the
+ * bucket in the first place.
+ */
+export const getMineForUpload = async (
+  userId: string,
+  id: string,
+): Promise<Exhibition> => ensureEditableSubmission(userId, id);
+
+/** Attach an uploaded image to the submitter's own pending/rejected submission. */
+export const addImageToMine = async (
+  userId: string,
+  id: string,
+  imageUrl: string,
+): Promise<Exhibition> => {
+  const current = await ensureEditableSubmission(userId, id);
+
+  const exhibition = await prisma.exhibition.update({
+    where: { id },
+    data: { images: [...current.images, imageUrl] },
+  });
+
+  await auditLog(userId, AuditAction.IMAGE_UPLOAD, TargetModel.EXHIBITION, id, {
+    institutionId: current.institutionId,
+    imageUrl,
+    bySubmitter: true,
+  });
+  return exhibition;
+};
+
+/** Remove an image from the submitter's own pending/rejected submission. */
+export const removeImageFromMine = async (
+  userId: string,
+  id: string,
+  imageUrl: string,
+): Promise<Exhibition> => {
+  const current = await ensureEditableSubmission(userId, id);
+
+  if (!current.images.includes(imageUrl)) {
+    throw new AppError('Image URL not found on this submission', 404);
+  }
+
+  const exhibition = await prisma.exhibition.update({
+    where: { id },
+    data: { images: current.images.filter((url) => url !== imageUrl) },
+  });
+
+  await deleteS3ObjectByUrl(imageUrl);
+
+  await auditLog(userId, AuditAction.EXHIBITION_UPDATE, TargetModel.EXHIBITION, id, {
+    institutionId: current.institutionId,
+    removedImageUrl: imageUrl,
+    bySubmitter: true,
+  });
+  return exhibition;
+};
+
 /** Admin review queue — user-submitted exhibitions only, filtered by status. */
 export const listSubmissions = async (
   query: ListSubmissionsQuery,
@@ -264,10 +413,28 @@ export const reject = async (
   return exhibition;
 };
 
+/**
+ * Date half of the public filter for a given scope. `live` is the default so a
+ * venue's exhibition list agrees with its `hasExhibition` flag; `past` and `all`
+ * exist for archive views, which previously had no way to be expressed.
+ */
+const scopeWhere = (scope: ExhibitionScope): Prisma.ExhibitionWhereInput => {
+  switch (scope) {
+    case 'past':
+      return { endDate: { lt: startOfToday() } };
+    case 'all':
+      return {};
+    case 'live':
+    default:
+      return { endDate: { gte: startOfToday() } };
+  }
+};
+
 /** Public read — only for a published, approved institution. */
 export const listForInstitution = async (
   institutionId: string,
-): Promise<Exhibition[]> => {
+  query: ListExhibitionsQuery,
+): Promise<ExhibitionListResult> => {
   const institution = await prisma.institution.findFirst({
     where: {
       id: institutionId,
@@ -279,14 +446,87 @@ export const listForInstitution = async (
   });
   if (!institution) throw NotFoundError('Institution');
 
-  return prisma.exhibition.findMany({
-    where: {
-      institutionId,
+  const { page, limit, scope } = query;
+  const where: Prisma.ExhibitionWhereInput = {
+    institutionId,
+    approvalStatus: ApprovalStatus.APPROVED,
+    isActive: true,
+    ...scopeWhere(scope),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.exhibition.findMany({
+      where,
+      orderBy: { startDate: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.exhibition.count({ where }),
+  ]);
+
+  return { data, pagination: paginate(page, limit, total) };
+};
+
+/**
+ * Public "what's on" across every venue — the cross-institution read the
+ * per-venue endpoint could never answer. Cached under the institution cache
+ * prefix so existing writes already invalidate it.
+ */
+export const listPublic = async (
+  query: ListPublicExhibitionsQuery,
+): Promise<ExhibitionListResult> => {
+  const cacheKey = exhibitionListCacheKey(query);
+  const cached = await getCached<ExhibitionListResult>(cacheKey);
+  if (cached) return cached;
+
+  const { page, limit, scope, area, type, institutionId, search } = query;
+
+  const where: Prisma.ExhibitionWhereInput = {
+    approvalStatus: ApprovalStatus.APPROVED,
+    isActive: true,
+    ...scopeWhere(scope),
+    ...(institutionId && { institutionId }),
+    // The parent venue must itself be publicly visible.
+    institution: {
+      isPublished: true,
+      deletedAt: null,
       approvalStatus: ApprovalStatus.APPROVED,
-      isActive: true,
+      ...(area && { area }),
+      ...(type && { type }),
     },
-    orderBy: { startDate: 'desc' },
-  });
+    ...(search && {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { institution: { name: { contains: search, mode: 'insensitive' } } },
+      ],
+    }),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.exhibition.findMany({
+      where,
+      include: {
+        institution: {
+          select: { id: true, name: true, area: true, type: true, lat: true, lng: true },
+        },
+      },
+      // Soonest-ending first: what is about to close is the most useful thing
+      // to surface on a "what's on" screen.
+      orderBy: [{ endDate: 'asc' }, { startDate: 'asc' }],
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.exhibition.count({ where }),
+  ]);
+
+  const result: ExhibitionListResult = {
+    data,
+    pagination: paginate(page, limit, total),
+  };
+
+  await setCached(cacheKey, result);
+  return result;
 };
 
 export const create = async (
@@ -411,6 +651,9 @@ export const setActive = async (
     data: { isActive },
   });
 
+  // isActive is one of the three conditions in liveExhibitionWhere(), so
+  // toggling it changes whether the venue still has a live exhibition.
+  await recomputeHasExhibition(institutionId);
   await auditLog(
     actorId,
     AuditAction.EXHIBITION_UPDATE,

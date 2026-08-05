@@ -132,30 +132,52 @@ Protected routes require `Authorization: Bearer <accessToken>`. The full, always
 ### Public discovery
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/institutions` | Public | Paginated list; filters `area`, `type`, `subCategoryId`, `tag`, `search` |
+| GET | `/institutions` | Public | Paginated list; filters `area`, `type`, `subCategoryId`, `tag`, `search`, `minRating`, `openNow`, `hasExhibition`; `sort=newest\|oldest\|name\|rating` |
 | GET | `/institutions/map` | Public | Lightweight map pins (`id, name, lat, lng, type`) |
 | GET | `/institutions/:id` | Public | Single published venue |
-| GET | `/institutions/:id/exhibitions` | Public | Approved exhibitions for a venue |
+| GET | `/institutions/:id/exhibitions` | Public | Exhibitions for a venue; `scope=live` (default) `\|past\|all` |
+| GET | `/institutions/:id/reviews` | Public | Approved reviews for a venue |
+| POST | `/institutions/:id/reviews` | USER | Review a venue (created `PENDING`; one per venue per account) |
+| GET | `/exhibitions` | Public | What's on across every venue; filters `scope`, `area`, `type`, `institutionId`, `search` |
 | GET | `/subcategories` | Public | Sub-categories (filter `type`) |
 | GET | `/tags` | Public | Tags (filters `search`, `category`) |
+
+### Reviews — `/reviews`
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| PUT | `/reviews/:id` | USER | Edit own review (returns it to `PENDING`) |
+| DELETE | `/reviews/:id` | USER | Delete own review |
 
 ### Submissions — `/submissions`
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | POST | `/submissions` | USER | Submit a venue for review (created `PENDING`) |
 | GET | `/submissions/mine` | USER | List own submissions (any status) |
+| PUT | `/submissions/:id` | USER | Edit own submission while `PENDING`/`REJECTED` (returns it to `PENDING`) |
+| DELETE | `/submissions/:id` | USER | Withdraw own submission (soft delete) |
+| POST | `/submissions/:id/images` | USER | Upload an image to own submission (multipart, field `image`) |
+| DELETE | `/submissions/:id/images` | USER | Remove an image from own submission (`{ url }`) |
 | POST | `/submissions/exhibitions` | USER | Submit an exhibition for a published venue (created `PENDING`, inactive) |
 | GET | `/submissions/exhibitions/mine` | USER | List own exhibition submissions (any status) |
+| PUT | `/submissions/exhibitions/:id` | USER | Edit own exhibition submission (returns it to `PENDING`) |
+| DELETE | `/submissions/exhibitions/:id` | USER | Withdraw own exhibition submission |
+| POST | `/submissions/exhibitions/:id/images` | USER | Upload an image to own exhibition submission |
+| DELETE | `/submissions/exhibitions/:id/images` | USER | Remove an image from own exhibition submission |
+| GET | `/submissions/reviews/mine` | USER | List own reviews (any moderation status) |
+
+Contributor writes (submit, edit, upload, review) are rate limited to **30 per account per hour**.
+Images are never accepted as URLs in a request body — they are uploaded to S3 through these endpoints.
 
 ### Admin — `/admin`
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/admin/dashboard` | Admin | Aggregate counts (`admins` = staff; also `publicUsers`) |
-| GET | `/admin/institutions` | Admin | Full catalogue (drafts / unpublished / pending) |
+| GET | `/admin/dashboard` | Admin | Aggregate counts (`admins` = staff; also `publicUsers`, `pendingExhibitions`, `pendingReviews`) |
+| GET | `/admin/institutions` | Admin | Full catalogue (drafts / unpublished / pending); `deleted=true` lists soft-deleted rows |
 | GET | `/admin/institutions/:id` | Admin | Single venue (admin view) |
 | POST | `/admin/institutions` | Admin | Create a venue |
 | PUT | `/admin/institutions/:id` | Admin | Update a venue |
 | DELETE | `/admin/institutions/:id` | Admin | Soft-delete a venue |
+| POST | `/admin/institutions/:id/restore` | Admin | Undo a soft delete (does **not** republish) |
 | POST | `/admin/institutions/:id/publish` | Admin | Toggle publish status |
 | POST | `/admin/institutions/:id/images` | Admin | Upload an image (multipart, field `image`) |
 | DELETE | `/admin/institutions/:id/images` | Admin | Remove an image (`{ url }`) |
@@ -171,6 +193,10 @@ Protected routes require `Authorization: Bearer <accessToken>`. The full, always
 | GET | `/admin/submissions/exhibitions` | Admin | Exhibition review queue (user submissions only; filter `status`) |
 | POST | `/admin/exhibitions/:id/approve` | Admin | Approve an exhibition (does **not** activate; emails submitter) |
 | POST | `/admin/exhibitions/:id/reject` | Admin | Reject with required `reviewNote` (emails submitter) |
+| GET | `/admin/submissions/reviews` | Admin | Review moderation queue (filter `status`) |
+| POST | `/admin/reviews/:id/approve` | Admin | Approve a review (recomputes the venue's average) |
+| POST | `/admin/reviews/:id/reject` | Admin | Reject with required `reviewNote` |
+| DELETE | `/admin/reviews/:id` | Admin | Delete any review (spam removal) |
 | GET / POST | `/admin/subcategories` | Admin | List / create sub-categories |
 | PUT / DELETE | `/admin/subcategories/:id` | Admin | Update / delete a sub-category |
 | GET / POST | `/admin/tags` | Admin | List / create tags |

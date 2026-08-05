@@ -31,12 +31,79 @@ import {
   ListSubmissionsQuery,
   MySubmissionsQuery,
   SubmitInstitutionInput,
+  UpdateSubmissionInput,
 } from '../validators/submission.validator';
 
 interface ListResult {
   data: Institution[];
   pagination: PaginationMeta;
 }
+
+type SortKey = 'newest' | 'oldest' | 'name' | 'rating';
+
+/**
+ * Ordering for the catalogue. Rating sorts nulls last so unreviewed venues
+ * never outrank reviewed ones, with a name tiebreak to keep pages stable.
+ */
+const orderFor = (sort: SortKey): Prisma.InstitutionOrderByWithRelationInput[] => {
+  switch (sort) {
+    case 'oldest':
+      return [{ createdAt: 'asc' }];
+    case 'name':
+      return [{ name: 'asc' }];
+    case 'rating':
+      return [{ rating: { sort: 'desc', nulls: 'last' } }, { name: 'asc' }];
+    case 'newest':
+    default:
+      return [{ createdAt: 'desc' }];
+  }
+};
+
+/**
+ * Ids of venues currently within their trading hours, resolved in SQL against
+ * the JSONB `openingHours` column so the filter composes with pagination
+ * instead of forcing every row into memory.
+ *
+ * Semantics deliberately match the client's `isOpenNow`: a venue with no hours
+ * recorded counts as open (unknown, not closed), a day set to null is closed,
+ * and a `close` earlier than `open` means the venue trades past midnight.
+ * "Now" is the server's clock — the deployment runs on Lagos time (WAT, no DST).
+ */
+const openNowInstitutionIds = async (): Promise<string[]> => {
+  const now = new Date();
+  const day = String(now.getDay());
+  const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(
+    now.getMinutes(),
+  ).padStart(2, '0')}`;
+
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT "id" FROM "Institution"
+    WHERE "deletedAt" IS NULL
+      AND (
+        -- "Hours unknown" arrives two ways: a true SQL NULL, and the JSONB
+        -- 'null' that Prisma.JsonNull writes when a venue is saved without
+        -- hours. Both must count as unknown or every such venue silently
+        -- disappears from the openNow results.
+        "openingHours" IS NULL
+        OR jsonb_typeof("openingHours") = 'null'
+        OR (
+          jsonb_typeof("openingHours" -> ${day}) = 'object'
+          AND (
+            CASE
+              WHEN ("openingHours" -> ${day} ->> 'close')
+                 > ("openingHours" -> ${day} ->> 'open')
+                THEN ${hhmm} >= ("openingHours" -> ${day} ->> 'open')
+                 AND ${hhmm} <  ("openingHours" -> ${day} ->> 'close')
+              ELSE ${hhmm} >= ("openingHours" -> ${day} ->> 'open')
+                OR ${hhmm} <  ("openingHours" -> ${day} ->> 'close')
+            END
+          )
+        )
+      )
+  `;
+
+  return rows.map((r) => r.id);
+};
 
 /**
  * Public paginated list with area/type filters and text search.
@@ -47,7 +114,19 @@ export const listPublished = async (query: ListInstitutionsQuery): Promise<ListR
   const cached = await getCached<ListResult>(cacheKey);
   if (cached) return cached;
 
-  const { page, limit, area, type, subCategoryId, tag, search } = query;
+  const {
+    page,
+    limit,
+    area,
+    type,
+    subCategoryId,
+    tag,
+    search,
+    minRating,
+    openNow,
+    hasExhibition,
+    sort,
+  } = query;
 
   const where: Prisma.InstitutionWhereInput = {
     isPublished: true,
@@ -58,6 +137,9 @@ export const listPublished = async (query: ListInstitutionsQuery): Promise<ListR
     ...(subCategoryId && { subCategoryId }),
     // Tag filter accepts either the tag id or the slug (`name`).
     ...(tag && { tags: { some: { OR: [{ id: tag }, { name: tag }] } } }),
+    ...(minRating !== undefined && { rating: { gte: minRating } }),
+    ...(hasExhibition !== undefined && { hasExhibition }),
+    ...(openNow && { id: { in: await openNowInstitutionIds() } }),
     ...(search && {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
@@ -71,7 +153,7 @@ export const listPublished = async (query: ListInstitutionsQuery): Promise<ListR
     prisma.institution.findMany({
       where,
       include: { tags: true, subCategory: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: orderFor(sort),
       skip: (page - 1) * limit,
       take: limit,
     }),
@@ -132,17 +214,36 @@ export const getMapPins = async (): Promise<MapPin[]> => {
 // ---------------------------------------------------------------------------
 
 export const listForAdmin = async (query: AdminListInstitutionsQuery): Promise<ListResult> => {
-  const { page, limit, area, type, subCategoryId, tag, search, isPublished, approvalStatus } =
-    query;
+  const {
+    page,
+    limit,
+    area,
+    type,
+    subCategoryId,
+    tag,
+    search,
+    isPublished,
+    approvalStatus,
+    minRating,
+    openNow,
+    hasExhibition,
+    deleted,
+    sort,
+  } = query;
 
   const where: Prisma.InstitutionWhereInput = {
-    deletedAt: null,
+    // `deleted=true` inverts the default so soft-deleted rows can be found and
+    // restored; without it they stay hidden as before.
+    deletedAt: deleted ? { not: null } : null,
     ...(area && { area }),
     ...(type && { type }),
     ...(subCategoryId && { subCategoryId }),
     ...(tag && { tags: { some: { OR: [{ id: tag }, { name: tag }] } } }),
     ...(isPublished !== undefined && { isPublished }),
     ...(approvalStatus && { approvalStatus }),
+    ...(minRating !== undefined && { rating: { gte: minRating } }),
+    ...(hasExhibition !== undefined && { hasExhibition }),
+    ...(openNow && { id: { in: await openNowInstitutionIds() } }),
     ...(search && {
       OR: [
         { name: { contains: search, mode: 'insensitive' } },
@@ -156,7 +257,7 @@ export const listForAdmin = async (query: AdminListInstitutionsQuery): Promise<L
     prisma.institution.findMany({
       where,
       include: { tags: true, subCategory: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: orderFor(sort),
       skip: (page - 1) * limit,
       take: limit,
     }),
@@ -255,6 +356,30 @@ export const softDelete = async (actorId: string, id: string): Promise<Instituti
   });
 
   await auditLog(actorId, AuditAction.DELETE, TargetModel.INSTITUTION, id);
+  await invalidateInstitutionCache();
+  return institution;
+};
+
+/**
+ * Undo a soft delete. Deliberately does NOT republish — restoring brings the
+ * record back into the admin catalogue, and making it public again is the same
+ * separate, audited decision it was the first time.
+ */
+export const restore = async (actorId: string, id: string): Promise<Institution> => {
+  const current = await prisma.institution.findUnique({ where: { id } });
+  if (!current) throw NotFoundError('Institution');
+  if (current.deletedAt === null) {
+    throw new AppError('Institution is not deleted', 400);
+  }
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: { deletedAt: null },
+  });
+
+  await auditLog(actorId, AuditAction.RESTORE, TargetModel.INSTITUTION, id, {
+    name: institution.name,
+  });
   await invalidateInstitutionCache();
   return institution;
 };
@@ -384,6 +509,143 @@ export const listMine = async (
   };
 };
 
+/**
+ * Fetch a submission the given user owns and is still allowed to change.
+ * APPROVED submissions are frozen — once a venue is in the catalogue its
+ * content is the admin's, not the submitter's.
+ */
+const ensureEditableSubmission = async (
+  userId: string,
+  id: string,
+): Promise<Institution> => {
+  const institution = await prisma.institution.findFirst({
+    where: { id, submittedById: userId, deletedAt: null },
+  });
+  // Someone else's submission is reported as missing rather than forbidden, so
+  // the response never confirms that an id exists.
+  if (!institution) throw NotFoundError('Submission');
+
+  if (institution.approvalStatus === ApprovalStatus.APPROVED) {
+    throw new AppError(
+      'This submission has been approved and can no longer be changed — contact an admin',
+      409,
+    );
+  }
+  return institution;
+};
+
+/**
+ * A USER edits their own pending or rejected submission. A rejected one returns
+ * to PENDING with the old reviewer note cleared, which is what makes "fix it and
+ * resubmit" possible without opening a duplicate.
+ */
+export const updateMine = async (
+  userId: string,
+  id: string,
+  input: UpdateSubmissionInput,
+): Promise<Institution> => {
+  await ensureEditableSubmission(userId, id);
+
+  const { tagIds, openingHours, ...rest } = input;
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: {
+      ...rest,
+      ...(openingHours !== undefined && {
+        openingHours: openingHours ?? Prisma.JsonNull,
+      }),
+      ...(tagIds !== undefined && { tags: { set: tagIds.map((t) => ({ id: t })) } }),
+      approvalStatus: ApprovalStatus.PENDING,
+      reviewedById: null,
+      reviewedAt: null,
+      reviewNote: null,
+    },
+  });
+
+  await auditLog(userId, AuditAction.UPDATE, TargetModel.INSTITUTION, id, {
+    fields: Object.keys(input),
+    bySubmitter: true,
+  });
+  // Never public in either state, so no cache work is needed.
+  return institution;
+};
+
+/**
+ * A USER withdraws their own submission. Soft-deleted like any other removal so
+ * the record — and its audit trail — survives.
+ */
+export const withdrawMine = async (userId: string, id: string): Promise<Institution> => {
+  await ensureEditableSubmission(userId, id);
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: { deletedAt: new Date(), isPublished: false },
+  });
+
+  await auditLog(userId, AuditAction.WITHDRAW, TargetModel.INSTITUTION, id, {
+    name: institution.name,
+  });
+  return institution;
+};
+
+/**
+ * Resolve an own editable submission before uploading, so an unauthorised id
+ * never reaches the bucket. Without this the bytes land under
+ * `institutions/{id}/` for any id the caller names — including someone else's
+ * submission or a published venue — before the ownership check runs.
+ */
+export const getMineForUpload = async (
+  userId: string,
+  id: string,
+): Promise<Institution> => ensureEditableSubmission(userId, id);
+
+/** Attach an uploaded image to the submitter's own pending/rejected submission. */
+export const addImageToMine = async (
+  userId: string,
+  id: string,
+  imageUrl: string,
+): Promise<Institution> => {
+  const current = await ensureEditableSubmission(userId, id);
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: { images: [...current.images, imageUrl] },
+  });
+
+  await auditLog(userId, AuditAction.IMAGE_UPLOAD, TargetModel.INSTITUTION, id, {
+    imageUrl,
+    bySubmitter: true,
+  });
+  return institution;
+};
+
+/** Remove an image from the submitter's own pending/rejected submission. */
+export const removeImageFromMine = async (
+  userId: string,
+  id: string,
+  imageUrl: string,
+): Promise<Institution> => {
+  const current = await ensureEditableSubmission(userId, id);
+
+  if (!current.images.includes(imageUrl)) {
+    throw new AppError('Image URL not found on this submission', 404);
+  }
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: { images: current.images.filter((url) => url !== imageUrl) },
+  });
+
+  await deleteS3ObjectByUrl(imageUrl);
+
+  await auditLog(userId, AuditAction.UPDATE, TargetModel.INSTITUTION, id, {
+    removedImageUrl: imageUrl,
+    bySubmitter: true,
+  });
+  return institution;
+};
+
 /** Admin review queue — user-submitted venues only, filtered by approval status. */
 export const listSubmissions = async (
   query: ListSubmissionsQuery,
@@ -431,6 +693,9 @@ export const approve = async (actorId: string, id: string): Promise<Institution>
   });
 
   await auditLog(actorId, AuditAction.APPROVE_INSTITUTION, TargetModel.INSTITUTION, id);
+  // An already-published venue becomes publicly visible the moment it is
+  // approved, so the list/map cache has to drop just like it does on reject.
+  await invalidateInstitutionCache();
 
   if (current.submittedBy) {
     void sendSubmissionApprovedEmail(

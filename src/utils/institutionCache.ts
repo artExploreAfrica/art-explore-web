@@ -12,12 +12,24 @@ const TTL_SECONDS = 60;
 const PREFIX = 'cache:institutions';
 export const MAP_CACHE_KEY = `${PREFIX}:map`;
 
+/** Stable hash of a normalized query object. */
+const queryHash = (query: Record<string, unknown>): string =>
+  createHash('sha1')
+    .update(JSON.stringify(query, Object.keys(query).sort()))
+    .digest('hex');
+
 /** Deterministic key for a list query (stable hash of the normalized query). */
-export const listCacheKey = (query: Record<string, unknown>): string => {
-  const normalized = JSON.stringify(query, Object.keys(query).sort());
-  const hash = createHash('sha1').update(normalized).digest('hex');
-  return `${PREFIX}:list:${hash}`;
-};
+export const listCacheKey = (query: Record<string, unknown>): string =>
+  `${PREFIX}:list:${queryHash(query)}`;
+
+/**
+ * Key for the public cross-venue exhibition list. Kept under the same PREFIX on
+ * purpose: exhibition and institution writes already call
+ * invalidateInstitutionCache, so these entries drop with everything else rather
+ * than needing a second invalidation path that could be forgotten.
+ */
+export const exhibitionListCacheKey = (query: Record<string, unknown>): string =>
+  `${PREFIX}:exhibitions:${queryHash(query)}`;
 
 export const getCached = async <T>(key: string): Promise<T | null> => {
   return (await redis.get<T>(key)) ?? null;

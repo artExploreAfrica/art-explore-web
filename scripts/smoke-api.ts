@@ -24,7 +24,7 @@ async function call(
   method: string,
   path: string,
   opts: { token?: string; body?: unknown; expected?: number } = {},
-): Promise<any> {
+): Promise<unknown> {
   const expected = opts.expected ?? 200;
   const url = path.startsWith('http') ? path : `${BASE}${path}`;
   const headers: Record<string, string> = {};
@@ -32,7 +32,7 @@ async function call(
   if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
 
   let status = 0;
-  let json: any = null;
+  let json: unknown = null;
   try {
     const res = await fetch(url, {
       method,

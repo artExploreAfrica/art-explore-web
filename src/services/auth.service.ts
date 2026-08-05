@@ -273,10 +273,24 @@ export const resetPassword = async (
   });
 };
 
-/** Invalidate a user's refresh token by deleting the Redis key. */
+/**
+ * Invalidate a user's refresh token by deleting the Redis key.
+ *
+ * The presented token is matched against the stored hash before anything is
+ * deleted: a merely well-formed token — an old one already rotated out, or one
+ * replayed by someone else — must not be able to end the account's live session.
+ * Always resolves, so a caller can never tell a stale token from a current one.
+ */
 export const logout = async (refreshToken: string): Promise<void> => {
   try {
     const payload = verifyRefreshToken(refreshToken);
+
+    const stored = await redis.get<string>(refreshKey(payload.sub));
+    if (!stored) return;
+
+    const matches = await bcrypt.compare(refreshToken, stored);
+    if (!matches) return;
+
     await redis.del(refreshKey(payload.sub));
   } catch {
     // Token already invalid/expired — nothing to revoke. Treat as success.

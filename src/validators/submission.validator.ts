@@ -10,6 +10,16 @@ export const submitInstitutionSchema = createInstitutionSchema.omit({
   isPublished: true,
 });
 
+/**
+ * Editing an own submission: same fields, all optional, at least one present.
+ * The service forces the row back to PENDING, so nothing here can set state.
+ */
+export const updateSubmissionSchema = submitInstitutionSchema
+  .partial()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'At least one field must be provided to update',
+  });
+
 /** Admin filter for the review queue. */
 export const listSubmissionsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -28,6 +38,7 @@ export const rejectSchema = z.object({
 });
 
 export type SubmitInstitutionInput = z.infer<typeof submitInstitutionSchema>;
+export type UpdateSubmissionInput = z.infer<typeof updateSubmissionSchema>;
 export type ListSubmissionsQuery = z.infer<typeof listSubmissionsQuerySchema>;
 export type MySubmissionsQuery = z.infer<typeof mySubmissionsQuerySchema>;
 export type RejectInput = z.infer<typeof rejectSchema>;

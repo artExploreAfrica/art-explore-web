@@ -9,6 +9,7 @@ import {
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
+import { parseOpeningHoursCell } from '../src/utils/openingHours';
 
 const prisma = new PrismaClient();
 
@@ -226,12 +227,15 @@ function loadGalleriesFromCsv(): GallerySeed[] {
 
     let openingHours: Prisma.InputJsonValue | undefined;
     if (row.openingHours) {
-      try {
-        openingHours = JSON.parse(row.openingHours);
-      } catch {
-        // Free-text hours (e.g. "Tue-Sat 9am-5pm") are left unset.
-        openingHours = undefined;
-      }
+      // The sheet stores hours as per-day JSON *or* free text ("Tue-Sat
+      // 11am-6pm"); both are converted to the day-indexed { open, close } shape
+      // the API validates. Genuinely indeterminate values ("by appointment")
+      // come back undefined and are left unset. The cast is needed only because
+      // Prisma's InputJsonValue excludes `null` members, while a closed day is
+      // legitimately JSON null *inside* the object.
+      openingHours = parseOpeningHoursCell(row.openingHours) as
+        | Prisma.InputJsonValue
+        | undefined;
     }
 
     galleries.push({
