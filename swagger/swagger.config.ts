@@ -219,6 +219,7 @@ const options: swaggerJsdoc.Options = {
             submittedById: { type: 'string', nullable: true },
             approvedById: { type: 'string', nullable: true },
             approvedAt: { type: 'string', format: 'date-time', nullable: true },
+            reviewNote: { type: 'string', nullable: true },
             isActive: { type: 'boolean' },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
@@ -228,6 +229,24 @@ const options: swaggerJsdoc.Options = {
           type: 'object',
           required: ['name', 'startDate', 'endDate', 'startTime', 'endTime'],
           properties: {
+            name: { type: 'string' },
+            images: { type: 'array', items: { type: 'string', format: 'uri' } },
+            startDate: { type: 'string', format: 'date-time' },
+            endDate: { type: 'string', format: 'date-time' },
+            startTime: { type: 'string', example: '10:00' },
+            endTime: { type: 'string', example: '18:00' },
+            link: { type: 'string', format: 'uri' },
+            description: { type: 'string' },
+          },
+        },
+        ExhibitionSubmissionInput: {
+          type: 'object',
+          required: ['institutionId', 'name', 'startDate', 'endDate', 'startTime', 'endTime'],
+          properties: {
+            institutionId: {
+              type: 'string',
+              description: 'The published venue this exhibition belongs to.',
+            },
             name: { type: 'string' },
             images: { type: 'array', items: { type: 'string', format: 'uri' } },
             startDate: { type: 'string', format: 'date-time' },

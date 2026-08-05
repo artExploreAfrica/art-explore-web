@@ -195,6 +195,9 @@ model Exhibition {
   approvedById   String?
   approvedBy     User?          @relation("ExhibitionApprover", fields: [approvedById], references: [id])
   approvedAt     DateTime?
+  // Reviewer's reason when rejected; cleared on approval. The rejecting admin's
+  // identity lives in the audit log — approvedById only ever means "approved by".
+  reviewNote     String?
 
   isActive       Boolean        @default(false)
   createdAt      DateTime       @default(now())

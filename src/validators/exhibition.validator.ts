@@ -45,6 +45,14 @@ export const updateExhibitionSchema = exhibitionFields
     endNotBeforeStart,
   );
 
+/**
+ * A USER proposing an exhibition names the venue it belongs to. Approval state
+ * is never taken from the request — the service forces PENDING and inactive.
+ */
+export const submitExhibitionSchema = exhibitionFields
+  .extend({ institutionId: z.string().min(1, 'institutionId is required') })
+  .refine((data) => data.endDate >= data.startDate, endNotBeforeStart);
+
 /** Path params for nested exhibition routes. */
 export const exhibitionParamsSchema = z.object({
   id: z.string().min(1),
@@ -55,6 +63,7 @@ export const setExhibitionActiveSchema = z.object({
   isActive: z.boolean(),
 });
 
+export type SubmitExhibitionInput = z.infer<typeof submitExhibitionSchema>;
 export type CreateExhibitionInput = z.infer<typeof createExhibitionSchema>;
 export type UpdateExhibitionInput = z.infer<typeof updateExhibitionSchema>;
 export type SetExhibitionActiveInput = z.infer<typeof setExhibitionActiveSchema>;

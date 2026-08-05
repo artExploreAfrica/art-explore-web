@@ -2,12 +2,12 @@ import { Request, Response } from 'express';
 import * as userService from '../services/user.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { successResponse } from '../utils/response';
-import { CreateUserInput, PaginationQuery } from '../validators/user.validator';
+import { CreateUserInput, ListUsersQuery } from '../validators/user.validator';
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
-  const query = req.query as unknown as PaginationQuery;
+  const query = req.query as unknown as ListUsersQuery;
   const { data, pagination } = await userService.list(query);
-  return successResponse(res, data, 'Admin users retrieved', 200, pagination);
+  return successResponse(res, data, 'Users retrieved', 200, pagination);
 });
 
 export const create = asyncHandler(async (req: Request, res: Response) => {

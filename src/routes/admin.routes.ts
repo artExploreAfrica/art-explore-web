@@ -41,7 +41,7 @@ import {
 import { auditLogQuerySchema } from '../validators/audit.validator';
 import {
   createUserSchema,
-  paginationQuerySchema,
+  listUsersQuerySchema,
 } from '../validators/user.validator';
 
 const isAdmin = roleGuard(Role.SUPER_ADMIN, Role.ADMIN);
@@ -56,6 +56,8 @@ router.use(authenticate);
  * tags:
  *   - name: Admin - Institutions
  *     description: Institution management (ADMIN or SUPER_ADMIN)
+ *   - name: Admin - Exhibitions
+ *     description: Exhibition management and contributor review queue
  *   - name: Admin - Users
  *     description: Admin account management (SUPER_ADMIN only)
  *   - name: Admin - Audit
@@ -556,6 +558,95 @@ router.get(
 
 /**
  * @swagger
+ * /api/v1/admin/submissions/exhibitions:
+ *   get:
+ *     summary: List user-submitted exhibitions by status (default PENDING)
+ *     tags: [Admin - Exhibitions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20, maximum: 100 }
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [PENDING, APPROVED, REJECTED], default: PENDING }
+ *     responses:
+ *       200: { description: Exhibition submissions }
+ *       403: { description: Forbidden }
+ */
+router.get(
+  '/submissions/exhibitions',
+  isAdmin,
+  validate({ query: listSubmissionsQuerySchema }),
+  adminExhibitionController.listSubmissions,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/exhibitions/{id}/approve:
+ *   post:
+ *     summary: Approve a submitted exhibition
+ *     description: >
+ *       Approval does not make the exhibition public — activate it separately via
+ *       the institution's exhibition activate endpoint.
+ *     tags: [Admin - Exhibitions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Exhibition approved }
+ *       403: { description: Forbidden }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/exhibitions/:id/approve',
+  isAdmin,
+  validate({ params: idParamSchema }),
+  adminExhibitionController.approve,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/exhibitions/{id}/reject:
+ *   post:
+ *     summary: Reject a submitted exhibition with a reviewer note
+ *     tags: [Admin - Exhibitions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reviewNote]
+ *             properties:
+ *               reviewNote: { type: string, example: Dates clash with a listed event }
+ *     responses:
+ *       200: { description: Exhibition rejected }
+ *       400: { description: reviewNote is required }
+ *       403: { description: Forbidden }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/exhibitions/:id/reject',
+  isAdmin,
+  validate({ params: idParamSchema, body: rejectSchema }),
+  adminExhibitionController.reject,
+);
+
+/**
+ * @swagger
  * /api/v1/admin/institutions/{id}/approve:
  *   post:
  *     summary: Approve a submitted institution
@@ -793,7 +884,11 @@ router.delete(
  * @swagger
  * /api/v1/admin/users:
  *   get:
- *     summary: List all admin users
+ *     summary: List users (staff by default)
+ *     description: >
+ *       Returns staff accounts (ADMIN + SUPER_ADMIN) unless `role` is supplied.
+ *       Pass `role=USER` to list public self-registered accounts, which is the
+ *       only way to find them in order to deactivate or reactivate one.
  *     tags: [Admin - Users]
  *     security: [{ BearerAuth: [] }]
  *     parameters:
@@ -803,14 +898,18 @@ router.delete(
  *       - in: query
  *         name: limit
  *         schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: role
+ *         schema: { type: string, enum: [SUPER_ADMIN, ADMIN, USER] }
+ *         description: Filter by a single role. Omit for staff only.
  *     responses:
- *       200: { description: List of admins }
+ *       200: { description: List of users }
  *       403: { description: Forbidden }
  */
 router.get(
   '/users',
   roleGuard(Role.SUPER_ADMIN),
-  validate({ query: paginationQuerySchema }),
+  validate({ query: listUsersQuerySchema }),
   userController.list,
 );
 

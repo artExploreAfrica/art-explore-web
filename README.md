@@ -144,6 +144,8 @@ Protected routes require `Authorization: Bearer <accessToken>`. The full, always
 |---|---|---|---|
 | POST | `/submissions` | USER | Submit a venue for review (created `PENDING`) |
 | GET | `/submissions/mine` | USER | List own submissions (any status) |
+| POST | `/submissions/exhibitions` | USER | Submit an exhibition for a published venue (created `PENDING`, inactive) |
+| GET | `/submissions/exhibitions/mine` | USER | List own exhibition submissions (any status) |
 
 ### Admin — `/admin`
 | Method | Path | Auth | Purpose |
@@ -166,11 +168,14 @@ Protected routes require `Authorization: Bearer <accessToken>`. The full, always
 | GET | `/admin/submissions` | Admin | Review queue (user submissions only; filter `status`) |
 | POST | `/admin/institutions/:id/approve` | Admin | Approve a submission (does **not** publish; emails submitter) |
 | POST | `/admin/institutions/:id/reject` | Admin | Reject with required `reviewNote` (emails submitter) |
+| GET | `/admin/submissions/exhibitions` | Admin | Exhibition review queue (user submissions only; filter `status`) |
+| POST | `/admin/exhibitions/:id/approve` | Admin | Approve an exhibition (does **not** activate; emails submitter) |
+| POST | `/admin/exhibitions/:id/reject` | Admin | Reject with required `reviewNote` (emails submitter) |
 | GET / POST | `/admin/subcategories` | Admin | List / create sub-categories |
 | PUT / DELETE | `/admin/subcategories/:id` | Admin | Update / delete a sub-category |
 | GET / POST | `/admin/tags` | Admin | List / create tags |
 | PUT / DELETE | `/admin/tags/:id` | Admin | Update / delete a tag |
-| GET | `/admin/users` | Super | List staff users (canonical staff management) |
+| GET | `/admin/users` | Super | List users — staff by default, `?role=USER` for public accounts |
 | POST | `/admin/users` | Super | Create a staff user (sends welcome email when Resend is configured) |
 | PATCH | `/admin/users/:id/deactivate` | Super | Deactivate a staff user |
 | PATCH | `/admin/users/:id/activate` | Super | Reactivate a staff user |

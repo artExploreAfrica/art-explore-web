@@ -47,10 +47,36 @@ All Critical / Important / Nice-to-have items below have been **implemented**. D
 
 | Feature | Status |
 |---|---|
-| Contributor-submitted exhibitions + approve/reject | PRD §9 future |
 | User / contributor account approval (`isApproved`) | Not modelled |
 | Artwork catalogue & reviews | PRD §9 future |
 | Automated GH Actions → EC2 deploy | Manual deploy documented |
+| Institution `rating` | No column; frontend "Top Rated" filter/sort inert |
+| `openingHours` normalisation | Freeform JSON; frontend "Open Now" inert |
+| Global `GET /exhibitions` ("what's on") | Only per-institution reads exist |
+| Submission edit / withdraw | Submit and list-own only |
+| Soft-delete restore | `DELETE` sets `deletedAt`; no way back via API |
+
+---
+
+## Built since (05 Aug 2026)
+
+### Contributor exhibitions (was PRD §9 future)
+- [x] `POST /submissions/exhibitions` — USER submits, forced `PENDING` + inactive
+- [x] `GET /submissions/exhibitions/mine`
+- [x] `GET /admin/submissions/exhibitions` — review queue by status
+- [x] `POST /admin/exhibitions/:id/approve` — emits `APPROVE_EXHIBITION`
+- [x] `POST /admin/exhibitions/:id/reject` — emits `REJECT_EXHIBITION`, stores `reviewNote`
+- [x] `Exhibition.reviewNote` added (`20260805120000_add_exhibition_review_note`)
+- Approval does **not** activate — admin activates separately, matching "approved ≠ published"
+
+### Public user management
+- [x] `GET /admin/users?role=USER` — public accounts were countable on the dashboard
+      but not listable, so a deactivated USER could never be found to reactivate
+
+### `hasExhibition` staleness
+- [x] Recompute now requires approved **and** active **and** `endDate >= today`
+- [x] `npm run recompute:exhibitions` daily sweep (dates go stale with no write to
+      trigger the per-write recompute)
 
 ---
 

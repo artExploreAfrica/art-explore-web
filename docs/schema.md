@@ -79,7 +79,7 @@ A discoverable art venue (gallery, studio, or cultural space).
 | `subCategory` | `SubCategory?` | Relation |
 | `tags` | `Tag[]` | Many-to-many — admin-curated tags (was a `String[]`) |
 | `exhibitions` | `Exhibition[]` | Reverse relation — exhibitions hosted here |
-| `hasExhibition` | Boolean | Default `false`; recomputed on every exhibition write (true when the institution has ≥1 approved exhibition) |
+| `hasExhibition` | Boolean | Default `false`; recomputed on every exhibition write and by a daily sweep (true when the institution has ≥1 approved, active, unfinished exhibition) |
 | `approvalStatus` | `ApprovalStatus` | Default `APPROVED`; USER submissions start `PENDING` |
 | `submittedById` | String? (FK → User.id) | The USER who submitted it (null for admin-created) |
 | `reviewedById` | String? (FK → User.id) | The admin who approved/rejected it |
@@ -114,14 +114,20 @@ Carries its own submission/approval workflow (v2), mirroring Institution.
 | `description` | String? | Curatorial note |
 | `approvalStatus` | `ApprovalStatus` | Default `PENDING`; admin-created exhibitions are set `APPROVED` |
 | `submittedById` | String? (FK → User.id) | Who submitted it |
-| `approvedById` | String? (FK → User.id) | Admin who approved/rejected it |
+| `approvedById` | String? (FK → User.id) | Admin who approved it; cleared on rejection (the rejecting admin is in the audit log) |
 | `approvedAt` | DateTime? | When it was approved |
-| `isActive` | Boolean | Default `false`; admin-created exhibitions are set `true` |
+| `reviewNote` | String? | Reviewer's reason when rejected; cleared on approval |
+| `isActive` | Boolean | Default `false`; admin-created exhibitions are set `true`. Approval does **not** set this — an admin activates separately |
 | `createdAt` / `updatedAt` | DateTime | Timestamps |
 
 Indexed on `institutionId`, `startDate`, `approvalStatus`, `submittedById`, and
 `approvedById`. After any exhibition write the parent's `hasExhibition` is
-recomputed (`true` when the institution has ≥1 approved exhibition).
+recomputed: `true` when the institution has ≥1 exhibition that is approved,
+active, and has not finished (`endDate >= today`).
+
+Because the date half of that rule goes stale with no write to trigger a refresh,
+`npm run recompute:exhibitions` sweeps every institution and is meant to run daily
+(see `scripts/recompute-has-exhibition.ts`).
 
 ### AuditLog
 An immutable trail of every admin write action.
