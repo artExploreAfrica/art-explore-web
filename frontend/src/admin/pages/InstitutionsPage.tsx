@@ -6,8 +6,8 @@ interface Institution {
   name: string;
   description?: string;
   address?: string;
-  city?: string;
-  country?: string;
+  area?: string;
+  subArea?: string;
   website?: string;
   isPublished?: boolean;
   imageUrl?: string | null;
@@ -25,7 +25,7 @@ interface Exhibition {
   [key: string]: any;
 }
 
-const emptyForm = { name: "", description: "", address: "", city: "", country: "", website: "" };
+const emptyForm = { name: "", description: "", address: "", area: "", subArea: "", website: "" };
 
 // The backend model doesn't always use the same field name for the cover
 // image (imageUrl / coverImageUrl / logoUrl / image), so check all of them
@@ -89,13 +89,13 @@ export function InstitutionsPage() {
   }, []);
 
   // Always alphabetical by name, filtered down to whatever matches the
-  // search box (matches on name, city, or country so you can also type
+  // search box (matches on name, area, or sub-area so you can also type
   // a location to narrow things down).
   const visibleItems = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = q
       ? allItems.filter((inst) =>
-          [inst.name, inst.city, inst.country].filter(Boolean).some((field) => String(field).toLowerCase().includes(q))
+          [inst.name, inst.area, inst.subArea].filter(Boolean).some((field) => String(field).toLowerCase().includes(q))
         )
       : allItems;
     return [...filtered].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
@@ -113,8 +113,8 @@ export function InstitutionsPage() {
       name: inst.name || "",
       description: inst.description || "",
       address: inst.address || "",
-      city: inst.city || "",
-      country: inst.country || "",
+      area: inst.area || "",
+      subArea: inst.subArea || "",
       website: inst.website || "",
     });
     setShowForm(true);
@@ -239,12 +239,12 @@ export function InstitutionsPage() {
             <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           </div>
           <div className="admin-form-row">
-            <label>City</label>
-            <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+            <label>Area</label>
+            <input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} />
           </div>
           <div className="admin-form-row">
-            <label>Country</label>
-            <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+            <label>Sub-area</label>
+            <input value={form.subArea} onChange={(e) => setForm({ ...form, subArea: e.target.value })} />
           </div>
           <div className="admin-form-row">
             <label>Website</label>
@@ -273,7 +273,7 @@ export function InstitutionsPage() {
       <div className="admin-search-bar">
         <input
           type="text"
-          placeholder="Search institutions by name or location..."
+          placeholder="Search institutions by name, area, or sub-area..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -316,7 +316,7 @@ export function InstitutionsPage() {
                       )}
                     </td>
                     <td>{item.name}</td>
-                    <td>{[item.city, item.country].filter(Boolean).join(", ") || "—"}</td>
+                    <td>{[item.area, item.subArea].filter(Boolean).join(", ") || "—"}</td>
                     <td>
                       <span className={`admin-badge ${item.isPublished ? "admin-badge-success" : "admin-badge-neutral"}`}>
                         {item.isPublished ? "Published" : "Unpublished"}

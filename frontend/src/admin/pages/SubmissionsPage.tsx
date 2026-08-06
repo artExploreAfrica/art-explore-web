@@ -4,8 +4,8 @@ import { adminApi, Pagination } from "../api";
 interface Submission {
   id: string;
   name: string;
-  city?: string;
-  country?: string;
+  area?: string;
+  subArea?: string;
   submittedByEmail?: string;
   status: string;
   createdAt?: string;
@@ -92,7 +92,7 @@ export function SubmissionsPage() {
               <React.Fragment key={item.id}>
                 <tr>
                   <td>{item.name}</td>
-                  <td>{[item.city, item.country].filter(Boolean).join(", ") || "—"}</td>
+                  <td>{[item.area, item.subArea].filter(Boolean).join(", ") || "—"}</td>
                   <td>{item.submittedByEmail || "—"}</td>
                   <td>
                     <span className="admin-badge admin-badge-neutral">{item.status}</span>

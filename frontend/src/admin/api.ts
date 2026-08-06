@@ -126,7 +126,10 @@ export const adminApi = {
     apiRequest(`/api/v1/admin/institutions/${institutionId}/exhibitions/${exhibitionId}`, { method: "PUT", body: data }),
   deleteExhibition: (institutionId: string, exhibitionId: string) =>
     apiRequest(`/api/v1/admin/institutions/${institutionId}/exhibitions/${exhibitionId}`, { method: "DELETE" }),
-  institutionExhibitions: (institutionId: string) => apiRequest(`/api/v1/institutions/${institutionId}/exhibitions`),
+  // Admin-scoped list — unlike the public /api/v1/institutions/:id/exhibitions
+  // endpoint, this returns exhibitions for unpublished/draft institutions too.
+  institutionExhibitions: (institutionId: string) =>
+    apiRequest(`/api/v1/admin/institutions/${institutionId}/exhibitions`),
 
   // submissions
   submissionsQueue: (page = 1) => apiRequest(`/api/v1/admin/submissions?page=${page}`),
