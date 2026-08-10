@@ -40,6 +40,15 @@
 .admin-form-row { margin-bottom: 10px; }
 .admin-form-row label { display: block; font-size: 12px; color: #5f5e5a; margin-bottom: 4px; }
 .admin-form-row input, .admin-form-row select, .admin-form-row textarea { width: 100%; padding: 7px 9px; border: 1px solid #d3d1c7; border-radius: 6px; font-size: 13px; box-sizing: border-box; }
+
+/* Checkboxes must not stretch to 100% like text inputs, and they read better
+   inline with their label than stacked above it. */
+.admin-form-row label input[type="checkbox"] { width: auto; margin-right: 4px; vertical-align: middle; }
+.admin-form-row input[type="time"] { width: auto; margin-right: 6px; }
+
+/* Section breaks in the longer institution form. */
+.admin-form-divider { border: 0; border-top: 1px solid #e6e4db; margin: 18px 0 10px; }
+.admin-form-card > strong { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #8a8880; margin-bottom: 8px; }
 .admin-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
 .admin-badge-success { background: #eaf3de; color: #27500a; }
 .admin-badge-neutral { background: #f1efe8; color: #5f5e5a; }

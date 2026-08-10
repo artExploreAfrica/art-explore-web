@@ -1,10 +1,5 @@
-import {
-  ApprovalStatus,
-  AuditAction,
-  Institution,
-  Prisma,
-  TargetModel,
-} from '@prisma/client';
+
+import { ApprovalStatus, AuditAction, Institution, Prisma, TargetModel } from '@prisma/client';
 import prisma from '../config/db';
 import { AppError, NotFoundError } from '../utils/AppError';
 import { auditLog } from '../utils/auditLogger';
@@ -15,10 +10,7 @@ import {
   MAP_CACHE_KEY,
   setCached,
 } from '../utils/institutionCache';
-import {
-  sendSubmissionApprovedEmail,
-  sendSubmissionRejectedEmail,
-} from '../utils/mailer';
+import { sendSubmissionApprovedEmail, sendSubmissionRejectedEmail } from '../utils/mailer';
 import { PaginationMeta } from '../utils/response';
 import { deleteS3ObjectByUrl } from '../utils/s3Uploader';
 import {
@@ -72,9 +64,10 @@ const orderFor = (sort: SortKey): Prisma.InstitutionOrderByWithRelationInput[] =
 const openNowInstitutionIds = async (): Promise<string[]> => {
   const now = new Date();
   const day = String(now.getDay());
-  const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(
-    now.getMinutes(),
-  ).padStart(2, '0')}`;
+  const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(
+    2,
+    '0',
+  )}`;
 
   const rows = await prisma.$queryRaw<Array<{ id: string }>>`
     SELECT "id" FROM "Institution"
@@ -103,6 +96,31 @@ const openNowInstitutionIds = async (): Promise<string[]> => {
   `;
 
   return rows.map((r) => r.id);
+};
+
+/**
+ * Drops admin-only columns from anything leaving on a public endpoint.
+ *
+ * `notes` is internal curation commentary — "owner prefers email", "closed for
+ * refurbishment, chase in March". The public reads below `include` relations
+ * rather than `select` columns, so every scalar on the row ships by default and
+ * a new admin-only field is public the moment it is added. This is the guard
+ * against that. Add future internal columns here.
+ *
+ * Deliberately NOT applied to the admin reads (`listForAdmin`, `getByIdForAdmin`)
+ * — the panel needs `notes` to display and edit it.
+ */
+const INTERNAL_FIELDS = ['notes'] as const;
+
+const stripInternalFields = <T extends object>(row: T): T => {
+  // The cast is deliberate. Declaring `Omit<T, 'notes'>` would ripple through
+  // ListResult, the controllers and every caller for a field none of them read,
+  // and would still not typecheck against a Prisma client generated before the
+  // migration ran. What matters is the runtime guarantee: the key is gone from
+  // the object that gets serialized.
+  const copy = { ...row } as Record<string, unknown>;
+  for (const field of INTERNAL_FIELDS) delete copy[field];
+  return copy as T;
 };
 
 /**
@@ -161,7 +179,7 @@ export const listPublished = async (query: ListInstitutionsQuery): Promise<ListR
   ]);
 
   const result: ListResult = {
-    data,
+    data: data.map(stripInternalFields),
     pagination: {
       page,
       limit,
@@ -186,7 +204,7 @@ export const getById = async (id: string): Promise<Institution> => {
     include: { tags: true, subCategory: true },
   });
   if (!institution) throw NotFoundError('Institution');
-  return institution;
+  return stripInternalFields(institution);
 };
 
 export type MapPin = Pick<Institution, 'id' | 'name' | 'lat' | 'lng' | 'type'>;
@@ -299,9 +317,10 @@ export const create = async (
     data: {
       ...rest,
       openingHours: openingHours ?? Prisma.JsonNull,
-      ...(tagIds && tagIds.length > 0 && {
-        tags: { connect: tagIds.map((id) => ({ id })) },
-      }),
+      ...(tagIds &&
+        tagIds.length > 0 && {
+          tags: { connect: tagIds.map((id) => ({ id })) },
+        }),
     },
   });
 
@@ -471,9 +490,10 @@ export const submit = async (
       approvalStatus: ApprovalStatus.PENDING,
       isPublished: false,
       submittedById: userId,
-      ...(tagIds && tagIds.length > 0 && {
-        tags: { connect: tagIds.map((id) => ({ id })) },
-      }),
+      ...(tagIds &&
+        tagIds.length > 0 && {
+          tags: { connect: tagIds.map((id) => ({ id })) },
+        }),
     },
   });
 
@@ -485,10 +505,7 @@ export const submit = async (
 };
 
 /** A USER's own submissions, any status. */
-export const listMine = async (
-  userId: string,
-  query: MySubmissionsQuery,
-): Promise<ListResult> => {
+export const listMine = async (userId: string, query: MySubmissionsQuery): Promise<ListResult> => {
   const { page, limit } = query;
   const where: Prisma.InstitutionWhereInput = { submittedById: userId, deletedAt: null };
 
@@ -514,10 +531,7 @@ export const listMine = async (
  * APPROVED submissions are frozen — once a venue is in the catalogue its
  * content is the admin's, not the submitter's.
  */
-const ensureEditableSubmission = async (
-  userId: string,
-  id: string,
-): Promise<Institution> => {
+const ensureEditableSubmission = async (userId: string, id: string): Promise<Institution> => {
   const institution = await prisma.institution.findFirst({
     where: { id, submittedById: userId, deletedAt: null },
   });
@@ -595,10 +609,8 @@ export const withdrawMine = async (userId: string, id: string): Promise<Institut
  * `institutions/{id}/` for any id the caller names — including someone else's
  * submission or a published venue — before the ownership check runs.
  */
-export const getMineForUpload = async (
-  userId: string,
-  id: string,
-): Promise<Institution> => ensureEditableSubmission(userId, id);
+export const getMineForUpload = async (userId: string, id: string): Promise<Institution> =>
+  ensureEditableSubmission(userId, id);
 
 /** Attach an uploaded image to the submitter's own pending/rejected submission. */
 export const addImageToMine = async (
@@ -647,9 +659,7 @@ export const removeImageFromMine = async (
 };
 
 /** Admin review queue — user-submitted venues only, filtered by approval status. */
-export const listSubmissions = async (
-  query: ListSubmissionsQuery,
-): Promise<ListResult> => {
+export const listSubmissions = async (query: ListSubmissionsQuery): Promise<ListResult> => {
   const { page, limit, status } = query;
   const where: Prisma.InstitutionWhereInput = {
     approvalStatus: status,

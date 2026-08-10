@@ -20,6 +20,7 @@ import {
   updateInstitutionSchema,
 } from '../validators/institution.validator';
 import {
+  adminListExhibitionsQuerySchema,
   createExhibitionSchema,
   exhibitionParamsSchema,
   setExhibitionActiveSchema,
@@ -30,21 +31,11 @@ import {
   listSubCategoriesQuerySchema,
   updateSubCategorySchema,
 } from '../validators/subCategory.validator';
-import {
-  createTagSchema,
-  listTagsQuerySchema,
-  updateTagSchema,
-} from '../validators/tag.validator';
-import {
-  listSubmissionsQuerySchema,
-  rejectSchema,
-} from '../validators/submission.validator';
+import { createTagSchema, listTagsQuerySchema, updateTagSchema } from '../validators/tag.validator';
+import { listSubmissionsQuerySchema, rejectSchema } from '../validators/submission.validator';
 import { auditLogQuerySchema } from '../validators/audit.validator';
 import { listReviewSubmissionsQuerySchema } from '../validators/review.validator';
-import {
-  createUserSchema,
-  listUsersQuerySchema,
-} from '../validators/user.validator';
+import { createUserSchema, listUsersQuerySchema } from '../validators/user.validator';
 
 const isAdmin = roleGuard(Role.SUPER_ADMIN, Role.ADMIN);
 
@@ -356,6 +347,44 @@ router.delete(
 // ---------------------------------------------------------------------------
 // Exhibitions (nested under an institution; ADMIN or SUPER_ADMIN)
 // ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/exhibitions:
+ *   get:
+ *     summary: List every exhibition for an institution (any approval state)
+ *     description: >
+ *       Admin-scoped counterpart to GET /api/v1/institutions/{id}/exhibitions.
+ *       Returns pending, rejected, inactive and finished exhibitions, and works
+ *       for unpublished/draft institutions.
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: scope
+ *         schema: { type: string, enum: [live, past, all], default: all }
+ *     responses:
+ *       200: { description: Exhibitions }
+ *       401: { description: Unauthenticated }
+ *       403: { description: Forbidden }
+ *       404: { description: Institution not found }
+ */
+router.get(
+  '/institutions/:id/exhibitions',
+  isAdmin,
+  validate({ params: idParamSchema, query: adminListExhibitionsQuerySchema }),
+  adminExhibitionController.listForInstitution,
+);
 
 /**
  * @swagger
@@ -954,18 +983,8 @@ router.delete(
  *       201: { description: Created }
  *       409: { description: Duplicate name }
  */
-router.get(
-  '/tags',
-  isAdmin,
-  validate({ query: listTagsQuerySchema }),
-  adminTagController.list,
-);
-router.post(
-  '/tags',
-  isAdmin,
-  validate({ body: createTagSchema }),
-  adminTagController.create,
-);
+router.get('/tags', isAdmin, validate({ query: listTagsQuerySchema }), adminTagController.list);
+router.post('/tags', isAdmin, validate({ body: createTagSchema }), adminTagController.create);
 
 /**
  * @swagger
@@ -1006,12 +1025,7 @@ router.put(
   validate({ params: idParamSchema, body: updateTagSchema }),
   adminTagController.update,
 );
-router.delete(
-  '/tags/:id',
-  isAdmin,
-  validate({ params: idParamSchema }),
-  adminTagController.remove,
-);
+router.delete('/tags/:id', isAdmin, validate({ params: idParamSchema }), adminTagController.remove);
 
 // ---------------------------------------------------------------------------
 // User management (SUPER_ADMIN only)

@@ -1,38 +1,266 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { adminApi, Pagination } from "../api";
 
+// Mirrors prisma/schema.prisma `model Institution`. Field names here are the
+// contract — see src/validators/institution.validator.ts for what is writable.
 interface Institution {
   id: string;
   name: string;
   description?: string;
+  type?: InstitutionType;
   address?: string;
-  area?: string;
-  subArea?: string;
+  area?: AreaEnum;
+  subArea?: string | null;
+  lat?: number;
+  lng?: number;
+  mapUrl?: string | null;
   website?: string;
+  instagram?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  openingHours?: OpeningHours | null;
+  notes?: string | null;
+  hasResidency?: boolean;
+  hasSocial?: boolean;
   isPublished?: boolean;
-  imageUrl?: string | null;
-  coverImageUrl?: string | null;
-  logoUrl?: string | null;
-  image?: string | null;
+  // Postgres `images String[]` — the ONLY image field on the model. There is no
+  // imageUrl / coverImageUrl / logoUrl / image column; reading those was what
+  // made every row render "No image".
+  images?: string[];
   [key: string]: any;
 }
 
 interface Exhibition {
   id: string;
-  title: string;
+  // Prisma calls this `name`, not `title`.
+  name: string;
   startDate?: string;
   endDate?: string;
+  startTime?: string;
+  endTime?: string;
+  approvalStatus?: string;
+  isActive?: boolean;
   [key: string]: any;
 }
 
-const emptyForm = { name: "", description: "", address: "", area: "", subArea: "", website: "" };
+// Enum values come straight from prisma/schema.prisma. Sending anything else
+// is rejected by z.nativeEnum() with "Invalid enum value".
+type InstitutionType =
+  | "ART_GALLERY"
+  | "MUSEUM"
+  | "INSTITUTE"
+  | "FOUNDATION"
+  | "STUDIO"
+  | "CULTURAL_SPACE";
+type AreaEnum = "ISLAND" | "MAINLAND" | "OTHER";
 
-// The backend model doesn't always use the same field name for the cover
-// image (imageUrl / coverImageUrl / logoUrl / image), so check all of them
-// rather than guessing wrong and showing "no image" for institutions that
-// actually have one.
-function getImageUrl(inst: Institution): string | null {
-  return inst.imageUrl || inst.coverImageUrl || inst.logoUrl || inst.image || null;
+const INSTITUTION_TYPES: InstitutionType[] = [
+  "ART_GALLERY",
+  "MUSEUM",
+  "INSTITUTE",
+  "FOUNDATION",
+  "STUDIO",
+  "CULTURAL_SPACE",
+];
+const AREAS: AreaEnum[] = ["ISLAND", "MAINLAND", "OTHER"];
+
+/**
+ * Opening hours, keyed by JavaScript day index so the client can index it with
+ * `Date.prototype.getDay()`. `null` for a day means closed. A day that is
+ * absent entirely means "not recorded", which is not the same thing.
+ *
+ * The backend schema is `.strict()` — only keys "0".."6" are accepted, and each
+ * time must match /^([01]\d|2[0-3]):[0-5]\d$/. The old freeform
+ * `{ "mon": "9am-5pm" }` shape is rejected outright; that unparseable format is
+ * what made the public "Open Now" filter inert.
+ */
+type DayHours = { open: string; close: string } | null;
+type OpeningHours = Partial<Record<"0" | "1" | "2" | "3" | "4" | "5" | "6", DayHours>>;
+
+const DAYS: { key: "0" | "1" | "2" | "3" | "4" | "5" | "6"; label: string }[] = [
+  { key: "1", label: "Monday" },
+  { key: "2", label: "Tuesday" },
+  { key: "3", label: "Wednesday" },
+  { key: "4", label: "Thursday" },
+  { key: "5", label: "Friday" },
+  { key: "6", label: "Saturday" },
+  { key: "0", label: "Sunday" },
+];
+
+/** One row of the opening-hours editor. `recorded: false` omits the day entirely. */
+interface DayRow {
+  recorded: boolean;
+  closed: boolean;
+  open: string;
+  close: string;
+}
+
+const emptyDayRow = (): DayRow => ({ recorded: false, closed: false, open: "10:00", close: "18:00" });
+
+const emptyHours = (): Record<string, DayRow> =>
+  Object.fromEntries(DAYS.map((d) => [d.key, emptyDayRow()]));
+
+// Every key here maps onto institutionFieldsSchema. `subArea`, `mapUrl`,
+// `notes`, `hasResidency` and `hasSocial` are backed by real columns as of
+// migration 20260809120000_add_institution_admin_fields — before that they were
+// silently discarded by the DTO whitelist, which is the bug this form caused.
+const emptyForm = {
+  name: "",
+  description: "",
+  type: "ART_GALLERY" as InstitutionType,
+  address: "",
+  area: "ISLAND" as AreaEnum,
+  subArea: "",
+  lat: "",
+  lng: "",
+  mapUrl: "",
+  website: "",
+  instagram: "",
+  phone: "",
+  email: "",
+  notes: "",
+  hasResidency: false,
+  hasSocial: false,
+};
+
+type InstitutionForm = typeof emptyForm;
+
+/** Exhibition dates come back as full ISO timestamps; show the date part only. */
+function formatDate(value: string): string {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? value : d.toISOString().slice(0, 10);
+}
+
+/**
+ * The image contract, in one place.
+ *
+ * `Institution.images` is `String[]` in Postgres (prisma/schema.prisma) and the
+ * admin list returns the row whole, so the array arrives verbatim. There is no
+ * `imageUrl`, `coverImageUrl`, `logoUrl` or `image` column anywhere on the
+ * model — reading those returned `undefined` for every institution, which is
+ * what rendered the placeholder on 100% of rows regardless of the state of S3.
+ *
+ * Blank entries are skipped rather than returned: `<img src="">` re-requests
+ * the current page and reports a load error, which would be indistinguishable
+ * from a genuinely broken S3 URL. An empty string is not a URL, so it is
+ * treated as absent.
+ *
+ * Nothing else is filtered. A stored value that is not a resolvable URL — a
+ * leftover relative path from the CSV, say — is still handed to the <img> so it
+ * fails visibly and is reported as broken. Hiding it would turn a data bug into
+ * a silent one, which is exactly how this defect survived as long as it did.
+ */
+export function getImageUrl(inst: Pick<Institution, 'images'>): string | null {
+  if (!Array.isArray(inst.images)) return null;
+  const first = inst.images.find((url) => typeof url === 'string' && url.trim() !== '');
+  return first ? first.trim() : null;
+}
+
+/** How many usable entries `images[]` holds — surfaced in the thumbnail tooltip. */
+export function countImages(inst: Pick<Institution, 'images'>): number {
+  if (!Array.isArray(inst.images)) return 0;
+  return inst.images.filter((url) => typeof url === 'string' && url.trim() !== '').length;
+}
+
+/**
+ * Turns the form into a body that satisfies the API schema.
+ *
+ * The two rules that matter:
+ *  - lat/lng are `z.number()`, not strings — an <input> always yields a string,
+ *    so they must be coerced here or the request is rejected as "Expected
+ *    number, received string".
+ *  - optional string fields must be OMITTED when blank, not sent as "".
+ *    `website` is `z.string().url().optional()`, and "" is not a valid URL, so
+ *    an empty website box was enough to 400 an otherwise fine edit.
+ */
+function toApiPayload(form: InstitutionForm, hours: Record<string, DayRow>): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    name: form.name.trim(),
+    type: form.type,
+    address: form.address.trim(),
+    area: form.area,
+    lat: Number(form.lat),
+    lng: Number(form.lng),
+    hasResidency: form.hasResidency,
+    hasSocial: form.hasSocial,
+  };
+
+  // Optional strings: omit when blank. Sending "" fails `.url()` and `.email()`,
+  // and an empty website box alone used to 400 an otherwise valid save.
+  const optional: [keyof InstitutionForm, string][] = [
+    ["description", "description"],
+    ["subArea", "subArea"],
+    ["mapUrl", "mapUrl"],
+    ["website", "website"],
+    ["instagram", "instagram"],
+    ["phone", "phone"],
+    ["email", "email"],
+    ["notes", "notes"],
+  ];
+  for (const [key, apiKey] of optional) {
+    const value = String(form[key] ?? "").trim();
+    if (value) payload[apiKey] = value;
+  }
+
+  const openingHours = hoursToApi(hours);
+  if (openingHours) payload.openingHours = openingHours;
+
+  return payload;
+}
+
+/**
+ * Editor rows → the API's day-indexed shape.
+ *
+ * Only days marked "recorded" are sent. Returns null when nothing is recorded,
+ * so the key is omitted rather than sent as `{}` — on create the service writes
+ * `openingHours ?? JsonNull`, and an empty object would claim we know the hours
+ * are empty when we simply have not been told them.
+ */
+function hoursToApi(hours: Record<string, DayRow>): OpeningHours | null {
+  const out: OpeningHours = {};
+  let any = false;
+
+  for (const { key } of DAYS) {
+    const row = hours[key];
+    if (!row?.recorded) continue;
+    any = true;
+    out[key] = row.closed ? null : { open: row.open, close: row.close };
+  }
+
+  return any ? out : null;
+}
+
+/** Stored value → editor rows. */
+function hoursFromApi(value: OpeningHours | null | undefined): Record<string, DayRow> {
+  const rows = emptyHours();
+  if (!value || typeof value !== "object") return rows;
+
+  for (const { key } of DAYS) {
+    if (!(key in value)) continue;
+    const day = value[key];
+    rows[key] = day
+      ? { recorded: true, closed: false, open: day.open, close: day.close }
+      : { recorded: true, closed: true, open: "10:00", close: "18:00" };
+  }
+  return rows;
+}
+
+/**
+ * Accepts a coordinate pair pasted straight out of Google Maps and splits it.
+ * Handles "6.4638, 3.4342", "6.4638,3.4342" and "6.4638 3.4342". Returns null
+ * when it cannot parse cleanly rather than guessing — a silently wrong pin is
+ * worse than an unchanged field.
+ */
+export function parseGeocode(input: string): { lat: string; lng: string } | null {
+  const parts = input.trim().split(/[,\s]+/).filter(Boolean);
+  if (parts.length !== 2) return null;
+
+  const lat = Number(parts[0]);
+  const lng = Number(parts[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+
+  return { lat: String(lat), lng: String(lng) };
 }
 
 export function InstitutionsPage() {
@@ -49,6 +277,12 @@ export function InstitutionsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [hours, setHours] = useState<Record<string, DayRow>>(emptyHours);
+  // Images are read-only in this form — writes go through the separate upload
+  // endpoint, so the editor shows what is stored rather than pretending to edit it.
+  const [editingImages, setEditingImages] = useState<string[]>([]);
+  const [geocodePaste, setGeocodePaste] = useState("");
+  const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -56,13 +290,31 @@ export function InstitutionsPage() {
   const [manageId, setManageId] = useState<string | null>(null);
   const [exhibitions, setExhibitions] = useState<Exhibition[]>([]);
   const [exLoading, setExLoading] = useState(false);
-  const [exForm, setExForm] = useState({ title: "", startDate: "", endDate: "" });
+  // Matches createExhibitionSchema: name (not title) + both dates AND both
+  // times are required. The times are pre-filled with a sane default so the
+  // common case is one field of typing, not four.
+  const [exForm, setExForm] = useState({
+    name: "",
+    startDate: "",
+    endDate: "",
+    startTime: "10:00",
+    endTime: "18:00",
+  });
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  // Rows whose stored image URL exists but failed to load (403/404 from S3).
+  // Keyed by URL, not by institution id: after an upload the row keeps its id
+  // but gets a new URL, and a flag keyed by id would mark the fresh image
+  // broken without ever testing it.
+  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
 
   async function loadAll() {
     setLoading(true);
     setError(null);
+    // Re-test every image on a refresh. Without this, a URL that failed while
+    // the bucket policy was wrong stays flagged broken after it is fixed, and
+    // the panel keeps reporting a problem that no longer exists.
+    setBrokenImages({});
     try {
       const first = await adminApi.institutions(1);
       const totalPages = first.pagination?.totalPages || 1;
@@ -95,15 +347,30 @@ export function InstitutionsPage() {
     const q = search.trim().toLowerCase();
     const filtered = q
       ? allItems.filter((inst) =>
-          [inst.name, inst.area, inst.subArea].filter(Boolean).some((field) => String(field).toLowerCase().includes(q))
+          [inst.name, inst.area, inst.subArea, inst.address]
+            .filter(Boolean)
+            .some((field) => String(field).toLowerCase().includes(q))
         )
       : allItems;
     return [...filtered].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   }, [allItems, search]);
 
+  // Coverage across the whole catalogue, not just the filtered page.
+  const imageStats = useMemo(() => {
+    const withImage = allItems.filter((inst) => getImageUrl(inst) !== null);
+    return {
+      withImage: withImage.length,
+      broken: withImage.filter((inst) => brokenImages[getImageUrl(inst)!]).length,
+    };
+  }, [allItems, brokenImages]);
+
   function startCreate() {
     setEditingId(null);
     setForm(emptyForm);
+    setHours(emptyHours());
+    setEditingImages([]);
+    setGeocodePaste("");
+    setGeocodeError(null);
     setShowForm(true);
   }
 
@@ -112,12 +379,42 @@ export function InstitutionsPage() {
     setForm({
       name: inst.name || "",
       description: inst.description || "",
+      type: (inst.type as InstitutionType) || "ART_GALLERY",
       address: inst.address || "",
-      area: inst.area || "",
+      area: (inst.area as AreaEnum) || "ISLAND",
       subArea: inst.subArea || "",
+      lat: inst.lat === undefined || inst.lat === null ? "" : String(inst.lat),
+      lng: inst.lng === undefined || inst.lng === null ? "" : String(inst.lng),
+      mapUrl: inst.mapUrl || "",
       website: inst.website || "",
+      instagram: inst.instagram || "",
+      phone: inst.phone || "",
+      email: inst.email || "",
+      notes: inst.notes || "",
+      hasResidency: Boolean(inst.hasResidency),
+      hasSocial: Boolean(inst.hasSocial),
     });
+    setHours(hoursFromApi(inst.openingHours));
+    setEditingImages(Array.isArray(inst.images) ? inst.images : []);
+    setGeocodePaste("");
+    setGeocodeError(null);
     setShowForm(true);
+  }
+
+  /** Paste "6.4638, 3.4342" and fill lat/lng from it. */
+  function applyGeocode() {
+    const parsed = parseGeocode(geocodePaste);
+    if (!parsed) {
+      setGeocodeError('Could not read that. Expected two numbers, e.g. "6.4638, 3.4342".');
+      return;
+    }
+    setGeocodeError(null);
+    setForm((prev) => ({ ...prev, lat: parsed.lat, lng: parsed.lng }));
+    setGeocodePaste("");
+  }
+
+  function setDay(key: string, patch: Partial<DayRow>) {
+    setHours((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -125,10 +422,11 @@ export function InstitutionsPage() {
     setSaving(true);
     setError(null);
     try {
+      const payload = toApiPayload(form, hours);
       if (editingId) {
-        await adminApi.updateInstitution(editingId, form);
+        await adminApi.updateInstitution(editingId, payload);
       } else {
-        await adminApi.createInstitution(form);
+        await adminApi.createInstitution(payload);
       }
       setShowForm(false);
       loadAll();
@@ -170,9 +468,9 @@ export function InstitutionsPage() {
       await adminApi.uploadInstitutionImage(id, file);
       loadAll();
     } catch (err: any) {
-      // The two upload endpoints on this backend are known to fail with
-      // "The specified bucket does not exist" until the S3 bucket config
-      // is fixed server-side — surface that clearly instead of a vague error.
+      // Surface the backend's own message verbatim. Do not translate it into a
+      // generic string: whether this is a 400 (bad file), a 404 (wrong id) or
+      // an S3 "NoSuchBucket"/"AccessDenied" is the entire diagnostic signal.
       setUploadError(err.message);
     } finally {
       setUploadTargetId(null);
@@ -194,9 +492,16 @@ export function InstitutionsPage() {
   }
 
   async function handleAddExhibition(institutionId: string) {
+    setError(null);
     try {
-      await adminApi.createExhibition(institutionId, exForm);
-      setExForm({ title: "", startDate: "", endDate: "" });
+      await adminApi.createExhibition(institutionId, {
+        name: exForm.name.trim(),
+        startDate: exForm.startDate,
+        endDate: exForm.endDate,
+        startTime: exForm.startTime,
+        endTime: exForm.endTime,
+      });
+      setExForm({ name: "", startDate: "", endDate: "", startTime: "10:00", endTime: "18:00" });
       const result = await adminApi.institutionExhibitions(institutionId);
       setExhibitions(result.data || result);
     } catch (err: any) {
@@ -235,23 +540,251 @@ export function InstitutionsPage() {
             <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
           <div className="admin-form-row">
+            <label>Type</label>
+            <select
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value as InstitutionType })}
+              required
+            >
+              {INSTITUTION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t.replace(/_/g, " ")}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="admin-form-row">
             <label>Address</label>
-            <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
           </div>
           <div className="admin-form-row">
             <label>Area</label>
-            <input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} />
+            <select
+              value={form.area}
+              onChange={(e) => setForm({ ...form, area: e.target.value as AreaEnum })}
+              required
+            >
+              {AREAS.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="admin-form-row">
             <label>Sub-area</label>
-            <input value={form.subArea} onChange={(e) => setForm({ ...form, subArea: e.target.value })} />
+            <input
+              placeholder="Lekki Phase 1, Ikoyi, Yaba…"
+              value={form.subArea}
+              onChange={(e) => setForm({ ...form, subArea: e.target.value })}
+            />
+          </div>
+
+          <hr className="admin-form-divider" />
+          <strong>Location</strong>
+
+          {/* Convenience only — writes straight into the lat/lng below, which
+              are the real columns. Nothing new is stored for this. */}
+          <div className="admin-form-row">
+            <label>Paste coordinates</label>
+            <input
+              placeholder="6.4638, 3.4342 — paste from Google Maps, then Apply"
+              value={geocodePaste}
+              onChange={(e) => setGeocodePaste(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  applyGeocode();
+                }
+              }}
+            />
+            <button className="admin-btn" type="button" onClick={applyGeocode} disabled={!geocodePaste.trim()}>
+              Apply
+            </button>
+          </div>
+          {geocodeError && <p className="admin-error">{geocodeError}</p>}
+
+          <div className="admin-form-row">
+            <label>Latitude</label>
+            <input
+              type="number"
+              step="any"
+              min={-90}
+              max={90}
+              value={form.lat}
+              onChange={(e) => setForm({ ...form, lat: e.target.value })}
+              required
+            />
           </div>
           <div className="admin-form-row">
-            <label>Website</label>
-            <input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+            <label>Longitude</label>
+            <input
+              type="number"
+              step="any"
+              min={-180}
+              max={180}
+              value={form.lng}
+              onChange={(e) => setForm({ ...form, lng: e.target.value })}
+              required
+            />
           </div>
+          <div className="admin-form-row">
+            <label>Map URL</label>
+            <input
+              type="url"
+              placeholder="https://maps.app.goo.gl/… (leave blank if none)"
+              value={form.mapUrl}
+              onChange={(e) => setForm({ ...form, mapUrl: e.target.value })}
+            />
+          </div>
+
+          <hr className="admin-form-divider" />
+          <strong>Contact</strong>
+
+          <div className="admin-form-row">
+            <label>Website</label>
+            <input
+              type="url"
+              placeholder="https://example.com (leave blank if none)"
+              value={form.website}
+              onChange={(e) => setForm({ ...form, website: e.target.value })}
+            />
+          </div>
+          <div className="admin-form-row">
+            <label>Instagram</label>
+            <input
+              placeholder="@handle or profile URL"
+              value={form.instagram}
+              onChange={(e) => setForm({ ...form, instagram: e.target.value })}
+            />
+          </div>
+          <div className="admin-form-row">
+            <label>Phone</label>
+            <input
+              placeholder="+234…"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+          <div className="admin-form-row">
+            <label>Email</label>
+            <input
+              type="email"
+              placeholder="hello@example.com (leave blank if none)"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+
+          <hr className="admin-form-divider" />
+          <strong>Opening hours</strong>
           <p className="admin-page-note" style={{ marginTop: 0 }}>
-            If your backend needs more fields here (opening hours, category, coordinates), tell Claude and they'll get added.
+            Tick a day to record it. Untick means “not recorded”, which is not the same as closed — leave a day
+            unticked if you simply don’t know. These hours drive the public “Open Now” filter.
+          </p>
+          {DAYS.map(({ key, label }) => {
+            const row = hours[key];
+            return (
+              <div className="admin-form-row" key={key}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={row.recorded}
+                    onChange={(e) => setDay(key, { recorded: e.target.checked })}
+                  />{" "}
+                  {label}
+                </label>
+                {row.recorded && (
+                  <>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={row.closed}
+                        onChange={(e) => setDay(key, { closed: e.target.checked })}
+                      />{" "}
+                      Closed
+                    </label>
+                    {!row.closed && (
+                      <>
+                        <input
+                          type="time"
+                          value={row.open}
+                          onChange={(e) => setDay(key, { open: e.target.value })}
+                        />
+                        <input
+                          type="time"
+                          value={row.close}
+                          onChange={(e) => setDay(key, { close: e.target.value })}
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          <hr className="admin-form-divider" />
+          <strong>Flags & internal</strong>
+
+          <div className="admin-form-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={form.hasResidency}
+                onChange={(e) => setForm({ ...form, hasResidency: e.target.checked })}
+              />{" "}
+              Runs a residency programme
+            </label>
+          </div>
+          <div className="admin-form-row">
+            <label>
+              <input
+                type="checkbox"
+                checked={form.hasSocial}
+                onChange={(e) => setForm({ ...form, hasSocial: e.target.checked })}
+              />{" "}
+              Has a social presence
+            </label>
+          </div>
+          <div className="admin-form-row">
+            <label>Internal notes</label>
+            <textarea
+              placeholder="Not shown on the public site."
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+          </div>
+
+          {editingId && (
+            <>
+              <hr className="admin-form-divider" />
+              <strong>Images</strong>
+              {/* Read-only: images are written by POST /institutions/:id/images,
+                  not by this PUT. Showing an editable field here would imply
+                  otherwise and quietly do nothing. */}
+              {editingImages.length === 0 ? (
+                <p className="admin-page-note">
+                  None stored. Use the <em>Image</em> button on the row to upload one.
+                </p>
+              ) : (
+                <ul className="admin-page-note">
+                  {editingImages.map((url) => (
+                    <li key={url} style={{ wordBreak: "break-all" }}>
+                      <a href={url} target="_blank" rel="noreferrer">
+                        {url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
+          <hr className="admin-form-divider" />
+          <p className="admin-page-note" style={{ marginTop: 0 }}>
+            Name, type, address, area, latitude and longitude are required. Sub-category and tags are writable on the
+            API but have no field here yet.
           </p>
           <button className="admin-btn admin-btn-primary" type="submit" disabled={saving}>
             {saving ? "Saving..." : editingId ? "Save changes" : "Create institution"}
@@ -263,12 +796,7 @@ export function InstitutionsPage() {
       )}
 
       {error && <p className="admin-error">{error}</p>}
-      {uploadError && (
-        <p className="admin-error">
-          Image upload failed: {uploadError}. This matches the known backend bug where the image-storage bucket is
-          misconfigured — it isn't something this panel can fix on its own.
-        </p>
-      )}
+      {uploadError && <p className="admin-error">Image upload failed: {uploadError}</p>}
 
       <div className="admin-search-bar">
         <input
@@ -289,6 +817,21 @@ export function InstitutionsPage() {
         </span>
       </div>
 
+      {/*
+        Image coverage at a glance. This is the number that actually answers
+        "is the image pipeline working?" — a row count of stored URLs, separate
+        from how many of them the browser could fetch. Reading it off the table
+        by eye across ~100 rows is not realistic.
+      */}
+      {!loading && (
+        <p className="admin-page-note">
+          Images: {imageStats.withImage} of {allItems.length} institution(s) have a URL stored
+          {imageStats.broken > 0 && ` · ${imageStats.broken} stored URL(s) failed to load`}
+          {imageStats.withImage === 0 &&
+            " — nothing has been synced yet, so every row correctly shows “No image”."}
+        </p>
+      )}
+
       {loading && <p>Loading...</p>}
 
       {!loading && (
@@ -305,18 +848,60 @@ export function InstitutionsPage() {
           <tbody>
             {visibleItems.map((item) => {
               const imgUrl = getImageUrl(item);
+              const imageCount = countImages(item);
               return (
                 <React.Fragment key={item.id}>
                   <tr>
                     <td>
+                      {/*
+                        Three distinct states, deliberately never collapsed into
+                        one placeholder:
+
+                          images[] empty        → "No image"          (nothing stored — expected for most rows)
+                          URL stored, loaded    → the thumbnail
+                          URL stored, 403/404   → "Image URL broken"  (S3 or data problem)
+
+                        The original code hid a failed <img> with
+                        display:none, which made a broken S3 URL look identical
+                        to an institution that simply has no photo. Those are
+                        different bugs owned by different people, and telling
+                        them apart is the whole point of this cell.
+                      */}
                       {imgUrl ? (
-                        <img className="admin-thumb" src={imgUrl} alt={item.name} onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
+                        brokenImages[imgUrl] ? (
+                          <div
+                            className="admin-thumb-placeholder"
+                            title={`Stored URL did not load (403/404?):\n${imgUrl}`}
+                          >
+                            Image URL broken
+                          </div>
+                        ) : (
+                          <img
+                            className="admin-thumb"
+                            src={imgUrl}
+                            alt={item.name}
+                            loading="lazy"
+                            title={
+                              imageCount > 1
+                                ? `${imageCount} images stored. Showing the first:\n${imgUrl}`
+                                : imgUrl
+                            }
+                            onError={() =>
+                              setBrokenImages((prev) => ({ ...prev, [imgUrl]: true }))
+                            }
+                          />
+                        )
                       ) : (
-                        <div className="admin-thumb-placeholder">No image</div>
+                        <div
+                          className="admin-thumb-placeholder"
+                          title="images[] is empty for this institution — nothing has been uploaded or synced yet."
+                        >
+                          No image
+                        </div>
                       )}
                     </td>
                     <td>{item.name}</td>
-                    <td>{[item.area, item.subArea].filter(Boolean).join(", ") || "—"}</td>
+                    <td>{[item.area, item.subArea].filter(Boolean).join(" · ") || "—"}</td>
                     <td>
                       <span className={`admin-badge ${item.isPublished ? "admin-badge-success" : "admin-badge-neutral"}`}>
                         {item.isPublished ? "Published" : "Unpublished"}
@@ -371,7 +956,13 @@ export function InstitutionsPage() {
                           <ul>
                             {exhibitions.map((ex) => (
                               <li key={ex.id}>
-                                {ex.title} {ex.startDate ? `(${ex.startDate}${ex.endDate ? ` – ${ex.endDate}` : ""})` : ""}{" "}
+                                {ex.name}{" "}
+                                {ex.startDate
+                                  ? `(${formatDate(ex.startDate)}${ex.endDate ? ` – ${formatDate(ex.endDate)}` : ""})`
+                                  : ""}{" "}
+                                {ex.approvalStatus && ex.approvalStatus !== "APPROVED" && (
+                                  <span className="admin-badge admin-badge-neutral">{ex.approvalStatus}</span>
+                                )}{" "}
                                 <button className="admin-btn admin-btn-danger" onClick={() => handleDeleteExhibition(item.id, ex.id)}>
                                   Delete
                                 </button>
@@ -380,8 +971,8 @@ export function InstitutionsPage() {
                           </ul>
                         )}
                         <div className="admin-form-row">
-                          <label>New exhibition title</label>
-                          <input value={exForm.title} onChange={(e) => setExForm({ ...exForm, title: e.target.value })} />
+                          <label>New exhibition name</label>
+                          <input value={exForm.name} onChange={(e) => setExForm({ ...exForm, name: e.target.value })} />
                         </div>
                         <div className="admin-form-row">
                           <label>Start date</label>
@@ -391,7 +982,19 @@ export function InstitutionsPage() {
                           <label>End date</label>
                           <input type="date" value={exForm.endDate} onChange={(e) => setExForm({ ...exForm, endDate: e.target.value })} />
                         </div>
-                        <button className="admin-btn admin-btn-primary" onClick={() => handleAddExhibition(item.id)}>
+                        <div className="admin-form-row">
+                          <label>Opening time</label>
+                          <input type="time" value={exForm.startTime} onChange={(e) => setExForm({ ...exForm, startTime: e.target.value })} />
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Closing time</label>
+                          <input type="time" value={exForm.endTime} onChange={(e) => setExForm({ ...exForm, endTime: e.target.value })} />
+                        </div>
+                        <button
+                          className="admin-btn admin-btn-primary"
+                          disabled={!exForm.name.trim() || !exForm.startDate || !exForm.endDate}
+                          onClick={() => handleAddExhibition(item.id)}
+                        >
                           Add exhibition
                         </button>
                       </td>

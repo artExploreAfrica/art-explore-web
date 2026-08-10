@@ -1,10 +1,4 @@
-import {
-  ApprovalStatus,
-  AuditAction,
-  Exhibition,
-  Prisma,
-  TargetModel,
-} from '@prisma/client';
+import { ApprovalStatus, AuditAction, Exhibition, Prisma, TargetModel } from '@prisma/client';
 import prisma from '../config/db';
 import { AppError, NotFoundError } from '../utils/AppError';
 import { auditLog } from '../utils/auditLogger';
@@ -14,13 +8,11 @@ import {
   invalidateInstitutionCache,
   setCached,
 } from '../utils/institutionCache';
-import {
-  sendSubmissionApprovedEmail,
-  sendSubmissionRejectedEmail,
-} from '../utils/mailer';
+import { sendSubmissionApprovedEmail, sendSubmissionRejectedEmail } from '../utils/mailer';
 import { PaginationMeta } from '../utils/response';
 import { deleteS3ObjectByUrl } from '../utils/s3Uploader';
 import {
+  AdminListExhibitionsQuery,
   CreateExhibitionInput,
   ExhibitionScope,
   ListExhibitionsQuery,
@@ -29,10 +21,7 @@ import {
   UpdateExhibitionInput,
   UpdateSubmittedExhibitionInput,
 } from '../validators/exhibition.validator';
-import {
-  ListSubmissionsQuery,
-  MySubmissionsQuery,
-} from '../validators/submission.validator';
+import { ListSubmissionsQuery, MySubmissionsQuery } from '../validators/submission.validator';
 
 /** Admin-facing fetch of the parent institution (excludes soft-deleted). */
 const ensureInstitution = async (institutionId: string): Promise<void> => {
@@ -107,10 +96,7 @@ const paginate = (page: number, limit: number, total: number): PaginationMeta =>
  * approval state is never taken from the request. Approving does not make it
  * public; an admin still activates it, matching "approved ≠ published".
  */
-export const submit = async (
-  userId: string,
-  input: SubmitExhibitionInput,
-): Promise<Exhibition> => {
+export const submit = async (userId: string, input: SubmitExhibitionInput): Promise<Exhibition> => {
   const { institutionId, ...rest } = input;
 
   // Only venues the submitter can actually see are valid targets.
@@ -169,10 +155,7 @@ export const listMine = async (
  * Fetch an exhibition submission the given user owns and may still change.
  * Approved ones are frozen — they are live content the admin now owns.
  */
-const ensureEditableSubmission = async (
-  userId: string,
-  id: string,
-): Promise<Exhibition> => {
+const ensureEditableSubmission = async (userId: string, id: string): Promise<Exhibition> => {
   const exhibition = await prisma.exhibition.findFirst({
     where: { id, submittedById: userId },
   });
@@ -252,10 +235,8 @@ export const withdrawMine = async (userId: string, id: string): Promise<Exhibiti
  * built from the real institutionId and an unauthorised id never reaches the
  * bucket in the first place.
  */
-export const getMineForUpload = async (
-  userId: string,
-  id: string,
-): Promise<Exhibition> => ensureEditableSubmission(userId, id);
+export const getMineForUpload = async (userId: string, id: string): Promise<Exhibition> =>
+  ensureEditableSubmission(userId, id);
 
 /** Attach an uploaded image to the submitter's own pending/rejected submission. */
 export const addImageToMine = async (
@@ -468,6 +449,38 @@ export const listForInstitution = async (
 };
 
 /**
+ * Admin read — every exhibition for a venue regardless of approval state,
+ * active flag, or whether the venue itself is published. This is the list the
+ * admin panel's "Manage" row needs: the public endpoint above filters to
+ * APPROVED + isActive + live, so a draft venue's exhibitions were invisible and
+ * a newly created (PENDING, inactive) one never showed up after being added.
+ */
+export const listForAdminInstitution = async (
+  institutionId: string,
+  query: AdminListExhibitionsQuery,
+): Promise<ExhibitionListResult> => {
+  await ensureInstitution(institutionId);
+
+  const { page, limit, scope } = query;
+  const where: Prisma.ExhibitionWhereInput = {
+    institutionId,
+    ...scopeWhere(scope),
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.exhibition.findMany({
+      where,
+      orderBy: { startDate: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.exhibition.count({ where }),
+  ]);
+
+  return { data, pagination: paginate(page, limit, total) };
+};
+
+/**
  * Public "what's on" across every venue — the cross-institution read the
  * per-venue endpoint could never answer. Cached under the institution cache
  * prefix so existing writes already invalidate it.
@@ -550,13 +563,10 @@ export const create = async (
   });
 
   await recomputeHasExhibition(institutionId);
-  await auditLog(
-    actorId,
-    AuditAction.EXHIBITION_CREATE,
-    TargetModel.EXHIBITION,
-    exhibition.id,
-    { institutionId, name: exhibition.name },
-  );
+  await auditLog(actorId, AuditAction.EXHIBITION_CREATE, TargetModel.EXHIBITION, exhibition.id, {
+    institutionId,
+    name: exhibition.name,
+  });
   await invalidateInstitutionCache();
   return exhibition;
 };
@@ -583,13 +593,10 @@ export const update = async (
   });
 
   await recomputeHasExhibition(institutionId);
-  await auditLog(
-    actorId,
-    AuditAction.EXHIBITION_UPDATE,
-    TargetModel.EXHIBITION,
-    exhibitionId,
-    { institutionId, fields: Object.keys(input) },
-  );
+  await auditLog(actorId, AuditAction.EXHIBITION_UPDATE, TargetModel.EXHIBITION, exhibitionId, {
+    institutionId,
+    fields: Object.keys(input),
+  });
   await invalidateInstitutionCache();
   return exhibition;
 };
@@ -604,13 +611,9 @@ export const remove = async (
   const exhibition = await prisma.exhibition.delete({ where: { id: exhibitionId } });
 
   await recomputeHasExhibition(institutionId);
-  await auditLog(
-    actorId,
-    AuditAction.EXHIBITION_DELETE,
-    TargetModel.EXHIBITION,
-    exhibitionId,
-    { institutionId },
-  );
+  await auditLog(actorId, AuditAction.EXHIBITION_DELETE, TargetModel.EXHIBITION, exhibitionId, {
+    institutionId,
+  });
   await invalidateInstitutionCache();
   return exhibition;
 };
@@ -654,13 +657,10 @@ export const setActive = async (
   // isActive is one of the three conditions in liveExhibitionWhere(), so
   // toggling it changes whether the venue still has a live exhibition.
   await recomputeHasExhibition(institutionId);
-  await auditLog(
-    actorId,
-    AuditAction.EXHIBITION_UPDATE,
-    TargetModel.EXHIBITION,
-    exhibitionId,
-    { institutionId, isActive },
-  );
+  await auditLog(actorId, AuditAction.EXHIBITION_UPDATE, TargetModel.EXHIBITION, exhibitionId, {
+    institutionId,
+    isActive,
+  });
   await invalidateInstitutionCache();
   return exhibition;
 };

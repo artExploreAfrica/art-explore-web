@@ -6,15 +6,10 @@ import { z } from 'zod';
  * exhibition lists agree with `Institution.hasExhibition`, which has always
  * required the run to not have finished.
  */
-export const exhibitionScopeSchema = z
-  .enum(['live', 'past', 'all'])
-  .optional()
-  .default('live');
+export const exhibitionScopeSchema = z.enum(['live', 'past', 'all']).optional().default('live');
 
 /** Opening/closing time on a 24-hour clock, e.g. "10:00". */
-const timeSchema = z
-  .string()
-  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'must be a time in HH:mm format');
+const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'must be a time in HH:mm format');
 
 const endNotBeforeStart = {
   path: ['endDate'],
@@ -50,9 +45,7 @@ export const updateExhibitionSchema = exhibitionFields
   })
   .refine(
     (data) =>
-      data.startDate === undefined ||
-      data.endDate === undefined ||
-      data.endDate >= data.startDate,
+      data.startDate === undefined || data.endDate === undefined || data.endDate >= data.startDate,
     endNotBeforeStart,
   );
 
@@ -74,8 +67,7 @@ export const updateExhibitionSchema = exhibitionFields
  * losing someone's uploads is a different kind of failure.
  */
 const noClientImages = z.undefined({
-  invalid_type_error:
-    'images cannot be set directly — upload them to this submission instead',
+  invalid_type_error: 'images cannot be set directly — upload them to this submission instead',
 });
 
 export const submitExhibitionSchema = exhibitionFields
@@ -96,9 +88,7 @@ export const updateSubmittedExhibitionSchema = exhibitionFields
   })
   .refine(
     (data) =>
-      data.startDate === undefined ||
-      data.endDate === undefined ||
-      data.endDate >= data.startDate,
+      data.startDate === undefined || data.endDate === undefined || data.endDate >= data.startDate,
     endNotBeforeStart,
   );
 
@@ -107,6 +97,17 @@ export const listExhibitionsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   scope: exhibitionScopeSchema,
+});
+
+/**
+ * Admin per-venue exhibition list. Same paging as the public one, but `scope`
+ * defaults to `all` — an admin managing a venue needs to see finished runs and
+ * pending/inactive ones too, which is exactly what the public list hides.
+ */
+export const adminListExhibitionsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  scope: z.enum(['live', 'past', 'all']).optional().default('all'),
 });
 
 /** Public cross-venue "what's on" list. */
@@ -129,11 +130,10 @@ export const setExhibitionActiveSchema = z.object({
 
 export type ExhibitionScope = z.infer<typeof exhibitionScopeSchema>;
 export type SubmitExhibitionInput = z.infer<typeof submitExhibitionSchema>;
-export type UpdateSubmittedExhibitionInput = z.infer<
-  typeof updateSubmittedExhibitionSchema
->;
+export type UpdateSubmittedExhibitionInput = z.infer<typeof updateSubmittedExhibitionSchema>;
 export type CreateExhibitionInput = z.infer<typeof createExhibitionSchema>;
 export type UpdateExhibitionInput = z.infer<typeof updateExhibitionSchema>;
 export type SetExhibitionActiveInput = z.infer<typeof setExhibitionActiveSchema>;
 export type ListExhibitionsQuery = z.infer<typeof listExhibitionsQuerySchema>;
+export type AdminListExhibitionsQuery = z.infer<typeof adminListExhibitionsQuerySchema>;
 export type ListPublicExhibitionsQuery = z.infer<typeof listPublicExhibitionsQuerySchema>;
