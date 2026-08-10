@@ -145,11 +145,6 @@ model Institution {
   type         InstitutionType
   address      String
   area         Area
-  subArea      String?
-  mapUrl       String?
-  notes        String?
-  hasResidency Boolean         @default(false)
-  hasSocial    Boolean         @default(false)
   lat          Float
   lng          Float
   images       String[]
@@ -195,7 +190,6 @@ model Institution {
   @@index([approvalStatus])
   @@index([submittedById])
   @@index([rating])
-  @@index([subArea])
 }
 
 // An exhibition hosted by an institution. One-to-many: an institution can have
