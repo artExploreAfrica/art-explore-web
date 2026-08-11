@@ -920,7 +920,7 @@ export function InstitutionsPage() {
                         Image
                       </button>
                       <button className="admin-btn" onClick={() => toggleManage(item.id)}>
-                        Manage
+                        Exhibitions
                       </button>
                       <button className="admin-btn admin-btn-danger" disabled={busyId === item.id} onClick={() => handleDelete(item.id, item.name)}>
                         Delete
