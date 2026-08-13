@@ -1,11 +1,4 @@
-import {
-  Area,
-  InstitutionType,
-  Prisma,
-  PrismaClient,
-  Role,
-  TagCategory,
-} from '@prisma/client';
+import { Area, InstitutionType, Prisma, PrismaClient, Role, TagCategory } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
@@ -71,6 +64,15 @@ interface GallerySeed {
   type: InstitutionType;
   address: string;
   area: Area;
+  /**
+   * Neighbourhood within `area`, from the sheet's `sub_area` column.
+   *
+   * Taken verbatim — no normalisation. Two of the six values in the current
+   * export ("Island", "Mainland") restate `area`, and "Lagos Island" is a third
+   * spelling of the same place. That is a taxonomy question to settle against
+   * the source sheet, not something to decide silently during an import.
+   */
+  subArea?: string;
   lat: number;
   lng: number;
   website?: string;
@@ -149,7 +151,6 @@ function cleanInstagram(raw: string | undefined): string | undefined {
   return handle.startsWith('@') ? handle : `@${handle}`;
 }
 
-
 /** Split a single CSV line, honouring quoted fields and "" escapes. */
 function parseCsvRow(line: string): string[] {
   const result: string[] = [];
@@ -197,7 +198,10 @@ function loadGalleriesFromCsv(): GallerySeed[] {
   console.log(`📄 Loading galleries from ${path.basename(csvPath)}`);
 
   const content = fs.readFileSync(csvPath, 'utf-8');
-  const lines = content.replace(/\r\n/g, '\n').split('\n').filter((l) => l.trim());
+  const lines = content
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .filter((l) => l.trim());
   const headers = parseCsvRow(lines[0]);
   const validAreas = new Set<string>(Object.values(Area));
 
@@ -233,9 +237,7 @@ function loadGalleriesFromCsv(): GallerySeed[] {
       // come back undefined and are left unset. The cast is needed only because
       // Prisma's InputJsonValue excludes `null` members, while a closed day is
       // legitimately JSON null *inside* the object.
-      openingHours = parseOpeningHoursCell(row.openingHours) as
-        | Prisma.InputJsonValue
-        | undefined;
+      openingHours = parseOpeningHoursCell(row.openingHours) as Prisma.InputJsonValue | undefined;
     }
 
     galleries.push({
@@ -244,6 +246,12 @@ function loadGalleriesFromCsv(): GallerySeed[] {
       type,
       address: row.address || 'Lagos',
       area: area as Area,
+      // `row` is built from every CSV header (see the loop above), so
+      // `sub_area` has always been parsed and in scope here — it was simply
+      // never mapped, which is why Institution.subArea is NULL for every row.
+      // Values are already trimmed by the row builder; blank means "the sheet
+      // has no value", which becomes undefined and leaves the column alone.
+      subArea: row.sub_area || undefined,
       lat,
       lng,
       website: row.website || undefined,
@@ -296,6 +304,7 @@ async function seedGalleries(): Promise<void> {
       type: g.type,
       address: g.address,
       area: g.area,
+      subArea: g.subArea ?? null,
       lat: g.lat,
       lng: g.lng,
       website: g.website ?? null,
@@ -313,7 +322,8 @@ async function seedGalleries(): Promise<void> {
       // A blank CSV cell means "the sheet has no value", not "clear the field".
       // Most rows leave at least one of these empty, so writing them as null
       // would wipe anything curated in the admin UI on every re-seed.
-      const { description, website, instagram, phone, email, openingHours, ...rest } = data;
+      const { description, website, instagram, phone, email, openingHours, subArea, ...rest } =
+        data;
       await prisma.institution.update({
         where: { id: existing.id },
         data: {
@@ -324,6 +334,12 @@ async function seedGalleries(): Promise<void> {
           ...(g.phone && { phone }),
           ...(g.email && { email }),
           ...(g.openingHours && { openingHours }),
+          // Must be here, not in `rest`: the seed is idempotent by name and all
+          // 103 rows already exist, so every re-seed takes this branch. Adding
+          // subArea only to the create object would change nothing. Guarded
+          // like its neighbours so a blank cell never clears a value curated in
+          // the admin UI.
+          ...(g.subArea && { subArea }),
         },
       });
       updated++;

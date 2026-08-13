@@ -64,6 +64,9 @@ const INSTITUTION_TYPES: InstitutionType[] = [
 ];
 const AREAS: AreaEnum[] = ["ISLAND", "MAINLAND", "OTHER"];
 
+/** Mirrors MAX_IMAGE_BYTES in src/middleware/upload.ts — keep the two in step. */
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
 /**
  * Opening hours, keyed by JavaScript day index so the client can index it with
  * `Date.prototype.getDay()`. `null` for a day means closed. A day that is
@@ -284,6 +287,12 @@ export function InstitutionsPage() {
   const [geocodePaste, setGeocodePaste] = useState("");
   const [geocodeError, setGeocodeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Image chosen in the Create form, uploaded straight after the row is created.
+  const [newFile, setNewFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [saveStage, setSaveStage] = useState<"creating" | "uploading" | null>(null);
+  // Non-fatal outcome: the row was created but the image was not attached.
+  const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   // expandable "Manage" row state
@@ -371,6 +380,9 @@ export function InstitutionsPage() {
     setEditingImages([]);
     setGeocodePaste("");
     setGeocodeError(null);
+    setNewFile(null);
+    setFileError(null);
+    setNotice(null);
     setShowForm(true);
   }
 
@@ -398,6 +410,9 @@ export function InstitutionsPage() {
     setEditingImages(Array.isArray(inst.images) ? inst.images : []);
     setGeocodePaste("");
     setGeocodeError(null);
+    setNewFile(null);
+    setFileError(null);
+    setNotice(null);
     setShowForm(true);
   }
 
@@ -417,24 +432,102 @@ export function InstitutionsPage() {
     setHours((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
   }
 
+  /**
+   * Create (or update) the institution, then upload the chosen image.
+   *
+   * Two API calls, one user action. It has to be two: the upload endpoint is
+   * POST /admin/institutions/:id/images, and there is no id until the row
+   * exists. S3 needs nothing set up in advance — a key prefix springs into
+   * existence with its first object, so `institutions/{newId}/…` is created
+   * implicitly by the upload itself.
+   *
+   * The two calls are reported separately on purpose. If the row is created but
+   * the image fails, the institution genuinely exists and saying "create
+   * failed" would be a lie that sends the admin off to create a duplicate.
+   */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setError(null);
+    setNotice(null);
     try {
       const payload = toApiPayload(form, hours);
+
       if (editingId) {
         await adminApi.updateInstitution(editingId, payload);
-      } else {
-        await adminApi.createInstitution(payload);
+        setShowForm(false);
+        loadAll();
+        return;
       }
+
+      setSaveStage("creating");
+      const created = await adminApi.createInstitution(payload);
+      const newId: string | undefined = created?.data?.id;
+
+      if (!newFile) {
+        setShowForm(false);
+        loadAll();
+        return;
+      }
+
+      if (!newId) {
+        // Created, but the response did not carry an id, so there is nothing to
+        // attach the file to. Do not retry blindly — that would duplicate the row.
+        setNotice(
+          `"${payload.name}" was created, but the API did not return its id, so the image was not ` +
+            `uploaded. Use the Image button on the row to add it.`,
+        );
+        setShowForm(false);
+        loadAll();
+        return;
+      }
+
+      setSaveStage("uploading");
+      try {
+        await adminApi.uploadInstitutionImage(newId, newFile);
+      } catch (uploadErr: any) {
+        // The institution is real. Say so plainly, and surface the backend's own
+        // message rather than a generic failure.
+        setNotice(
+          `"${payload.name}" was created, but the image did not upload: ${uploadErr.message}. ` +
+            `The institution is saved — use the Image button on its row to try again.`,
+        );
+        setShowForm(false);
+        loadAll();
+        return;
+      }
+
       setShowForm(false);
       loadAll();
     } catch (err: any) {
       setError(err.message);
     } finally {
       setSaving(false);
+      setSaveStage(null);
     }
+  }
+
+  /** Reject oversized or non-image files here rather than via a 413 round-trip. */
+  function pickNewFile(file: File | null) {
+    setFileError(null);
+    if (!file) {
+      setNewFile(null);
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setFileError(`"${file.name}" is not an image (${file.type || "unknown type"}).`);
+      setNewFile(null);
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setFileError(
+        `"${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB — the limit is ` +
+          `${MAX_IMAGE_BYTES / 1024 / 1024} MB.`,
+      );
+      setNewFile(null);
+      return;
+    }
+    setNewFile(file);
   }
 
   async function handlePublish(id: string) {
@@ -756,13 +849,14 @@ export function InstitutionsPage() {
             />
           </div>
 
-          {editingId && (
+          <hr className="admin-form-divider" />
+          <strong>Image</strong>
+
+          {editingId ? (
             <>
-              <hr className="admin-form-divider" />
-              <strong>Images</strong>
-              {/* Read-only: images are written by POST /institutions/:id/images,
-                  not by this PUT. Showing an editable field here would imply
-                  otherwise and quietly do nothing. */}
+              {/* Read-only when editing: images are written by
+                  POST /institutions/:id/images, not by this PUT. An editable
+                  field here would imply otherwise and quietly do nothing. */}
               {editingImages.length === 0 ? (
                 <p className="admin-page-note">
                   None stored. Use the <em>Image</em> button on the row to upload one.
@@ -779,6 +873,24 @@ export function InstitutionsPage() {
                 </ul>
               )}
             </>
+          ) : (
+            <>
+              <div className="admin-form-row">
+                <label>Cover image (optional)</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={(e) => pickNewFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+              {newFile && (
+                <p className="admin-page-note" style={{ marginTop: 0 }}>
+                  Selected: <strong>{newFile.name}</strong> ({(newFile.size / 1024).toFixed(0)} KB) — uploaded
+                  automatically once the institution is created.
+                </p>
+              )}
+              {fileError && <p className="admin-error">{fileError}</p>}
+            </>
           )}
 
           <hr className="admin-form-divider" />
@@ -787,7 +899,17 @@ export function InstitutionsPage() {
             API but have no field here yet.
           </p>
           <button className="admin-btn admin-btn-primary" type="submit" disabled={saving}>
-            {saving ? "Saving..." : editingId ? "Save changes" : "Create institution"}
+            {saveStage === "creating"
+              ? "Creating institution..."
+              : saveStage === "uploading"
+                ? "Uploading image..."
+                : saving
+                  ? "Saving..."
+                  : editingId
+                    ? "Save changes"
+                    : newFile
+                      ? "Create institution + upload image"
+                      : "Create institution"}
           </button>
           <button className="admin-btn" type="button" onClick={() => setShowForm(false)}>
             Cancel
@@ -797,6 +919,17 @@ export function InstitutionsPage() {
 
       {error && <p className="admin-error">{error}</p>}
       {uploadError && <p className="admin-error">Image upload failed: {uploadError}</p>}
+      {/* Partial success: the row exists, the image did not attach. Deliberately
+          not styled as an error — calling this a failure would send the admin
+          off to create a second copy of an institution that already saved. */}
+      {notice && (
+        <p className="admin-page-note" style={{ borderLeft: "3px solid #d9a441", paddingLeft: 10 }}>
+          {notice}{" "}
+          <button className="admin-btn" onClick={() => setNotice(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
 
       <div className="admin-search-bar">
         <input
@@ -920,7 +1053,7 @@ export function InstitutionsPage() {
                         Image
                       </button>
                       <button className="admin-btn" onClick={() => toggleManage(item.id)}>
-                        Exhibitions
+                        Manage
                       </button>
                       <button className="admin-btn admin-btn-danger" disabled={busyId === item.id} onClick={() => handleDelete(item.id, item.name)}>
                         Delete

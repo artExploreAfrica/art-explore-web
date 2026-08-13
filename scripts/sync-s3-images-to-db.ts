@@ -49,6 +49,9 @@ const SLUG_ALIASES: Record<string, string> = {
   'goethe-institute-lagos': 'Goethe Institut Lagos',
   // Transposed letters in the folder name (henriWOmeta / henriMOweta) — same venue.
   henriwometa: 'Henrimoweta African Art Center',
+   // Folder uses the venue's full name, the catalogue uses the short form —
+ // John Randle Centre for Yoruba Culture and History.
+ 'john-randle-centre': 'Randle Center',
 };
 
 const prisma = new PrismaClient();
