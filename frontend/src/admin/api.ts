@@ -183,6 +183,23 @@ export const adminApi = {
     apiRequest(`/api/v1/admin/institutions/${id}/approve`, { method: 'POST' }),
   rejectSubmission: (id: string, reviewNote: string) =>
     apiRequest(`/api/v1/admin/institutions/${id}/reject`, { method: 'POST', body: { reviewNote } }),
+  // Admin-panel counterpart to the public POST /api/v1/submissions (which
+  // requires a contributor USER session) — same PENDING/unpublished pipeline,
+  // reachable from an ADMIN/SUPER_ADMIN session instead.
+  submitInstitution: (data: Record<string, unknown>) =>
+    apiRequest('/api/v1/admin/institutions/submit', { method: 'POST', body: data }),
+
+  // pending edits — proposed changes to an already-approved institution
+  pendingEdits: (page = 1) => apiRequest(`/api/v1/admin/institutions/pending-edits?page=${page}`),
+  proposeInstitutionEdit: (id: string, data: Record<string, unknown>) =>
+    apiRequest(`/api/v1/admin/institutions/${id}/propose-edit`, { method: 'POST', body: data }),
+  approveInstitutionEdit: (id: string) =>
+    apiRequest(`/api/v1/admin/institutions/${id}/edit/approve`, { method: 'POST' }),
+  rejectInstitutionEdit: (id: string, reviewNote: string) =>
+    apiRequest(`/api/v1/admin/institutions/${id}/edit/reject`, {
+      method: 'POST',
+      body: { reviewNote },
+    }),
 
   // tags
   tags: (page = 1) => apiRequest(`/api/v1/admin/tags?page=${page}`),

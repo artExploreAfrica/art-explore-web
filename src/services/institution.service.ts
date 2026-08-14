@@ -796,3 +796,123 @@ const ensureExists = async (id: string): Promise<Institution> => {
   if (!institution) throw NotFoundError('Institution');
   return institution;
 };
+
+// ---------------------------------------------------------------------------
+// Pending edits — proposed changes to an already-approved/published
+// institution. The live row is untouched until a reviewer approves; see the
+// field comment on Institution.pendingChanges in schema.prisma.
+// ---------------------------------------------------------------------------
+
+/** Admin queue of institutions that currently have a pending edit. */
+export const listPendingEdits = async (query: MySubmissionsQuery): Promise<ListResult> => {
+  const { page, limit } = query;
+  const where: Prisma.InstitutionWhereInput = {
+    deletedAt: null,
+    pendingChanges: { not: Prisma.JsonNull },
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.institution.findMany({
+      where,
+      include: { tags: true, subCategory: true, pendingChangesSubmittedBy: { select: { fullName: true, email: true } } },
+      orderBy: { pendingChangesSubmittedAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.institution.count({ where }),
+  ]);
+
+  return {
+    data,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 0 },
+  };
+};
+
+/**
+ * Store a proposed edit without touching the live row. Overwrites any
+ * previous pending edit on this institution rather than merging — the newest
+ * proposal is what a reviewer should see, not a stale one layered under it.
+ */
+export const proposeEdit = async (
+  actorId: string,
+  id: string,
+  input: UpdateInstitutionInput,
+): Promise<Institution> => {
+  await ensureExists(id);
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: {
+      pendingChanges: input as Prisma.InputJsonValue,
+      pendingChangesSubmittedById: actorId,
+      pendingChangesSubmittedAt: new Date(),
+    },
+  });
+
+  await auditLog(actorId, AuditAction.SUBMIT, TargetModel.INSTITUTION, id, {
+    editProposal: true,
+    fields: Object.keys(input),
+  });
+  return institution;
+};
+
+/** Merge a pending edit into the live row and clear it. */
+export const approveEdit = async (actorId: string, id: string): Promise<Institution> => {
+  const current = await ensureExists(id);
+  if (!current.pendingChanges) {
+    throw new AppError('This institution has no pending edit', 404);
+  }
+
+  const { tagIds, openingHours, ...rest } = current.pendingChanges as UpdateInstitutionInput;
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: {
+      ...rest,
+      ...(openingHours !== undefined && {
+        openingHours: openingHours ?? Prisma.JsonNull,
+      }),
+      ...(tagIds !== undefined && {
+        tags: { set: tagIds.map((tagId) => ({ id: tagId })) },
+      }),
+      pendingChanges: Prisma.JsonNull,
+      pendingChangesSubmittedById: null,
+      pendingChangesSubmittedAt: null,
+    },
+  });
+
+  await auditLog(actorId, AuditAction.APPROVE_INSTITUTION, TargetModel.INSTITUTION, id, {
+    editApproved: true,
+  });
+  // The merged fields may already be live/published, so the public cache can
+  // now be serving stale values.
+  await invalidateInstitutionCache();
+  return institution;
+};
+
+/** Discard a pending edit. The live row is never touched. */
+export const rejectEdit = async (
+  actorId: string,
+  id: string,
+  reviewNote: string,
+): Promise<Institution> => {
+  const current = await ensureExists(id);
+  if (!current.pendingChanges) {
+    throw new AppError('This institution has no pending edit', 404);
+  }
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: {
+      pendingChanges: Prisma.JsonNull,
+      pendingChangesSubmittedById: null,
+      pendingChangesSubmittedAt: null,
+    },
+  });
+
+  await auditLog(actorId, AuditAction.REJECT_INSTITUTION, TargetModel.INSTITUTION, id, {
+    editRejected: true,
+    reviewNote,
+  });
+  return institution;
+};

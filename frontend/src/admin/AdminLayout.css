@@ -27,7 +27,7 @@
 .admin-table th { text-align: left; padding: 8px 10px; background: #10192e; color: white; font-weight: 500; }
 .admin-table td { padding: 8px 10px; border-bottom: 1px solid #e2e0da; vertical-align: top; }
 .admin-page-note { color: #8a8880; font-size: 13px; margin-top: 1rem; }
-.admin-btn { border: 1px solid #d3d1c7; background: white; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; margin-right: 6px; }
+.admin-btn { display: inline-block; border: 1px solid #d3d1c7; background: white; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; margin-right: 6px; text-decoration: none; color: inherit; }
 .admin-btn:hover { background: #f1efe8; }
 .admin-btn-primary { background: #1b2a4a; color: white; border-color: #1b2a4a; }
 .admin-btn-primary:hover { background: #10192e; }

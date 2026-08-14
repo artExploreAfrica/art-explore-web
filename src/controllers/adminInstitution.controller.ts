@@ -13,7 +13,9 @@ import {
 } from '../validators/institution.validator';
 import {
   ListSubmissionsQuery,
+  MySubmissionsQuery,
   RejectInput,
+  SubmitInstitutionInput,
 } from '../validators/submission.validator';
 
 /** All handlers assume `authenticate` + `roleGuard` ran first, so req.user exists. */
@@ -98,4 +100,44 @@ export const reject = asyncHandler(async (req: Request, res: Response) => {
   const { reviewNote } = req.body as RejectInput;
   const institution = await institutionService.reject(actorId(req), req.params.id, reviewNote);
   return successResponse(res, institution, 'Submission rejected');
+});
+
+// ---------------------------------------------------------------------------
+// Admin-side submission — a staff member (ADMIN or SUPER_ADMIN) submitting a
+// new venue for review, reusing the same submit()/PENDING pipeline as the
+// public contributor flow (Feature 5).
+// ---------------------------------------------------------------------------
+
+export const submitForApproval = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body as SubmitInstitutionInput;
+  const institution = await institutionService.submit(actorId(req), body);
+  return successResponse(res, institution, 'Submission received and pending review', 201);
+});
+
+// ---------------------------------------------------------------------------
+// Pending edits — proposing/reviewing a change to an already-approved
+// institution without touching it until the edit is approved.
+// ---------------------------------------------------------------------------
+
+export const listPendingEdits = asyncHandler(async (req: Request, res: Response) => {
+  const query = req.query as unknown as MySubmissionsQuery;
+  const { data, pagination } = await institutionService.listPendingEdits(query);
+  return successResponse(res, data, 'Pending edits retrieved', 200, pagination);
+});
+
+export const proposeEdit = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body as UpdateInstitutionInput;
+  const institution = await institutionService.proposeEdit(actorId(req), req.params.id, body);
+  return successResponse(res, institution, 'Edit submitted and pending review', 201);
+});
+
+export const approveEdit = asyncHandler(async (req: Request, res: Response) => {
+  const institution = await institutionService.approveEdit(actorId(req), req.params.id);
+  return successResponse(res, institution, 'Edit approved');
+});
+
+export const rejectEdit = asyncHandler(async (req: Request, res: Response) => {
+  const { reviewNote } = req.body as RejectInput;
+  const institution = await institutionService.rejectEdit(actorId(req), req.params.id, reviewNote);
+  return successResponse(res, institution, 'Edit rejected');
 });

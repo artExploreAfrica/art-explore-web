@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { InstitutionsPage } from './pages/InstitutionsPage';
 import { SubmissionsPage } from './pages/SubmissionsPage';
+import { SubmitInstitutionPage } from './pages/SubmitInstitutionPage';
 import { TagsPage } from './pages/TagsPage';
 import { SubcategoriesPage } from './pages/SubcategoriesPage';
 import { UsersPage } from './pages/UsersPage';
@@ -28,6 +29,7 @@ export function AdminRoutes() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="institutions" element={<InstitutionsPage />} />
+        <Route path="submit" element={<SubmitInstitutionPage />} />
         <Route path="submissions" element={<SubmissionsPage />} />
         <Route path="tags" element={<TagsPage />} />
         <Route path="subcategories" element={<SubcategoriesPage />} />

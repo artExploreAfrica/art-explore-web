@@ -98,6 +98,7 @@ model User {
   auditLogs             AuditLog[]
   submittedInstitutions Institution[] @relation("SubmittedBy")
   reviewedInstitutions  Institution[] @relation("ReviewedBy")
+  pendingInstitutionEdits Institution[] @relation("PendingChangesSubmittedBy")
   submittedExhibitions  Exhibition[]  @relation("ExhibitionSubmitter")
   approvedExhibitions   Exhibition[]  @relation("ExhibitionApprover")
   reviews               Review[]      @relation("ReviewAuthor")
@@ -186,6 +187,19 @@ model Institution {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
+  // Pending edit — a proposed change to an already-approved/published
+  // institution, held here rather than applied directly. The live fields
+  // above stay untouched (and the venue stays published as-is) until a
+  // reviewer approves the edit, at which point pendingChanges is merged in
+  // and cleared. Rejecting just clears it — nothing about the live row
+  // changes either way. Shape mirrors UpdateInstitutionInput (a partial set
+  // of institutionFieldsSchema keys, including tagIds as a plain id array
+  // since this is a JSON blob rather than a real relation write).
+  pendingChanges              Json?
+  pendingChangesSubmittedById String?
+  pendingChangesSubmittedBy   User?     @relation("PendingChangesSubmittedBy", fields: [pendingChangesSubmittedById], references: [id])
+  pendingChangesSubmittedAt   DateTime?
+
   @@index([area])
   @@index([type])
   @@index([isPublished])
@@ -196,6 +210,7 @@ model Institution {
   @@index([submittedById])
   @@index([rating])
   @@index([subArea])
+  @@index([pendingChangesSubmittedById])
 }
 
 // An exhibition hosted by an institution. One-to-many: an institution can have

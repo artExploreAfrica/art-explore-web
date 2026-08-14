@@ -93,6 +93,31 @@
     }
   }
 
+  .nav-auth {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .nav-user {
+    color: #666;
+    font-size: 14px;
+  }
+
+  .nav-logout {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    font-size: 15px;
+    font-family: inherit;
+    padding: 0;
+
+    &:hover {
+      color: #d97706;
+    }
+  }
+
   .nav-actions {
     .search-btn {
       background: none;

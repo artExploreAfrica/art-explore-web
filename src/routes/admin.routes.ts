@@ -33,7 +33,12 @@ import {
   updateSubCategorySchema,
 } from '../validators/subCategory.validator';
 import { createTagSchema, listTagsQuerySchema, updateTagSchema } from '../validators/tag.validator';
-import { listSubmissionsQuerySchema, rejectSchema } from '../validators/submission.validator';
+import {
+  listSubmissionsQuerySchema,
+  mySubmissionsQuerySchema,
+  rejectSchema,
+  submitInstitutionSchema,
+} from '../validators/submission.validator';
 import { auditLogQuerySchema } from '../validators/audit.validator';
 import { listReviewSubmissionsQuerySchema } from '../validators/review.validator';
 import { createUserSchema, listUsersQuerySchema } from '../validators/user.validator';
@@ -127,6 +132,34 @@ router.get(
   roleGuard(Role.SUPER_ADMIN, Role.ADMIN),
   validate({ query: adminListInstitutionsQuerySchema }),
   adminInstitutionController.list,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/pending-edits:
+ *   get:
+ *     summary: List institutions that currently have a pending edit awaiting review
+ *     description: >
+ *       Distinct from /admin/submissions — these are already-approved/published
+ *       institutions with a proposed change sitting in Institution.pendingChanges.
+ *       The institution itself is unaffected until the edit is approved.
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20, maximum: 100 }
+ *     responses:
+ *       200: { description: Institutions with a pending edit }
+ */
+router.get(
+  '/institutions/pending-edits',
+  isAdmin,
+  validate({ query: mySubmissionsQuerySchema }),
+  adminInstitutionController.listPendingEdits,
 );
 
 /**
@@ -791,6 +824,123 @@ router.post(
   isAdmin,
   validate({ params: idParamSchema, body: rejectSchema }),
   adminInstitutionController.reject,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/submit:
+ *   post:
+ *     summary: Submit a new venue for review from inside the admin panel (created PENDING, unpublished)
+ *     description: >
+ *       Admin-panel counterpart to POST /api/v1/submissions (which requires a
+ *       contributor USER session). Same PENDING/unpublished pipeline, reviewed
+ *       and approved/rejected via the endpoints above.
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/InstitutionInput' }
+ *     responses:
+ *       201: { description: Submission received and pending review }
+ *       400: { description: Validation error }
+ */
+router.post(
+  '/institutions/submit',
+  isAdmin,
+  validate({ body: submitInstitutionSchema }),
+  adminInstitutionController.submitForApproval,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/propose-edit:
+ *   post:
+ *     summary: Propose a change to an already-approved institution
+ *     description: >
+ *       The live institution is left exactly as-is (and stays published if it
+ *       already was) until a reviewer approves the edit via
+ *       POST /institutions/{id}/edit/approve. Overwrites any earlier pending
+ *       edit on this institution.
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/InstitutionInput' }
+ *     responses:
+ *       201: { description: Edit submitted and pending review }
+ *       400: { description: Validation error }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/institutions/:id/propose-edit',
+  isAdmin,
+  validate({ params: idParamSchema, body: updateInstitutionSchema }),
+  adminInstitutionController.proposeEdit,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/edit/approve:
+ *   post:
+ *     summary: Approve a pending edit — merges it into the live institution
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Edit approved and merged }
+ *       404: { description: Not found, or no pending edit exists }
+ */
+router.post(
+  '/institutions/:id/edit/approve',
+  isAdmin,
+  validate({ params: idParamSchema }),
+  adminInstitutionController.approveEdit,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/edit/reject:
+ *   post:
+ *     summary: Reject a pending edit with a review note — the live institution is untouched
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reviewNote]
+ *             properties:
+ *               reviewNote: { type: string }
+ *     responses:
+ *       200: { description: Edit rejected }
+ *       400: { description: Validation error }
+ *       404: { description: Not found, or no pending edit exists }
+ */
+router.post(
+  '/institutions/:id/edit/reject',
+  isAdmin,
+  validate({ params: idParamSchema, body: rejectSchema }),
+  adminInstitutionController.rejectEdit,
 );
 
 // ---------------------------------------------------------------------------
