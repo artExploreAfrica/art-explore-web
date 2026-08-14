@@ -310,8 +310,13 @@ export function InstitutionsPage() {
     endTime: "18:00",
   });
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  // Cover-change is keyed by image URL so the button that was clicked can show
+  // its own "Setting..." state without disabling the whole row.
+  const [coverBusyUrl, setCoverBusyUrl] = useState<string | null>(null);
+  const [deleteBusyUrl, setDeleteBusyUrl] = useState<string | null>(null);
   // Rows whose stored image URL exists but failed to load (403/404 from S3).
   // Keyed by URL, not by institution id: after an upload the row keeps its id
   // but gets a new URL, and a flag keyed by id would mark the fresh image
@@ -556,25 +561,64 @@ export function InstitutionsPage() {
     }
   }
 
-  async function handleUpload(id: string, file: File) {
+  /**
+   * Uploads are sent one at a time, not via Promise.all: the backend appends
+   * to `images[]` with a read-modify-write (see addImage in
+   * institution.service.ts), so two concurrent uploads for the same
+   * institution can race and silently drop one image.
+   */
+  async function handleUpload(id: string, files: File[]) {
     setUploadError(null);
+    setUploadBusy(true);
     try {
-      await adminApi.uploadInstitutionImage(id, file);
+      for (const file of files) {
+        // eslint-disable-next-line no-await-in-loop
+        await adminApi.uploadInstitutionImage(id, file);
+      }
       loadAll();
     } catch (err: any) {
       // Surface the backend's own message verbatim. Do not translate it into a
       // generic string: whether this is a 400 (bad file), a 404 (wrong id) or
       // an S3 "NoSuchBucket"/"AccessDenied" is the entire diagnostic signal.
       setUploadError(err.message);
+      // Refresh anyway: earlier files in the batch may have already attached.
+      loadAll();
     } finally {
-      setUploadTargetId(null);
-      setUploadFile(null);
+      setUploadBusy(false);
+      setUploadFiles([]);
+    }
+  }
+
+  async function handleSetCover(id: string, url: string) {
+    setUploadError(null);
+    setCoverBusyUrl(url);
+    try {
+      await adminApi.setInstitutionCoverImage(id, url);
+      loadAll();
+    } catch (err: any) {
+      setUploadError(err.message);
+    } finally {
+      setCoverBusyUrl(null);
+    }
+  }
+
+  async function handleDeleteImage(id: string, url: string) {
+    if (!confirm("Delete this image? This can't be undone.")) return;
+    setUploadError(null);
+    setDeleteBusyUrl(url);
+    try {
+      await adminApi.removeInstitutionImage(id, url);
+      loadAll();
+    } catch (err: any) {
+      setUploadError(err.message);
+    } finally {
+      setDeleteBusyUrl(null);
     }
   }
 
   function toggleUploadTarget(id: string) {
     setUploadTargetId((prev) => (prev === id ? null : id));
-    setUploadFile(null);
+    setUploadFiles([]);
     setUploadError(null);
   }
 
@@ -1072,20 +1116,65 @@ export function InstitutionsPage() {
                   {uploadTargetId === item.id && (
                     <tr className="admin-detail-row">
                       <td colSpan={5}>
+                        {Array.isArray(item.images) && item.images.length > 0 && (
+                          <>
+                            <label>Stored images — pick one to use as the cover</label>
+                            <div className="admin-cover-picker">
+                              {item.images.map((url) => {
+                                const isCover = url === imgUrl;
+                                return (
+                                  <div key={url} className="admin-cover-picker-item">
+                                    <img
+                                      src={url}
+                                      alt=""
+                                      className="admin-thumb"
+                                      title={url}
+                                    />
+                                    {isCover ? (
+                                      <span className="admin-badge admin-badge-success">Cover</span>
+                                    ) : (
+                                      <button
+                                        className="admin-btn"
+                                        type="button"
+                                        disabled={coverBusyUrl !== null}
+                                        onClick={() => handleSetCover(item.id, url)}
+                                      >
+                                        {coverBusyUrl === url ? "Setting..." : "Set as cover"}
+                                      </button>
+                                    )}
+                                    <button
+                                      className="admin-btn admin-btn-danger"
+                                      type="button"
+                                      disabled={deleteBusyUrl !== null}
+                                      onClick={() => handleDeleteImage(item.id, url)}
+                                    >
+                                      {deleteBusyUrl === url ? "Deleting..." : "Delete"}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </>
+                        )}
                         <div className="admin-form-row">
-                          <label>Upload a new cover image</label>
+                          <label>Upload image(s)</label>
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                            multiple
+                            onChange={(e) => setUploadFiles(Array.from(e.target.files ?? []))}
                           />
                           <button
                             className="admin-btn admin-btn-primary"
                             type="button"
-                            disabled={!uploadFile || busyId === item.id}
-                            onClick={() => uploadFile && handleUpload(item.id, uploadFile)}
+                            disabled={uploadFiles.length === 0 || uploadBusy}
+                            onClick={() => handleUpload(item.id, uploadFiles)}
                           >
-                            Submit
+                            {uploadBusy
+                              ? "Uploading..."
+                              : uploadFiles.length > 1
+                                ? `Submit (${uploadFiles.length} images)`
+                                : "Submit"}
                           </button>
                         </div>
                       </td>

@@ -443,6 +443,36 @@ export const addImage = async (
   return institution;
 };
 
+/**
+ * Move an already-attached image URL to the front of `images[]`.
+ *
+ * The cover shown across the app (getImageUrl on the frontend) is always
+ * `images[0]` — there is no separate `coverImageUrl` column — so "set as
+ * cover" is purely a reorder, not a new field.
+ */
+export const setCoverImage = async (
+  actorId: string,
+  id: string,
+  imageUrl: string,
+): Promise<Institution> => {
+  const current = await ensureExists(id);
+
+  if (!current.images.includes(imageUrl)) {
+    throw new AppError('Image URL not found on this institution', 404);
+  }
+
+  const institution = await prisma.institution.update({
+    where: { id },
+    data: { images: [imageUrl, ...current.images.filter((url) => url !== imageUrl)] },
+  });
+
+  await auditLog(actorId, AuditAction.UPDATE, TargetModel.INSTITUTION, id, {
+    coverImageUrl: imageUrl,
+  });
+  await invalidateInstitutionCache();
+  return institution;
+};
+
 /** Remove an image URL from the institution and best-effort delete the S3 object. */
 export const removeImage = async (
   actorId: string,
