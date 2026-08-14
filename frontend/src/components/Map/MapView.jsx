@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import styles from './MapView.module.scss';
-import { galleries } from '../../data/galleries';
+import { useGalleries } from '../../hooks/useGalleries'; // ← live data from the API
 import { neighbourhoodsGeoJSON, landmarksGeoJSON } from '../../data/lagosGeo';
 import LegendPanel from './LegendPanel';
 import GalleryCard from './GalleryCard';
@@ -75,15 +75,22 @@ const createPinImage = () =>
 
 // ── Component ─────────────────────────────────────────────────
 const MapView = () => {
+  const { galleries } = useGalleries();
+
   const mapContainer = useRef(null);
   const mapRef       = useRef(null);
   // Ref so MapLibre event closures always read the current value
   const isMobileRef  = useRef(false);
+  // Ref so the map-init effect (runs once) and MapLibre event closures
+  // always read the latest fetched galleries instead of a stale snapshot.
+  const galleriesRef = useRef(galleries);
 
   const [activeRegion,    setActiveRegion]    = useState('All');
   const [activeLayers,    setActiveLayers]    = useState(LAYER_DEFAULTS);
   const [selectedGallery, setSelectedGallery] = useState(null);
   const [mapReady,        setMapReady]        = useState(false);
+
+  useEffect(() => { galleriesRef.current = galleries; }, [galleries]);
 
   // ── Fly to a gallery and open the bottom sheet ────────────
   const flyToGallery = useCallback((gallery) => {
@@ -168,8 +175,9 @@ const MapView = () => {
       const map = mapRef.current;
       if (!map || !mapReady || !map.getSource('galleries')) return;
 
+      const all = galleriesRef.current;
       const filtered =
-        region === 'All' ? galleries : galleries.filter((g) => g.region === region);
+        region === 'All' ? all : all.filter((g) => g.region === region);
       map.getSource('galleries').setData(buildGalleriesGeoJSON(filtered));
 
       const padding = isMobileRef.current ? FIT_PADDING_MOBILE : FIT_PADDING;
@@ -194,7 +202,7 @@ const MapView = () => {
       container:          mapContainer.current,
       style:              `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`,
       center:             isMobile
-                            ? [galleries[2]?.lng || 3.4004, galleries[2]?.lat || 6.5083]
+                            ? [galleriesRef.current[2]?.lng || 3.4004, galleriesRef.current[2]?.lat || 6.5083]
                             : ALL_GALLERIES_CENTER,
       zoom:               isMobile ? 16 : 10,
       minZoom:            isMobile ? 14 : 9,
@@ -379,7 +387,10 @@ const MapView = () => {
       });
 
       // 5 ── Gallery pins ────────────────────────────────────
-      map.addSource('galleries', { type: 'geojson', data: buildGalleriesGeoJSON(galleries) });
+      // Seeded with whatever's in galleriesRef at mount (likely still empty
+      // while the API fetch is in flight); the sync effect below calls
+      // setData once the live galleries arrive.
+      map.addSource('galleries', { type: 'geojson', data: buildGalleriesGeoJSON(galleriesRef.current) });
       map.addLayer({
         id: 'gallery-pins', type: 'symbol', source: 'galleries',
         layout: {
@@ -421,7 +432,7 @@ const MapView = () => {
       // Desktop — same fly + a MapLibre popup beside the marker.
       map.on('click', 'gallery-pins', (e) => {
         const props   = e.features[0].properties;
-        const gallery = galleries.find((g) => g.id === props.id);
+        const gallery = galleriesRef.current.find((g) => g.id === props.id);
         if (!gallery) return;
 
         flyToGallery(gallery);
@@ -462,14 +473,16 @@ const MapView = () => {
     });
 
     return () => { map.remove(); setMapReady(false); };
-  }, []); // galleries is a module-level constant — not a reactive dep
+  }, []); // map is created once; live galleries are read via galleriesRef
 
   // ── Sync region filter and layer visibility with map ──────
+  // Also re-runs when `galleries` changes (API fetch resolves) so the
+  // pins that were seeded empty at mount get populated once data arrives.
   useEffect(() => {
     if (!mapReady) return;
     updateGalleryFilter(activeRegion);
     applyLayerVisibility(activeLayers);
-  }, [activeRegion, mapReady, updateGalleryFilter, applyLayerVisibility]);
+  }, [activeRegion, mapReady, galleries, updateGalleryFilter, applyLayerVisibility]);
 
   // ── Render ────────────────────────────────────────────────
   return (
