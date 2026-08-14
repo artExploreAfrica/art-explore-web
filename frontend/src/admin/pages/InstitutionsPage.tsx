@@ -27,7 +27,17 @@ interface Institution {
   // imageUrl / coverImageUrl / logoUrl / image column; reading those was what
   // made every row render "No image".
   images?: string[];
+  // `listForAdmin` includes tags on every row (see institution.service.ts).
+  tags?: { id: string; name: string }[];
   [key: string]: any;
+}
+
+/** Mirrors prisma/schema.prisma `model Tag`. Independent of Institution — see TagsPage.tsx. */
+interface Tag {
+  id: string;
+  name: string;
+  label: string;
+  category: string;
 }
 
 interface Exhibition {
@@ -274,7 +284,17 @@ export function InstitutionsPage() {
   // instead of just whatever page happened to be open).
   const [allItems, setAllItems] = useState<Institution[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
+  // Every defined tag, for the filter dropdown — deliberately not derived from
+  // allItems: there is no UI yet to attach tags to an institution, so scanning
+  // institutions for their tags would always come up empty.
+  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterArea, setFilterArea] = useState<AreaEnum | "">("");
+  const [filterSubArea, setFilterSubArea] = useState("");
+  const [filterTagId, setFilterTagId] = useState("");
+  const [filterType, setFilterType] = useState<InstitutionType | "">("");
+  const [filterStatus, setFilterStatus] = useState<"" | "published" | "unpublished">("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -351,24 +371,90 @@ export function InstitutionsPage() {
     }
   }
 
+  async function loadAllTags() {
+    try {
+      const first = await adminApi.tags(1);
+      const totalPages = first.pagination?.totalPages || 1;
+      let combined: Tag[] = first.data || [];
+
+      if (totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, i) => adminApi.tags(i + 2))
+        );
+        combined = combined.concat(...rest.map((r) => r.data || []));
+      }
+
+      setAllTags(combined);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
   useEffect(() => {
     loadAll();
+    loadAllTags();
   }, []);
+
+  // Distinct sub-areas actually present in the loaded catalogue, so the
+  // filter only ever offers choices that can return a result.
+  const subAreaOptions = useMemo(() => {
+    const values = new Set<string>();
+    allItems.forEach((inst) => {
+      if (inst.subArea) values.add(inst.subArea);
+    });
+    return Array.from(values).sort((a, b) => a.localeCompare(b));
+  }, [allItems]);
+
+  // Sourced from allTags (every tag that exists), not from allItems' attached
+  // tags — there is no admin UI yet to attach a tag to an institution, so the
+  // latter would always be empty. Grouped by category to match TagsPage.tsx.
+  const tagOptionsByCategory = useMemo(() => {
+    const byCategory = new Map<string, Tag[]>();
+    allTags.forEach((tag) => {
+      const list = byCategory.get(tag.category) || [];
+      list.push(tag);
+      byCategory.set(tag.category, list);
+    });
+    byCategory.forEach((list) => list.sort((a, b) => a.label.localeCompare(b.label)));
+    return Array.from(byCategory, ([category, tags]) => ({ category, tags })).sort((a, b) =>
+      a.category.localeCompare(b.category),
+    );
+  }, [allTags]);
+
+  const activeFilterCount = [filterArea, filterSubArea, filterTagId, filterType, filterStatus].filter(
+    Boolean,
+  ).length;
+
+  function clearFilters() {
+    setFilterArea("");
+    setFilterSubArea("");
+    setFilterTagId("");
+    setFilterType("");
+    setFilterStatus("");
+  }
 
   // Always alphabetical by name, filtered down to whatever matches the
   // search box (matches on name, area, or sub-area so you can also type
-  // a location to narrow things down).
+  // a location to narrow things down) and whichever filters are set.
   const visibleItems = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const filtered = q
-      ? allItems.filter((inst) =>
-          [inst.name, inst.area, inst.subArea, inst.address]
-            .filter(Boolean)
-            .some((field) => String(field).toLowerCase().includes(q))
-        )
-      : allItems;
+    const filtered = allItems.filter((inst) => {
+      if (q) {
+        const matchesSearch = [inst.name, inst.area, inst.subArea, inst.address]
+          .filter(Boolean)
+          .some((field) => String(field).toLowerCase().includes(q));
+        if (!matchesSearch) return false;
+      }
+      if (filterArea && inst.area !== filterArea) return false;
+      if (filterSubArea && inst.subArea !== filterSubArea) return false;
+      if (filterTagId && !(inst.tags || []).some((t) => t.id === filterTagId)) return false;
+      if (filterType && inst.type !== filterType) return false;
+      if (filterStatus === "published" && !inst.isPublished) return false;
+      if (filterStatus === "unpublished" && inst.isPublished) return false;
+      return true;
+    });
     return [...filtered].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [allItems, search]);
+  }, [allItems, search, filterArea, filterSubArea, filterTagId, filterType, filterStatus]);
 
   // Coverage across the whole catalogue, not just the filtered page.
   const imageStats = useMemo(() => {
@@ -995,12 +1081,85 @@ export function InstitutionsPage() {
             Clear
           </button>
         )}
+        <button
+          className={`admin-btn${activeFilterCount > 0 ? " admin-btn-primary" : ""}`}
+          onClick={() => setShowFilters((v) => !v)}
+        >
+          Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+        </button>
         <span className="admin-search-count">
           {loading
             ? "Loading..."
             : `Showing ${visibleItems.length} of ${allItems.length} total (sorted A–Z)`}
         </span>
       </div>
+
+      {showFilters && (
+        <div className="admin-filter-panel">
+          <div className="admin-filter-row">
+            <label>Sub-area</label>
+            <select value={filterSubArea} onChange={(e) => setFilterSubArea(e.target.value)}>
+              <option value="">All</option>
+              {subAreaOptions.map((sa) => (
+                <option key={sa} value={sa}>
+                  {sa}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="admin-filter-row">
+            <label>Tag</label>
+            <select value={filterTagId} onChange={(e) => setFilterTagId(e.target.value)}>
+              <option value="">All</option>
+              {tagOptionsByCategory.map(({ category, tags }) => (
+                <optgroup key={category} label={category.charAt(0) + category.slice(1).toLowerCase()}>
+                  {tags.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <div className="admin-filter-row">
+            <label>Location</label>
+            <select value={filterArea} onChange={(e) => setFilterArea(e.target.value as AreaEnum | "")}>
+              <option value="">All</option>
+              {AREAS.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="admin-filter-row">
+            <label>Status</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as "" | "published" | "unpublished")}
+            >
+              <option value="">All</option>
+              <option value="published">Published</option>
+              <option value="unpublished">Unpublished</option>
+            </select>
+          </div>
+          <div className="admin-filter-row">
+            <label>Type</label>
+            <select value={filterType} onChange={(e) => setFilterType(e.target.value as InstitutionType | "")}>
+              <option value="">All</option>
+              {INSTITUTION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t.replace(/_/g, " ")}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button className="admin-btn" type="button" disabled={activeFilterCount === 0} onClick={clearFilters}>
+            Clear filters
+          </button>
+        </div>
+      )}
 
       {/*
         Image coverage at a glance. This is the number that actually answers
