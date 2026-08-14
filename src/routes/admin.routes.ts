@@ -17,6 +17,7 @@ import {
   adminListInstitutionsQuerySchema,
   idParamSchema,
   removeImageSchema,
+  setCoverImageSchema,
   updateInstitutionSchema,
 } from '../validators/institution.validator';
 import {
@@ -342,6 +343,38 @@ router.delete(
   roleGuard(Role.SUPER_ADMIN, Role.ADMIN),
   validate({ params: idParamSchema, body: removeImageSchema }),
   adminInstitutionController.removeImageHandler,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/images/cover:
+ *   patch:
+ *     summary: Reorder images so the given URL becomes the cover (images[0])
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [url]
+ *             properties:
+ *               url: { type: string, format: uri }
+ *     responses:
+ *       200: { description: Cover image updated }
+ *       404: { description: Not found, or url not attached to this institution }
+ */
+router.patch(
+  '/institutions/:id/images/cover',
+  roleGuard(Role.SUPER_ADMIN, Role.ADMIN),
+  validate({ params: idParamSchema, body: setCoverImageSchema }),
+  adminInstitutionController.setCoverImageHandler,
 );
 
 // ---------------------------------------------------------------------------

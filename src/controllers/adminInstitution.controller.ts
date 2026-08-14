@@ -8,6 +8,7 @@ import {
   AdminListInstitutionsQuery,
   CreateInstitutionInput,
   RemoveImageInput,
+  SetCoverImageInput,
   UpdateInstitutionInput,
 } from '../validators/institution.validator';
 import {
@@ -70,6 +71,12 @@ export const removeImageHandler = asyncHandler(async (req: Request, res: Respons
   const { url } = req.body as RemoveImageInput;
   const institution = await institutionService.removeImage(actorId(req), req.params.id, url);
   return successResponse(res, institution, 'Image removed');
+});
+
+export const setCoverImageHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { url } = req.body as SetCoverImageInput;
+  const institution = await institutionService.setCoverImage(actorId(req), req.params.id, url);
+  return successResponse(res, institution, 'Cover image updated');
 });
 
 // ---------------------------------------------------------------------------

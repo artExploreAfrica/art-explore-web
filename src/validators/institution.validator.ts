@@ -128,8 +128,13 @@ export const removeImageSchema = z.object({
   url: z.string().url('url must be a valid image URL'),
 });
 
+export const setCoverImageSchema = z.object({
+  url: z.string().url('url must be a valid image URL'),
+});
+
 export type CreateInstitutionInput = z.infer<typeof createInstitutionSchema>;
 export type UpdateInstitutionInput = z.infer<typeof updateInstitutionSchema>;
 export type ListInstitutionsQuery = z.infer<typeof listInstitutionsQuerySchema>;
 export type AdminListInstitutionsQuery = z.infer<typeof adminListInstitutionsQuerySchema>;
 export type RemoveImageInput = z.infer<typeof removeImageSchema>;
+export type SetCoverImageInput = z.infer<typeof setCoverImageSchema>;

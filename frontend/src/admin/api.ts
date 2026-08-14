@@ -151,6 +151,10 @@ export const adminApi = {
       isFormData: true,
     });
   },
+  removeInstitutionImage: (id: string, url: string) =>
+    apiRequest(`/api/v1/admin/institutions/${id}/images`, { method: 'DELETE', body: { url } }),
+  setInstitutionCoverImage: (id: string, url: string) =>
+    apiRequest(`/api/v1/admin/institutions/${id}/images/cover`, { method: 'PATCH', body: { url } }),
 
   // exhibitions (nested under an institution)
   createExhibition: (institutionId: string, data: Record<string, unknown>) =>
