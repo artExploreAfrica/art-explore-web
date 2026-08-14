@@ -182,18 +182,25 @@ router.delete(
 );
 
 // --- Venue submission management ------------------------------------------
+// A submission is locked the moment it's created — "once submitted it's
+// over" — while it's PENDING (awaiting first review) or APPROVED (already
+// live). The one door back in: a REJECTED submission can be fixed and
+// resubmitted, since that's the whole point of a reviewer leaving a note.
 
 /**
  * @swagger
  * /api/v1/submissions/{id}:
  *   put:
- *     summary: Edit your own pending or rejected venue submission
- *     description: Editing returns the submission to PENDING and clears the reviewer note.
+ *     summary: Fix and resubmit your own REJECTED venue submission
+ *     description: >
+ *       Only usable while REJECTED. A PENDING submission is locked until a
+ *       reviewer responds; an APPROVED one is frozen for good. Editing returns
+ *       the submission to PENDING and clears the reviewer note.
  *     tags: [Submissions]
  *     security: [{ BearerAuth: [] }]
  *     responses:
  *       200: { description: Submission updated and pending review }
- *       409: { description: Already approved — no longer editable by the submitter }
+ *       409: { description: Not REJECTED — still pending review, or already approved }
  *   delete:
  *     summary: Withdraw your own venue submission (soft delete)
  *     tags: [Submissions]

@@ -89,6 +89,15 @@ export function hoursToApi(hours: Record<string, DayRow>): OpeningHours | null {
   return any ? out : null;
 }
 
+/** Read-only rendering of a stored openingHours JSON blob — no editor state involved. */
+export function formatOpeningHours(openingHours: OpeningHours | null | undefined): { label: string; value: string }[] {
+  if (!openingHours || typeof openingHours !== "object") return [];
+  return DAYS.filter(({ key }) => key in openingHours).map(({ key, label }) => {
+    const day = openingHours[key];
+    return { label, value: day ? `${day.open} – ${day.close}` : "Closed" };
+  });
+}
+
 /** Stored value → editor rows. */
 export function hoursFromApi(value: OpeningHours | null | undefined): Record<string, DayRow> {
   const rows = emptyHours();

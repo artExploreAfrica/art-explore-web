@@ -62,10 +62,13 @@
     resize: vertical;
   }
 
-  button[type="submit"] {
-    margin-top: 8px;
-    align-self: flex-start;
-  }
+}
+
+.submit-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
 }
 
 .submit-form-divider {
@@ -135,6 +138,26 @@
 
   li {
     font-size: 14px;
+    list-style: none;
+  }
+
+  .submission-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .submission-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .btn-small {
+    padding: 6px 14px;
+    font-size: 13px;
   }
 
   .status {
@@ -157,5 +180,49 @@
   .status-rejected {
     background: #fee2e2;
     color: #991b1b;
+  }
+
+  .submission-detail {
+    margin-top: 10px;
+    padding: 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+
+    dl {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: 8px 12px;
+      margin: 0;
+    }
+
+    dt {
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    dd {
+      margin: 0;
+      color: #1f2937;
+    }
+
+    .hours-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+  }
+
+  .submission-images {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 6px;
+    }
   }
 }

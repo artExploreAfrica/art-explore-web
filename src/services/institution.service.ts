@@ -579,16 +579,38 @@ const ensureEditableSubmission = async (userId: string, id: string): Promise<Ins
 };
 
 /**
- * A USER edits their own pending or rejected submission. A rejected one returns
- * to PENDING with the old reviewer note cleared, which is what makes "fix it and
- * resubmit" possible without opening a duplicate.
+ * Content edits are stricter than image/withdraw actions: "once submitted
+ * it's over" for a still-PENDING submission — it's locked until a reviewer
+ * responds, not just once approved. The only door back in is a REJECTED
+ * submission, which can be fixed and resubmitted.
+ */
+const ensureRejectedSubmission = async (userId: string, id: string): Promise<Institution> => {
+  const institution = await prisma.institution.findFirst({
+    where: { id, submittedById: userId, deletedAt: null },
+  });
+  if (!institution) throw NotFoundError('Submission');
+
+  if (institution.approvalStatus !== ApprovalStatus.REJECTED) {
+    const message =
+      institution.approvalStatus === ApprovalStatus.APPROVED
+        ? 'This submission has been approved and can no longer be changed — contact an admin'
+        : 'This submission is pending review and cannot be edited until a reviewer responds';
+    throw new AppError(message, 409);
+  }
+  return institution;
+};
+
+/**
+ * A USER fixes and resubmits their own REJECTED submission, clearing the old
+ * reviewer note — this is what makes "fix it and resubmit" possible without
+ * opening a duplicate listing.
  */
 export const updateMine = async (
   userId: string,
   id: string,
   input: UpdateSubmissionInput,
 ): Promise<Institution> => {
-  await ensureEditableSubmission(userId, id);
+  await ensureRejectedSubmission(userId, id);
 
   const { tagIds, openingHours, ...rest } = input;
 
@@ -700,7 +722,11 @@ export const listSubmissions = async (query: ListSubmissionsQuery): Promise<List
   const [data, total] = await Promise.all([
     prisma.institution.findMany({
       where,
-      include: { tags: true, subCategory: true },
+      include: {
+        tags: true,
+        subCategory: true,
+        submittedBy: { select: { fullName: true, email: true } },
+      },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,

@@ -64,23 +64,19 @@ beforeEach(() => {
 });
 
 describe('PUT /api/v1/submissions/:id', () => {
-  it('edits a pending submission and keeps it PENDING', async () => {
+  it('409s while still PENDING — locked until a reviewer responds', async () => {
     mocks.prisma.institution.findFirst.mockResolvedValue(pendingSubmission);
-    mocks.prisma.institution.update.mockResolvedValue(pendingSubmission);
 
     const res = await request(app)
       .put('/api/v1/submissions/inst_1')
       .set(userToken)
       .send({ name: 'Renamed Gallery' });
 
-    expect(res.status).toBe(200);
-    expect(mocks.prisma.institution.update.mock.calls[0][0].data).toMatchObject({
-      name: 'Renamed Gallery',
-      approvalStatus: 'PENDING',
-    });
+    expect(res.status).toBe(409);
+    expect(mocks.prisma.institution.update).not.toHaveBeenCalled();
   });
 
-  it('clears the old reviewer note when a rejected submission is resubmitted', async () => {
+  it('fixes and resubmits a REJECTED submission, clearing the old reviewer note', async () => {
     mocks.prisma.institution.findFirst.mockResolvedValue({
       ...pendingSubmission,
       approvalStatus: 'REJECTED',

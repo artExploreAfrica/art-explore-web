@@ -7,6 +7,8 @@ import {
   AREAS,
   DAYS,
   emptyHours,
+  formatOpeningHours,
+  hoursFromApi,
   hoursToApi,
   INSTITUTION_TYPES,
   MAX_IMAGE_BYTES,
@@ -78,6 +80,13 @@ export default function SubmitGalleryPage() {
 
   const [mine, setMine] = useState([]);
   const [mineLoading, setMineLoading] = useState(true);
+  const [viewingId, setViewingId] = useState(null);
+
+  // Fixing and resubmitting a REJECTED submission — the only submission
+  // state that's still editable (see PUT /api/v1/submissions/:id). null
+  // means the form below is for a brand-new submission.
+  const [editingId, setEditingId] = useState(null);
+  const [editingReviewNote, setEditingReviewNote] = useState(null);
 
   const loadMine = useCallback(() => {
     const token = getAccessToken();
@@ -106,6 +115,46 @@ export default function SubmitGalleryPage() {
 
   function setDay(key, patch) {
     setHours((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
+  }
+
+  function startEdit(item) {
+    setEditingId(item.id);
+    setEditingReviewNote(item.reviewNote || null);
+    setForm({
+      name: item.name || "",
+      description: item.description || "",
+      type: item.type || "ART_GALLERY",
+      address: item.address || "",
+      area: item.area || "ISLAND",
+      subArea: item.subArea || "",
+      lat: item.lat === undefined || item.lat === null ? "" : String(item.lat),
+      lng: item.lng === undefined || item.lng === null ? "" : String(item.lng),
+      mapUrl: item.mapUrl || "",
+      website: item.website || "",
+      instagram: item.instagram || "",
+      phone: item.phone || "",
+      email: item.email || "",
+      hasResidency: Boolean(item.hasResidency),
+      hasSocial: Boolean(item.hasSocial),
+    });
+    setHours(hoursFromApi(item.openingHours));
+    setGeocodePaste("");
+    setGeocodeError(null);
+    setFile(null);
+    setFileError(null);
+    setError(null);
+    setSuccess(null);
+    setViewingId(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditingReviewNote(null);
+    setForm(emptyForm);
+    setHours(emptyHours());
+    setError(null);
+    setSuccess(null);
   }
 
   function pickFile(picked) {
@@ -138,6 +187,18 @@ export default function SubmitGalleryPage() {
     const token = getAccessToken();
     try {
       const payload = toApiPayload(form, hours);
+
+      if (editingId) {
+        // Fixing a REJECTED submission — PUT only touches the fields below;
+        // the image (if any) is untouched and unaffected by this call.
+        setSaveStage("submitting");
+        await apiPost(`/submissions/${editingId}`, payload, { token, method: "PUT" });
+        setSuccess(`"${payload.name}" was resubmitted and is now pending review.`);
+        cancelEdit();
+        loadMine();
+        return;
+      }
+
       setSaveStage("submitting");
       const created = await apiPost("/submissions", payload, { token });
       const newId = created?.data?.id;
@@ -194,10 +255,17 @@ export default function SubmitGalleryPage() {
       <div className="submit-gallery-page">
       <div className="submit-gallery-card">
         <div className="section-header">
-          <h2>Submit a Gallery</h2>
-          <p>Know a gallery, studio, or cultural space we're missing? Submit it below for review.</p>
+          <h2>{editingId ? "Fix & Resubmit" : "Submit a Gallery"}</h2>
+          <p>
+            {editingId
+              ? "Update the fields below and resubmit for review."
+              : "Know a gallery, studio, or cultural space we're missing? Submit it below for review."}
+          </p>
         </div>
 
+        {editingId && editingReviewNote && (
+          <p className="auth-error">Reviewer note: {editingReviewNote}</p>
+        )}
         {error && <p className="auth-error">{error}</p>}
         {success && <p className="auth-success">{success}</p>}
 
@@ -390,28 +458,43 @@ export default function SubmitGalleryPage() {
             Has a social presence
           </label>
 
-          <div className="submit-form-divider">Cover image (optional)</div>
-          <label>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-            />
-          </label>
-          {file && (
-            <p className="form-hint">
-              Selected: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(0)} KB)
-            </p>
+          {!editingId && (
+            <>
+              <div className="submit-form-divider">Cover image (optional)</div>
+              <label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              {file && (
+                <p className="form-hint">
+                  Selected: <strong>{file.name}</strong> ({(file.size / 1024).toFixed(0)} KB)
+                </p>
+              )}
+              {fileError && <p className="auth-error">{fileError}</p>}
+            </>
           )}
-          {fileError && <p className="auth-error">{fileError}</p>}
 
-          <button className="btn btn-primary" type="submit" disabled={submitting}>
-            {saveStage === "submitting"
-              ? "Submitting..."
-              : saveStage === "uploading"
-                ? "Uploading image..."
-                : "Submit for review"}
-          </button>
+          <div className="submit-form-actions">
+            <button className="btn btn-primary" type="submit" disabled={submitting}>
+              {saveStage === "submitting"
+                ? editingId
+                  ? "Resubmitting..."
+                  : "Submitting..."
+                : saveStage === "uploading"
+                  ? "Uploading image..."
+                  : editingId
+                    ? "Resubmit for review"
+                    : "Submit for review"}
+            </button>
+            {editingId && (
+              <button className="btn btn-outline" type="button" onClick={cancelEdit} disabled={submitting}>
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
 
         <div className="my-submissions">
@@ -420,11 +503,116 @@ export default function SubmitGalleryPage() {
           {!mineLoading && mine.length === 0 && <p className="form-hint">You haven't submitted anything yet.</p>}
           {!mineLoading && mine.length > 0 && (
             <ul>
-              {mine.map((item) => (
-                <li key={item.id}>
-                  <strong>{item.name}</strong> — <span className={`status status-${item.approvalStatus?.toLowerCase()}`}>{item.approvalStatus}</span>
-                </li>
-              ))}
+              {mine.map((item) => {
+                const hours = formatOpeningHours(item.openingHours);
+                const isViewing = viewingId === item.id;
+                return (
+                  <li key={item.id}>
+                    <div className="submission-row">
+                      <span>
+                        <strong>{item.name}</strong> —{" "}
+                        <span className={`status status-${item.approvalStatus?.toLowerCase()}`}>
+                          {item.approvalStatus}
+                        </span>
+                      </span>
+                      <div className="submission-row-actions">
+                        {item.approvalStatus === "REJECTED" && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-small"
+                            onClick={() => startEdit(item)}
+                          >
+                            Fix & resubmit
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-outline btn-small"
+                          onClick={() => setViewingId(isViewing ? null : item.id)}
+                        >
+                          {isViewing ? "Hide" : "View"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isViewing && (
+                      <div className="submission-detail">
+                        {item.reviewNote && item.approvalStatus === "REJECTED" && (
+                          <p className="auth-error">Reviewer note: {item.reviewNote}</p>
+                        )}
+                        <dl>
+                          <dt>Description</dt>
+                          <dd>{item.description || "—"}</dd>
+                          <dt>Type</dt>
+                          <dd>{item.type ? item.type.replace(/_/g, " ") : "—"}</dd>
+                          <dt>Address</dt>
+                          <dd>{[item.address, item.subArea, item.area].filter(Boolean).join(", ") || "—"}</dd>
+                          <dt>Coordinates</dt>
+                          <dd>
+                            {item.lat !== undefined && item.lng !== undefined ? `${item.lat}, ${item.lng}` : "—"}
+                            {item.mapUrl && (
+                              <>
+                                {" — "}
+                                <a href={item.mapUrl} target="_blank" rel="noreferrer">
+                                  Map link
+                                </a>
+                              </>
+                            )}
+                          </dd>
+                          <dt>Website</dt>
+                          <dd>
+                            {item.website ? (
+                              <a href={item.website} target="_blank" rel="noreferrer">
+                                {item.website}
+                              </a>
+                            ) : (
+                              "—"
+                            )}
+                          </dd>
+                          <dt>Instagram</dt>
+                          <dd>{item.instagram || "—"}</dd>
+                          <dt>Phone</dt>
+                          <dd>{item.phone || "—"}</dd>
+                          <dt>Email</dt>
+                          <dd>{item.email || "—"}</dd>
+                          <dt>Opening hours</dt>
+                          <dd>
+                            {hours.length === 0 ? (
+                              "Not recorded"
+                            ) : (
+                              <ul className="hours-list">
+                                {hours.map((row) => (
+                                  <li key={row.label}>
+                                    {row.label}: {row.value}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </dd>
+                          <dt>Details</dt>
+                          <dd>
+                            {[item.hasResidency && "Runs a residency programme", item.hasSocial && "Has a social presence"]
+                              .filter(Boolean)
+                              .join(" · ") || "—"}
+                          </dd>
+                          {item.images && item.images.length > 0 && (
+                            <>
+                              <dt>Images</dt>
+                              <dd>
+                                <div className="submission-images">
+                                  {item.images.map((url) => (
+                                    <img key={url} src={url} alt="" />
+                                  ))}
+                                </div>
+                              </dd>
+                            </>
+                          )}
+                        </dl>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

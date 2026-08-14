@@ -15,8 +15,10 @@ export const submitInstitutionSchema = institutionFieldsSchema.omit({
 });
 
 /**
- * Editing an own submission: same fields, all optional, at least one present.
- * The service forces the row back to PENDING, so nothing here can set state.
+ * Fixing and resubmitting a REJECTED submission: same fields, all optional,
+ * at least one present. Only usable while REJECTED — a still-PENDING
+ * submission is locked until reviewed, and an APPROVED one is frozen for
+ * good. The service enforces which status is editable; this just shapes the body.
  */
 export const updateSubmissionSchema = submitInstitutionSchema
   .partial()

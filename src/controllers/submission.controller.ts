@@ -51,7 +51,7 @@ export const myExhibitions = asyncHandler(async (req: Request, res: Response) =>
 // Edit / withdraw / images — a contributor managing their own submissions.
 // ---------------------------------------------------------------------------
 
-/** PUT /api/v1/submissions/:id — edit an own pending/rejected venue submission. */
+/** PUT /api/v1/submissions/:id — fix and resubmit an own REJECTED venue submission. */
 export const update = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as UpdateSubmissionInput;
   const institution = await institutionService.updateMine(

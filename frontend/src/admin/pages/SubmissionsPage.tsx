@@ -1,14 +1,30 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { adminApi, Pagination } from "../api";
-import { Tag } from "../institutionShared";
+import { formatOpeningHours, Tag } from "../institutionShared";
 
 interface Submission {
   id: string;
   name: string;
+  description?: string | null;
+  type?: string;
+  address?: string;
   area?: string;
-  subArea?: string;
-  submittedByEmail?: string;
+  subArea?: string | null;
+  lat?: number;
+  lng?: number;
+  mapUrl?: string | null;
+  website?: string | null;
+  instagram?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  openingHours?: any;
+  hasResidency?: boolean;
+  hasSocial?: boolean;
+  images?: string[];
+  tags?: { id: string; label: string }[];
+  subCategory?: { name: string } | null;
+  submittedBy?: { fullName: string; email: string } | null;
   status: string;
   createdAt?: string;
   [key: string]: any;
@@ -63,6 +79,7 @@ export function SubmissionsPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
 
   // Pending edits — proposed changes to already-approved institutions. A
   // separate queue from the table above: those are brand-new venues awaiting
@@ -247,11 +264,17 @@ export function SubmissionsPage() {
                 <tr>
                   <td>{item.name}</td>
                   <td>{[item.area, item.subArea].filter(Boolean).join(", ") || "—"}</td>
-                  <td>{item.submittedByEmail || "—"}</td>
+                  <td>{item.submittedBy?.email || "—"}</td>
                   <td>
                     <span className="admin-badge admin-badge-neutral">{item.status}</span>
                   </td>
                   <td>
+                    <button
+                      className="admin-btn"
+                      onClick={() => setViewingId(viewingId === item.id ? null : item.id)}
+                    >
+                      {viewingId === item.id ? "Hide" : "View"}
+                    </button>
                     <button
                       className="admin-btn admin-btn-success"
                       disabled={busyId === item.id}
@@ -268,6 +291,110 @@ export function SubmissionsPage() {
                     </button>
                   </td>
                 </tr>
+                {viewingId === item.id && (
+                  <tr className="admin-detail-row">
+                    <td colSpan={5}>
+                      <div className="admin-form-card" style={{ maxWidth: "none", margin: 0 }}>
+                        <strong>Details</strong>
+                        <div className="admin-form-row">
+                          <label>Description</label>
+                          <p className="admin-page-note" style={{ marginTop: 0 }}>
+                            {item.description || "—"}
+                          </p>
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Type</label>
+                          {item.type ? item.type.replace(/_/g, " ") : "—"}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Address</label>
+                          {item.address || "—"}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Coordinates</label>
+                          {item.lat !== undefined && item.lng !== undefined ? `${item.lat}, ${item.lng}` : "—"}
+                          {item.mapUrl && (
+                            <>
+                              {" — "}
+                              <a href={item.mapUrl} target="_blank" rel="noreferrer">
+                                Map link
+                              </a>
+                            </>
+                          )}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Website</label>
+                          {item.website ? (
+                            <a href={item.website} target="_blank" rel="noreferrer">
+                              {item.website}
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Instagram</label>
+                          {item.instagram || "—"}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Phone</label>
+                          {item.phone || "—"}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Email</label>
+                          {item.email || "—"}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Sub-category</label>
+                          {item.subCategory?.name || "—"}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Tags</label>
+                          {item.tags && item.tags.length > 0 ? item.tags.map((t) => t.label).join(", ") : "—"}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Flags</label>
+                          {[item.hasResidency && "Runs a residency programme", item.hasSocial && "Has a social presence"]
+                            .filter(Boolean)
+                            .join(" · ") || "—"}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Opening hours</label>
+                          {formatOpeningHours(item.openingHours).length === 0 ? (
+                            "Not recorded"
+                          ) : (
+                            <ul style={{ margin: 0, paddingLeft: 18 }}>
+                              {formatOpeningHours(item.openingHours).map((row) => (
+                                <li key={row.label}>
+                                  {row.label}: {row.value}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Images</label>
+                          {item.images && item.images.length > 0 ? (
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              {item.images.map((url) => (
+                                <img key={url} src={url} alt="" className="admin-thumb" title={url} />
+                              ))}
+                            </div>
+                          ) : (
+                            "None uploaded"
+                          )}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Submitted by</label>
+                          {item.submittedBy
+                            ? `${item.submittedBy.fullName} (${item.submittedBy.email})`
+                            : "—"}
+                          {item.createdAt ? ` on ${new Date(item.createdAt).toLocaleDateString()}` : ""}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
                 {rejectingId === item.id && (
                   <tr className="admin-detail-row">
                     <td colSpan={5}>
