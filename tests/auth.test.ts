@@ -132,8 +132,9 @@ describe('POST /api/v1/auth/change-password', () => {
     mocks.prisma.user.findUnique.mockResolvedValue({ ...activeUser, isActive: false });
 
     const res = await request(app)
-      .get('/api/v1/auth/me')
-      .set(bearer(signAccess(Role.ADMIN, activeUser.id, activeUser.email)));
+      .post('/api/v1/auth/change-password')
+      .set(bearer(signAccess(Role.ADMIN, activeUser.id, activeUser.email)))
+      .send({ currentPassword: PASSWORD, newPassword: 'newpassword123' });
 
     expect(res.status).toBe(401);
   });

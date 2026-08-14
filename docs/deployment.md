@@ -131,6 +131,18 @@ Set `ALLOWED_ORIGINS` to a comma-separated list of frontend domains. In
 (`/api/v1/auth/*`) are rate limited to 20 requests per IP per 15 minutes.
 The limiter is backed by Upstash Redis so limit state survives restarts.
 
+### Scheduled job — `hasExhibition` refresh
+`Institution.hasExhibition` is recomputed on every exhibition write, but the rule
+includes "has not finished yet". An exhibition ending produces no write, so the
+flag would stay `true` forever without a sweep. Install a daily cron:
+
+```cron
+5 0 * * *  cd /srv/art-explore && npm run recompute:exhibitions >> /var/log/art-explore-exhibitions.log 2>&1
+```
+
+Preview what it would change without writing: `npm run recompute:exhibitions:dry`.
+The job invalidates the Redis institution cache when it changes anything.
+
 ---
 
 ## 6. Pre-launch Checklist
@@ -143,3 +155,4 @@ The limiter is backed by Upstash Redis so limit state survives restarts.
 - [ ] `NODE_ENV=production`
 - [ ] `ALLOWED_ORIGINS` set to the frontend domain(s)
 - [ ] Swagger reachable (or intentionally disabled) at `/api-docs`
+- [ ] Daily `recompute:exhibitions` cron installed (see §5)

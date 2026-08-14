@@ -3,6 +3,10 @@ import * as exhibitionService from '../services/exhibition.service';
 import * as institutionService from '../services/institution.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { successResponse } from '../utils/response';
+import {
+  ListExhibitionsQuery,
+  ListPublicExhibitionsQuery,
+} from '../validators/exhibition.validator';
 import { ListInstitutionsQuery } from '../validators/institution.validator';
 
 /** GET /api/v1/institutions — public paginated list. */
@@ -26,6 +30,17 @@ export const detail = asyncHandler(async (req: Request, res: Response) => {
 
 /** GET /api/v1/institutions/:id/exhibitions — exhibitions for a published institution. */
 export const exhibitions = asyncHandler(async (req: Request, res: Response) => {
-  const data = await exhibitionService.listForInstitution(req.params.id);
-  return successResponse(res, data, 'Exhibitions retrieved');
+  const query = req.query as unknown as ListExhibitionsQuery;
+  const { data, pagination } = await exhibitionService.listForInstitution(
+    req.params.id,
+    query,
+  );
+  return successResponse(res, data, 'Exhibitions retrieved', 200, pagination);
+});
+
+/** GET /api/v1/exhibitions — public "what's on" across every venue. */
+export const publicExhibitions = asyncHandler(async (req: Request, res: Response) => {
+  const query = req.query as unknown as ListPublicExhibitionsQuery;
+  const { data, pagination } = await exhibitionService.listPublic(query);
+  return successResponse(res, data, 'Exhibitions retrieved', 200, pagination);
 });

@@ -23,11 +23,33 @@ const BUCKET =
   process.env.SYNC_S3_BUCKET || process.env.AWS_S3_BUCKET_NAME || 'art-explore-db-images';
 const REGION = process.env.SYNC_S3_REGION || process.env.AWS_REGION || 'eu-north-1';
 
-/** Known S3 folder slug → DB institution name (when auto-slug fails). */
+/**
+ * Known S3 folder slug → DB institution name (when auto-slug fails).
+ *
+ * Auto-slugging strips punctuation, so a folder cannot match a name carrying a
+ * parenthetical, an ampersand, or a shortened form. Each entry below was
+ * confirmed against the seeded catalogue — without them these venues keep the
+ * pictures that already exist in the bucket but show a placeholder in the app.
+ */
 const SLUG_ALIASES: Record<string, string> = {
   "od'a-gallery": "O'DA",
   'society-for-art-collection(sartcol)': 'Society for Art Collection (SARTCOL)',
   'bloom-gallery': 'Bloom Art',
+  // Names carrying a parenthetical or a "+" the slugger drops.
+  '+234-art-fair': '+234 Art Fair (Plus234 Art Fair)',
+  'centre-for-contemporary-art': 'Centre for Contemporary Art (CCA)',
+  'guest-art-space': 'Guest Artists Space Foundation (GAS)',
+  // Folder omits a word the catalogue name carries.
+  'biodun-omolayo': 'Biodun Omolayo Gallery',
+  bogobiri: 'Bogobiri House',
+  mydrim: 'Mydrim Gallery',
+  // "Institute" in the folder vs the German "Institut" in the catalogue.
+  'goethe-institute-lagos': 'Goethe Institut Lagos',
+  // Transposed letters in the folder name (henriWOmeta / henriMOweta) — same venue.
+  henriwometa: 'Henrimoweta African Art Center',
+   // Folder uses the venue's full name, the catalogue uses the short form —
+ // John Randle Centre for Yoruba Culture and History.
+ 'john-randle-centre': 'Randle Center',
 };
 
 const prisma = new PrismaClient();
@@ -41,7 +63,9 @@ const s3 = new S3Client({
 });
 
 function toSlug(name: string): string {
-  return name
+  // Accents folded first for the same reason as normalizeKey — otherwise an
+  // accented letter is deleted rather than reduced to its base form.
+  return foldAccents(name)
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, '')
     .trim()
@@ -49,8 +73,21 @@ function toSlug(name: string): string {
 }
 
 /** Collapse to a-z0-9 only for fuzzy compare. */
+/**
+ * Fold accents to their base letters before matching — NFD splits "ì" into
+ * "i" + a combining mark, which the diacritic range then strips.
+ *
+ * Without this, stripping non-[a-z0-9] deletes the accented letter outright:
+ * "MÌLÍKÍ" collapsed to "mlk" and could never meet the bucket's "miliki"
+ * folder. Folding first means accented venue names match on their own, rather
+ * than each one needing a hand-written alias.
+ */
+function foldAccents(value: string): string {
+  return value.normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
 function normalizeKey(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return foldAccents(value).toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function publicUrl(key: string): string {
@@ -175,20 +212,26 @@ async function main(): Promise<void> {
 
     matched += 1;
     const urls = keys.map(publicUrl);
-    const same = urls.length === inst.images.length && urls.every((u, i) => u === inst.images[i]);
+    // Append rather than replace: admin uploads live under institutions/{id}/…,
+    // which the slug matcher never sees, and overwriting would drop them from
+    // the DB while orphaning the S3 objects they point at.
+    const added = urls.filter((u) => !inst.images.includes(u));
+    const merged = [...inst.images, ...added];
 
-    if (same) {
+    if (added.length === 0) {
       console.log(`=  ${inst.name} — already synced (${urls.length})`);
       continue;
     }
 
-    console.log(`${DRY_RUN ? '~' : '✓'}  ${inst.name} ← ${slug} (${urls.length} image(s))`);
-    for (const u of urls) console.log(`     ${u}`);
+    console.log(
+      `${DRY_RUN ? '~' : '✓'}  ${inst.name} ← ${slug} (+${added.length} of ${urls.length} image(s), ${merged.length} total)`,
+    );
+    for (const u of added) console.log(`     ${u}`);
 
     if (!DRY_RUN) {
       await prisma.institution.update({
         where: { id: inst.id },
-        data: { images: urls },
+        data: { images: merged },
       });
       updated += 1;
     } else {
@@ -212,7 +255,7 @@ async function main(): Promise<void> {
 
   console.log('\n── Summary ──────────────────────────');
   console.log(`S3 slugs with images: ${bySlug.size}`);
-  console.log(`Skipped (no images):  ${skippedEmpty}`);
+  console.log(`Skipped (no files):   ${skippedEmpty}`);
   console.log(`Matched:              ${matched}`);
   console.log(`${DRY_RUN ? 'Would update' : 'Updated'}:           ${updated}`);
   console.log(`Unmatched slugs:      ${unmatched}`);

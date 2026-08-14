@@ -16,5 +16,15 @@ export const paginationQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
+/**
+ * Admin user list. Without `role` the list stays staff-only, which is what the
+ * endpoint has always returned; passing `role=USER` surfaces public accounts so
+ * they can be found and deactivated.
+ */
+export const listUsersQuerySchema = paginationQuerySchema.extend({
+  role: z.nativeEnum(Role).optional(),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type PaginationQuery = z.infer<typeof paginationQuerySchema>;
+export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;

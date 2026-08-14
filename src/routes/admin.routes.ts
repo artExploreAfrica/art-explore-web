@@ -6,6 +6,7 @@ import * as adminSubCategoryController from '../controllers/adminSubCategory.con
 import * as adminTagController from '../controllers/adminTag.controller';
 import * as auditController from '../controllers/audit.controller';
 import * as dashboardController from '../controllers/dashboard.controller';
+import * as reviewController from '../controllers/review.controller';
 import * as userController from '../controllers/user.controller';
 import { authenticate } from '../middleware/authenticate';
 import { roleGuard } from '../middleware/roleGuard';
@@ -19,6 +20,7 @@ import {
   updateInstitutionSchema,
 } from '../validators/institution.validator';
 import {
+  adminListExhibitionsQuerySchema,
   createExhibitionSchema,
   exhibitionParamsSchema,
   setExhibitionActiveSchema,
@@ -29,20 +31,11 @@ import {
   listSubCategoriesQuerySchema,
   updateSubCategorySchema,
 } from '../validators/subCategory.validator';
-import {
-  createTagSchema,
-  listTagsQuerySchema,
-  updateTagSchema,
-} from '../validators/tag.validator';
-import {
-  listSubmissionsQuerySchema,
-  rejectSchema,
-} from '../validators/submission.validator';
+import { createTagSchema, listTagsQuerySchema, updateTagSchema } from '../validators/tag.validator';
+import { listSubmissionsQuerySchema, rejectSchema } from '../validators/submission.validator';
 import { auditLogQuerySchema } from '../validators/audit.validator';
-import {
-  createUserSchema,
-  paginationQuerySchema,
-} from '../validators/user.validator';
+import { listReviewSubmissionsQuerySchema } from '../validators/review.validator';
+import { createUserSchema, listUsersQuerySchema } from '../validators/user.validator';
 
 const isAdmin = roleGuard(Role.SUPER_ADMIN, Role.ADMIN);
 
@@ -56,6 +49,8 @@ router.use(authenticate);
  * tags:
  *   - name: Admin - Institutions
  *     description: Institution management (ADMIN or SUPER_ADMIN)
+ *   - name: Admin - Exhibitions
+ *     description: Exhibition management and contributor review queue
  *   - name: Admin - Users
  *     description: Admin account management (SUPER_ADMIN only)
  *   - name: Admin - Audit
@@ -235,6 +230,34 @@ router.delete(
 
 /**
  * @swagger
+ * /api/v1/admin/institutions/{id}/restore:
+ *   post:
+ *     summary: Undo a soft delete
+ *     description: >
+ *       Brings a soft-deleted venue back into the catalogue. It stays
+ *       unpublished — republishing is a separate, separately audited decision.
+ *       Find deleted records with `GET /admin/institutions?deleted=true`.
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Restored }
+ *       400: { description: Institution is not deleted }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/institutions/:id/restore',
+  roleGuard(Role.SUPER_ADMIN, Role.ADMIN),
+  validate({ params: idParamSchema }),
+  adminInstitutionController.restore,
+);
+
+/**
+ * @swagger
  * /api/v1/admin/institutions/{id}/publish:
  *   post:
  *     summary: Toggle the publish status of an institution
@@ -324,6 +347,44 @@ router.delete(
 // ---------------------------------------------------------------------------
 // Exhibitions (nested under an institution; ADMIN or SUPER_ADMIN)
 // ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/v1/admin/institutions/{id}/exhibitions:
+ *   get:
+ *     summary: List every exhibition for an institution (any approval state)
+ *     description: >
+ *       Admin-scoped counterpart to GET /api/v1/institutions/{id}/exhibitions.
+ *       Returns pending, rejected, inactive and finished exhibitions, and works
+ *       for unpublished/draft institutions.
+ *     tags: [Admin - Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: scope
+ *         schema: { type: string, enum: [live, past, all], default: all }
+ *     responses:
+ *       200: { description: Exhibitions }
+ *       401: { description: Unauthenticated }
+ *       403: { description: Forbidden }
+ *       404: { description: Institution not found }
+ */
+router.get(
+  '/institutions/:id/exhibitions',
+  isAdmin,
+  validate({ params: idParamSchema, query: adminListExhibitionsQuerySchema }),
+  adminExhibitionController.listForInstitution,
+);
 
 /**
  * @swagger
@@ -556,6 +617,95 @@ router.get(
 
 /**
  * @swagger
+ * /api/v1/admin/submissions/exhibitions:
+ *   get:
+ *     summary: List user-submitted exhibitions by status (default PENDING)
+ *     tags: [Admin - Exhibitions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20, maximum: 100 }
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [PENDING, APPROVED, REJECTED], default: PENDING }
+ *     responses:
+ *       200: { description: Exhibition submissions }
+ *       403: { description: Forbidden }
+ */
+router.get(
+  '/submissions/exhibitions',
+  isAdmin,
+  validate({ query: listSubmissionsQuerySchema }),
+  adminExhibitionController.listSubmissions,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/exhibitions/{id}/approve:
+ *   post:
+ *     summary: Approve a submitted exhibition
+ *     description: >
+ *       Approval does not make the exhibition public — activate it separately via
+ *       the institution's exhibition activate endpoint.
+ *     tags: [Admin - Exhibitions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Exhibition approved }
+ *       403: { description: Forbidden }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/exhibitions/:id/approve',
+  isAdmin,
+  validate({ params: idParamSchema }),
+  adminExhibitionController.approve,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/exhibitions/{id}/reject:
+ *   post:
+ *     summary: Reject a submitted exhibition with a reviewer note
+ *     tags: [Admin - Exhibitions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reviewNote]
+ *             properties:
+ *               reviewNote: { type: string, example: Dates clash with a listed event }
+ *     responses:
+ *       200: { description: Exhibition rejected }
+ *       400: { description: reviewNote is required }
+ *       403: { description: Forbidden }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/exhibitions/:id/reject',
+  isAdmin,
+  validate({ params: idParamSchema, body: rejectSchema }),
+  adminExhibitionController.reject,
+);
+
+/**
+ * @swagger
  * /api/v1/admin/institutions/{id}/approve:
  *   post:
  *     summary: Approve a submitted institution
@@ -608,6 +758,113 @@ router.post(
   isAdmin,
   validate({ params: idParamSchema, body: rejectSchema }),
   adminInstitutionController.reject,
+);
+
+// ---------------------------------------------------------------------------
+// Review moderation (ADMIN or SUPER_ADMIN)
+// ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/v1/admin/submissions/reviews:
+ *   get:
+ *     summary: Review moderation queue
+ *     tags: [Admin - Submissions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [PENDING, APPROVED, REJECTED], default: PENDING }
+ *     responses:
+ *       200: { description: Reviews awaiting the chosen status }
+ */
+router.get(
+  '/submissions/reviews',
+  isAdmin,
+  validate({ query: listReviewSubmissionsQuerySchema }),
+  reviewController.listSubmissions,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/reviews/{id}/approve:
+ *   post:
+ *     summary: Approve a review
+ *     description: >
+ *       The review becomes public and joins the venue's average rating, which is
+ *       recomputed immediately.
+ *     tags: [Admin - Submissions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Approved }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/reviews/:id/approve',
+  isAdmin,
+  validate({ params: idParamSchema }),
+  reviewController.approve,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/reviews/{id}/reject:
+ *   post:
+ *     summary: Reject a review with a required moderator note
+ *     tags: [Admin - Submissions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reviewNote]
+ *             properties:
+ *               reviewNote: { type: string }
+ *     responses:
+ *       200: { description: Rejected }
+ *       400: { description: Validation error }
+ *       404: { description: Not found }
+ */
+router.post(
+  '/reviews/:id/reject',
+  isAdmin,
+  validate({ params: idParamSchema, body: rejectSchema }),
+  reviewController.reject,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/reviews/{id}:
+ *   delete:
+ *     summary: Delete any review (spam removal)
+ *     tags: [Admin - Submissions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Deleted }
+ *       404: { description: Not found }
+ */
+router.delete(
+  '/reviews/:id',
+  isAdmin,
+  validate({ params: idParamSchema }),
+  reviewController.removeAsAdmin,
 );
 
 // ---------------------------------------------------------------------------
@@ -726,18 +983,8 @@ router.delete(
  *       201: { description: Created }
  *       409: { description: Duplicate name }
  */
-router.get(
-  '/tags',
-  isAdmin,
-  validate({ query: listTagsQuerySchema }),
-  adminTagController.list,
-);
-router.post(
-  '/tags',
-  isAdmin,
-  validate({ body: createTagSchema }),
-  adminTagController.create,
-);
+router.get('/tags', isAdmin, validate({ query: listTagsQuerySchema }), adminTagController.list);
+router.post('/tags', isAdmin, validate({ body: createTagSchema }), adminTagController.create);
 
 /**
  * @swagger
@@ -778,12 +1025,7 @@ router.put(
   validate({ params: idParamSchema, body: updateTagSchema }),
   adminTagController.update,
 );
-router.delete(
-  '/tags/:id',
-  isAdmin,
-  validate({ params: idParamSchema }),
-  adminTagController.remove,
-);
+router.delete('/tags/:id', isAdmin, validate({ params: idParamSchema }), adminTagController.remove);
 
 // ---------------------------------------------------------------------------
 // User management (SUPER_ADMIN only)
@@ -793,7 +1035,11 @@ router.delete(
  * @swagger
  * /api/v1/admin/users:
  *   get:
- *     summary: List all admin users
+ *     summary: List users (staff by default)
+ *     description: >
+ *       Returns staff accounts (ADMIN + SUPER_ADMIN) unless `role` is supplied.
+ *       Pass `role=USER` to list public self-registered accounts, which is the
+ *       only way to find them in order to deactivate or reactivate one.
  *     tags: [Admin - Users]
  *     security: [{ BearerAuth: [] }]
  *     parameters:
@@ -803,14 +1049,18 @@ router.delete(
  *       - in: query
  *         name: limit
  *         schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: role
+ *         schema: { type: string, enum: [SUPER_ADMIN, ADMIN, USER] }
+ *         description: Filter by a single role. Omit for staff only.
  *     responses:
- *       200: { description: List of admins }
+ *       200: { description: List of users }
  *       403: { description: Forbidden }
  */
 router.get(
   '/users',
   roleGuard(Role.SUPER_ADMIN),
-  validate({ query: paginationQuerySchema }),
+  validate({ query: listUsersQuerySchema }),
   userController.list,
 );
 

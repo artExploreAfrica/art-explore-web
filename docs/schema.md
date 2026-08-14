@@ -74,12 +74,15 @@ A discoverable art venue (gallery, studio, or cultural space).
 | `website` | String? | Optional |
 | `phone` | String? | Optional |
 | `email` | String? | Optional |
-| `openingHours` | Json? | e.g. `{ "mon": "9am-5pm", ... }` |
+| `openingHours` | Json? | Keyed by JS day index — `{ "0": null, "1": { "open": "10:00", "close": "18:00" } }`. See below |
 | `subCategoryId` | String? (FK → SubCategory.id) | Optional sub-category |
 | `subCategory` | `SubCategory?` | Relation |
 | `tags` | `Tag[]` | Many-to-many — admin-curated tags (was a `String[]`) |
 | `exhibitions` | `Exhibition[]` | Reverse relation — exhibitions hosted here |
-| `hasExhibition` | Boolean | Default `false`; recomputed on every exhibition write (true when the institution has ≥1 approved exhibition) |
+| `hasExhibition` | Boolean | Default `false`; recomputed on every exhibition write (including activate/deactivate) and by a daily sweep (true when the institution has ≥1 approved, active, unfinished exhibition) |
+| `reviews` | `Review[]` | Reverse relation — contributor reviews |
+| `rating` | Float? | Mean of **approved** reviews, one decimal place. `null` until the first approved review, so "unrated" stays distinct from a genuine 0 |
+| `reviewCount` | Int | Number of approved reviews behind `rating` |
 | `approvalStatus` | `ApprovalStatus` | Default `APPROVED`; USER submissions start `PENDING` |
 | `submittedById` | String? (FK → User.id) | The USER who submitted it (null for admin-created) |
 | `reviewedById` | String? (FK → User.id) | The admin who approved/rejected it |
@@ -90,7 +93,16 @@ A discoverable art venue (gallery, studio, or cultural space).
 | `createdAt` | DateTime | Set on insert |
 | `updatedAt` | DateTime | Auto-updated |
 
-Indexed on `area`, `type`, `isPublished`, `deletedAt`, `subCategoryId`, `hasExhibition`, `approvalStatus`, and `submittedById`.
+Indexed on `area`, `type`, `isPublished`, `deletedAt`, `subCategoryId`, `hasExhibition`, `approvalStatus`, `submittedById`, and `rating`.
+
+> **`openingHours` shape.** Keys are JavaScript day indices as strings — `"0"` =
+> Sunday … `"6"` = Saturday — so a client can index straight from `getDay()`.
+> Each value is `{ "open": "HH:mm", "close": "HH:mm" }` or `null` for a closed
+> day; an absent day means hours are unknown. A `close` earlier than `open`
+> (e.g. `20:00` → `02:00`) means the venue trades past midnight. The shape is
+> validated on write, and `GET /institutions?openNow=true` filters against it in
+> SQL. A venue with **no** hours recorded counts as open (unknown, not closed),
+> matching the client's own `isOpenNow`.
 
 > **Delete vs. unpublish:** `isPublished` and `deletedAt` are independent. Unpublishing hides a venue from the public list but keeps it editable; deleting (sets `deletedAt`) removes it from every query and blocks further edits/publish.
 >
@@ -114,14 +126,47 @@ Carries its own submission/approval workflow (v2), mirroring Institution.
 | `description` | String? | Curatorial note |
 | `approvalStatus` | `ApprovalStatus` | Default `PENDING`; admin-created exhibitions are set `APPROVED` |
 | `submittedById` | String? (FK → User.id) | Who submitted it |
-| `approvedById` | String? (FK → User.id) | Admin who approved/rejected it |
+| `approvedById` | String? (FK → User.id) | Admin who approved it; cleared on rejection (the rejecting admin is in the audit log) |
 | `approvedAt` | DateTime? | When it was approved |
-| `isActive` | Boolean | Default `false`; admin-created exhibitions are set `true` |
+| `reviewNote` | String? | Reviewer's reason when rejected; cleared on approval |
+| `isActive` | Boolean | Default `false`; admin-created exhibitions are set `true`. Approval does **not** set this — an admin activates separately |
 | `createdAt` / `updatedAt` | DateTime | Timestamps |
 
 Indexed on `institutionId`, `startDate`, `approvalStatus`, `submittedById`, and
 `approvedById`. After any exhibition write the parent's `hasExhibition` is
-recomputed (`true` when the institution has ≥1 approved exhibition).
+recomputed: `true` when the institution has ≥1 exhibition that is approved,
+active, and has not finished (`endDate >= today`).
+
+Because the date half of that rule goes stale with no write to trigger a refresh,
+`npm run recompute:exhibitions` sweeps every institution and is meant to run daily
+(see `scripts/recompute-has-exhibition.ts`).
+
+### Review
+A contributor's rating and optional comment for a venue. Moderated exactly like
+institution and exhibition submissions: created `PENDING`, and only `APPROVED`
+rows are public or counted in `Institution.rating`.
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | String (cuid) | Primary key |
+| `institutionId` | String (FK → Institution.id) | Cascade-deletes with the venue |
+| `userId` | String (FK → User.id) | The author |
+| `rating` | Int | Whole stars, 1–5 |
+| `comment` | String? | Optional, max 2000 chars |
+| `approvalStatus` | `ApprovalStatus` | Default `PENDING` |
+| `reviewedById` | String? (FK → User.id) | The moderator who approved/rejected |
+| `reviewedAt` | DateTime? | When it was moderated |
+| `reviewNote` | String? | Moderator note (required on reject) |
+| `createdAt` | DateTime | Set on insert |
+| `updatedAt` | DateTime | Auto-updated |
+
+Unique on `[institutionId, userId]`; indexed on `institutionId`, `userId`,
+`approvalStatus`, and `reviewedById`.
+
+> **One review per person per venue.** A second attempt returns 409 — the author
+> edits the existing one instead. Any edit returns the review to `PENDING`, so a
+> vetted comment cannot be quietly rewritten after approval; the venue's average
+> is recomputed whenever a review enters or leaves the approved set.
 
 ### AuditLog
 An immutable trail of every admin write action.
@@ -151,6 +196,9 @@ Indexed on `actorId`, `(targetModel, targetId)`, and `timestamp`.
 | SubCategory → Institution | One-to-Many | Optional sub-classification via `subCategoryId` |
 | Tag ↔ Institution | Many-to-Many | Implicit join `_InstitutionToTag` |
 | Institution → Exhibition | One-to-Many | Exhibitions cascade-delete with their institution |
+| Institution → Review | One-to-Many | Reviews cascade-delete with their institution |
+| User → Review (ReviewAuthor) | One-to-Many | A contributor's own reviews via `userId` |
+| User → Review (ReviewModerator) | One-to-Many | A moderator's decisions via `reviewedById` |
 | Institution / User / … → AuditLog | Logical (via `targetId`) | `targetId` references the affected record, disambiguated by `targetModel` |
 
 > `AuditLog.targetId` is a generic string reference, not a foreign key. A single
@@ -167,13 +215,13 @@ Indexed on `actorId`, `(targetModel, targetId)`, and `timestamp`.
 
 **Area** — `ISLAND` (Lagos Island), `MAINLAND` (Lagos Mainland), `OTHER`.
 
-**ApprovalStatus** — `PENDING` (awaiting review), `APPROVED`, `REJECTED`. Shared by Institution and Exhibition.
+**ApprovalStatus** — `PENDING` (awaiting review), `APPROVED`, `REJECTED`. Shared by Institution, Exhibition, and Review.
 
 **TagCategory** — `OWNERSHIP`, `STYLE`, `CURATION`, `FORMAT`.
 
-**AuditAction** — `CREATE`, `UPDATE`, `DELETE` (soft delete → sets `deletedAt`), `PUBLISH`, `UNPUBLISH`, `DEACTIVATE`, `IMAGE_UPLOAD`, `SUBMIT`, `APPROVE`, `REJECT`, plus the v2 granular actions `APPROVE_USER`, `REJECT_USER`, `APPROVE_INSTITUTION`, `REJECT_INSTITUTION`, `EXHIBITION_CREATE`, `EXHIBITION_UPDATE`, `EXHIBITION_DELETE`, `APPROVE_EXHIBITION`, `REJECT_EXHIBITION`.
+**AuditAction** — `CREATE`, `UPDATE`, `DELETE` (soft delete → sets `deletedAt`), `PUBLISH`, `UNPUBLISH`, `DEACTIVATE`, `IMAGE_UPLOAD`, `SUBMIT`, `APPROVE`, `REJECT`, plus the v2 granular actions `APPROVE_USER`, `REJECT_USER`, `APPROVE_INSTITUTION`, `REJECT_INSTITUTION`, `EXHIBITION_CREATE`, `EXHIBITION_UPDATE`, `EXHIBITION_DELETE`, `APPROVE_EXHIBITION`, `REJECT_EXHIBITION`, plus the v3 actions `REVIEW_CREATE`, `REVIEW_UPDATE`, `REVIEW_DELETE`, `APPROVE_REVIEW`, `REJECT_REVIEW`, `RESTORE` (undo a soft delete) and `WITHDRAW` (a contributor retracting their own submission).
 
-**TargetModel** — `INSTITUTION`, `USER`, `SUBCATEGORY`, `TAG`, `EXHIBITION`.
+**TargetModel** — `INSTITUTION`, `USER`, `SUBCATEGORY`, `TAG`, `EXHIBITION`, `REVIEW`.
 
 ---
 
@@ -187,6 +235,7 @@ Upstash Redis is used for:
 | `cache:institutions:{queryHash}` | JSON string | 60s | Cache for `GET /api/v1/institutions` |
 | `cache:institutions:map` | JSON string | 60s | Cache for `GET /api/v1/institutions/map` |
 | `reset:{sha256}` | userId | 1 hour | Password-reset token |
+| `reset:user:{userId}` | Token hash | 1 hour | Reverse index — issuing a reset revokes the user's previous token |
 | rate-limit keys | counter | per limiter | Auth endpoint rate limiting |
 
 Caches are invalidated on any admin write that can change a public payload —

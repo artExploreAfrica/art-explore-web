@@ -5,12 +5,42 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { successResponse } from '../utils/response';
 import { uploadExhibitionImage } from '../utils/s3Uploader';
 import {
+  AdminListExhibitionsQuery,
   CreateExhibitionInput,
   UpdateExhibitionInput,
 } from '../validators/exhibition.validator';
+import { ListSubmissionsQuery } from '../validators/submission.validator';
 
 /** All handlers assume `authenticate` + `roleGuard` ran first, so req.user exists. */
 const actorId = (req: Request): string => req.user!.id;
+
+/** GET /api/v1/admin/institutions/:id/exhibitions — every exhibition for a venue. */
+export const listForInstitution = asyncHandler(async (req: Request, res: Response) => {
+  const query = req.query as unknown as AdminListExhibitionsQuery;
+  const { data, pagination } = await exhibitionService.listForAdminInstitution(
+    req.params.id,
+    query,
+  );
+  return successResponse(res, data, 'Exhibitions retrieved', 200, pagination);
+});
+
+/** GET /api/v1/admin/submissions/exhibitions — contributor exhibition review queue. */
+export const listSubmissions = asyncHandler(async (req: Request, res: Response) => {
+  const query = req.query as unknown as ListSubmissionsQuery;
+  const { data, pagination } = await exhibitionService.listSubmissions(query);
+  return successResponse(res, data, 'Exhibition submissions retrieved', 200, pagination);
+});
+
+export const approve = asyncHandler(async (req: Request, res: Response) => {
+  const exhibition = await exhibitionService.approve(actorId(req), req.params.id);
+  return successResponse(res, exhibition, 'Exhibition approved');
+});
+
+export const reject = asyncHandler(async (req: Request, res: Response) => {
+  const { reviewNote } = req.body as { reviewNote: string };
+  const exhibition = await exhibitionService.reject(actorId(req), req.params.id, reviewNote);
+  return successResponse(res, exhibition, 'Exhibition rejected');
+});
 
 export const create = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as CreateExhibitionInput;

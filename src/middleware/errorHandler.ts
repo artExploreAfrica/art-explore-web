@@ -1,9 +1,31 @@
 import { Prisma } from '@prisma/client';
 import { NextFunction, Request, Response } from 'express';
+import { MulterError } from 'multer';
 import { ZodError } from 'zod';
 import { env } from '../config/env';
+import { MAX_IMAGE_BYTES } from '../middleware/upload';
 import { AppError } from '../utils/AppError';
 import { errorResponse } from '../utils/response';
+
+/** Multer limit breaches are client mistakes — map each to a 4xx, never a 500. */
+const multerStatus = (err: MulterError): { status: number; message: string } => {
+  switch (err.code) {
+    case 'LIMIT_FILE_SIZE':
+      return {
+        status: 413,
+        message: `Image is too large — the maximum is ${MAX_IMAGE_BYTES / (1024 * 1024)} MB`,
+      };
+    case 'LIMIT_UNEXPECTED_FILE':
+      return {
+        status: 400,
+        message: `Unexpected file field "${err.field}" — the field name must be "image"`,
+      };
+    case 'LIMIT_FILE_COUNT':
+      return { status: 400, message: 'Only one image may be uploaded per request' };
+    default:
+      return { status: 400, message: err.message };
+  }
+};
 
 /**
  * Centralized error handler. Maps known error types to consistent JSON
@@ -30,6 +52,12 @@ export const errorHandler = (
   // Operational errors we threw deliberately.
   if (err instanceof AppError) {
     return errorResponse(res, err.message, err.statusCode, err.details);
+  }
+
+  // Upload limit breaches raised by multer itself.
+  if (err instanceof MulterError) {
+    const { status, message } = multerStatus(err);
+    return errorResponse(res, message, status, { code: err.code });
   }
 
   // Known Prisma request errors.

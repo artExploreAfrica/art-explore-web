@@ -7,7 +7,9 @@
 
 ## Status
 
-All Critical / Important / Nice-to-have items below have been **implemented**. Deferred PRD §9 futures (contributor exhibitions, artworks, user `isApproved`) remain out of scope.
+All Critical / Important / Nice-to-have items below have been **implemented**. Contributor
+exhibitions and reviews have since been built too; artworks and user `isApproved` remain
+out of scope. See **Audit round 3** near the bottom for the most recent pass.
 
 ### Auth hardening
 - [x] `authenticate` re-loads the user from DB and rejects inactive accounts
@@ -47,10 +49,76 @@ All Critical / Important / Nice-to-have items below have been **implemented**. D
 
 | Feature | Status |
 |---|---|
-| Contributor-submitted exhibitions + approve/reject | PRD §9 future |
 | User / contributor account approval (`isApproved`) | Not modelled |
-| Artwork catalogue & reviews | PRD §9 future |
+| Artwork catalogue | PRD §9 future — reviews are now built, artworks are not |
 | Automated GH Actions → EC2 deploy | Manual deploy documented |
+| Multi-device sessions | One `refresh:{userId}` key per account, so signing in on a second device ends the first session. Fine at this scale; would need per-session keys to change |
+
+---
+
+## Built since (05 Aug 2026)
+
+### Contributor exhibitions (was PRD §9 future)
+- [x] `POST /submissions/exhibitions` — USER submits, forced `PENDING` + inactive
+- [x] `GET /submissions/exhibitions/mine`
+- [x] `GET /admin/submissions/exhibitions` — review queue by status
+- [x] `POST /admin/exhibitions/:id/approve` — emits `APPROVE_EXHIBITION`
+- [x] `POST /admin/exhibitions/:id/reject` — emits `REJECT_EXHIBITION`, stores `reviewNote`
+- [x] `Exhibition.reviewNote` added (`20260805120000_add_exhibition_review_note`)
+- Approval does **not** activate — admin activates separately, matching "approved ≠ published"
+
+### Public user management
+- [x] `GET /admin/users?role=USER` — public accounts were countable on the dashboard
+      but not listable, so a deactivated USER could never be found to reactivate
+
+### `hasExhibition` staleness
+- [x] Recompute now requires approved **and** active **and** `endDate >= today`
+- [x] `npm run recompute:exhibitions` daily sweep (dates go stale with no write to
+      trigger the per-write recompute)
+
+---
+
+---
+
+## Audit round 3 (05 Aug 2026) — defects found and fixed
+
+Three of these were confirmed by a failing test written against the old code
+before the fix; the regressions live in `tests/regressions.test.ts`.
+
+| # | Defect | Fix |
+|---|---|---|
+| 1 | `setActive` never called `recomputeHasExhibition`, so deactivating a venue's only live exhibition left `hasExhibition: true` until an unrelated write or the nightly sweep | Recompute on activate/deactivate like every other exhibition write |
+| 2 | Multer rejections (non-image, >5 MB, wrong field) fell through to the unknown-error branch and returned **500** | `fileFilter` throws `AppError`; `errorHandler` maps `MulterError` → 400 / 413 |
+| 3 | `institution.approve()` skipped cache invalidation while `reject()` did it, so an already-published venue could stay invisible for up to 60s after approval | Invalidate on approve too |
+| 4 | `GET /institutions/:id/exhibitions` had no `endDate` filter, so it returned finished shows while `hasExhibition` said false | Defaults to `scope=live`; `past` / `all` added for archive views |
+| 5 | `logout` deleted the session on any structurally valid refresh JWT, including one already rotated out | Presented token is bcrypt-compared against the stored hash first |
+| 6 | Contributors could not upload images at all — venue submissions had no `images` field and exhibition submissions took arbitrary third-party URLs | Upload endpoints on both submission types; a client-sent `images` key is now an explicit 400 |
+| 7 | No rate limit on `/submissions` — any USER could flood the review queue | `contributorWriteLimiter`, 30/account/hour, keyed by account not IP |
+
+### Built in the same pass
+
+- **Reviews** — `Review` model, one per account per venue, moderated like every
+  other submission. `Institution.rating` / `reviewCount` are denormalised from
+  approved rows so `minRating` and `sort=rating` use an index.
+- **`openingHours` normalisation** — validated day-indexed `{ open, close }`
+  shape plus a server-side `?openNow=true` filter resolved in SQL against JSONB
+  (verified against Postgres for day shifts, closed days, overnight ranges that
+  cross midnight, and venues with no hours recorded).
+  The seed converts the sheet's hours on import, handling both the per-day JSON
+  cells and the free text ones (`"Tue-Sat 11am-6pm"`,
+  `"Mon-Sat 9am-5pm; Sun 12pm-5pm"`, `"8am-6pm daily"`): **58 of the 61 rows**
+  that carry hours now convert and pass the API's own validator, up from 42
+  before the free-text handling. The 3 left unset are genuinely indeterminate
+  ("by appointment only", "24hr hotel") and are not guessed at.
+- **Global `GET /exhibitions`** — the cross-venue "what's on" read.
+- **Submission edit / withdraw** and **soft-delete restore**
+  (`POST /admin/institutions/:id/restore`, `?deleted=true` to find them).
+
+### Pre-existing, also fixed
+
+`npm run lint` was already failing on `scripts/smoke-api.ts` (two `any`) and
+`scripts/sync-s3-images-to-db.ts` (an unused counter), so CI was red before this
+pass. Both are corrected — the counter is now reported in the summary.
 
 ---
 

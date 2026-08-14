@@ -1,10 +1,20 @@
+import { Role } from '@prisma/client';
 import { Router } from 'express';
 import * as institutionController from '../controllers/institution.controller';
+import * as reviewController from '../controllers/review.controller';
+import { authenticate } from '../middleware/authenticate';
+import { contributorWriteLimiter } from '../middleware/rateLimiter';
+import { roleGuard } from '../middleware/roleGuard';
 import { validate } from '../middleware/validate';
+import { listExhibitionsQuerySchema } from '../validators/exhibition.validator';
 import {
   idParamSchema,
   listInstitutionsQuerySchema,
 } from '../validators/institution.validator';
+import {
+  createReviewSchema,
+  listReviewsQuerySchema,
+} from '../validators/review.validator';
 
 const router = Router();
 
@@ -101,15 +111,27 @@ router.get('/:id', validate({ params: idParamSchema }), institutionController.de
  * /api/v1/institutions/{id}/exhibitions:
  *   get:
  *     summary: Exhibitions for a published institution
+ *     description: >
+ *       `scope` defaults to `live`, so this list agrees with the venue's
+ *       `hasExhibition` flag. Pass `past` for the archive or `all` for both.
  *     tags: [Institutions]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
  *         schema: { type: string }
+ *       - in: query
+ *         name: scope
+ *         schema: { type: string, enum: [live, past, all], default: live }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20, maximum: 100 }
  *     responses:
  *       200:
- *         description: Array of exhibitions (most recent first)
+ *         description: Paginated exhibitions (most recent first)
  *         content:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/SuccessResponse' }
@@ -117,8 +139,71 @@ router.get('/:id', validate({ params: idParamSchema }), institutionController.de
  */
 router.get(
   '/:id/exhibitions',
-  validate({ params: idParamSchema }),
+  validate({ params: idParamSchema, query: listExhibitionsQuerySchema }),
   institutionController.exhibitions,
+);
+
+/**
+ * @swagger
+ * /api/v1/institutions/{id}/reviews:
+ *   get:
+ *     summary: Approved reviews for a published institution
+ *     tags: [Institutions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20, maximum: 100 }
+ *     responses:
+ *       200: { description: Paginated approved reviews, newest first }
+ *       404: { description: Not found }
+ *   post:
+ *     summary: Review a venue (USER only)
+ *     description: >
+ *       Created PENDING — it is neither public nor counted in the venue's
+ *       average until a moderator approves it. One review per venue per account;
+ *       a second attempt returns 409.
+ *     tags: [Institutions]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [rating]
+ *             properties:
+ *               rating: { type: integer, minimum: 1, maximum: 5 }
+ *               comment: { type: string, maxLength: 2000 }
+ *     responses:
+ *       201: { description: Review submitted and pending moderation }
+ *       409: { description: You have already reviewed this venue }
+ *       429: { description: Too many submissions — rate limited }
+ */
+router.get(
+  '/:id/reviews',
+  validate({ params: idParamSchema, query: listReviewsQuerySchema }),
+  reviewController.listForInstitution,
+);
+
+router.post(
+  '/:id/reviews',
+  authenticate,
+  roleGuard(Role.USER),
+  contributorWriteLimiter,
+  validate({ params: idParamSchema, body: createReviewSchema }),
+  reviewController.create,
 );
 
 export default router;

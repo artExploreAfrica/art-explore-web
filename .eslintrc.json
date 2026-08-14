@@ -6,11 +6,7 @@
     "sourceType": "module"
   },
   "plugins": ["@typescript-eslint"],
-  "extends": [
-    "eslint:recommended",
-    "plugin:@typescript-eslint/recommended",
-    "prettier"
-  ],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"],
   "env": {
     "node": true,
     "es2022": true
@@ -24,5 +20,5 @@
     "@typescript-eslint/explicit-function-return-type": "off",
     "no-console": "off"
   },
-  "ignorePatterns": ["dist", "node_modules", "*.js"]
+  "ignorePatterns": ["dist", "node_modules", "*.js", "frontend"]
 }

@@ -49,11 +49,26 @@ describe('POST /api/v1/auth/forgot-password', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    // A hashed token is stored at reset:{hash} with a TTL.
-    expect(mocks.redis.set).toHaveBeenCalledOnce();
-    const [key, value] = mocks.redis.set.mock.calls[0];
-    expect(key).toMatch(/^reset:/);
-    expect(value).toBe(activeUser.id);
+    // The hash is stored at reset:{hash} -> userId, plus a reverse index at
+    // reset:user:{id} -> hash so a later request can revoke this token.
+    const sets = Object.fromEntries(
+      mocks.redis.set.mock.calls.map((c) => [c[0], c[1]] as [string, string]),
+    );
+    const tokenHash = sets[`reset:user:${activeUser.id}`];
+    expect(tokenHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(sets[`reset:${tokenHash}`]).toBe(activeUser.id);
+  });
+
+  it('revokes the previously issued reset token', async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue(activeUser);
+    mocks.redis.get.mockResolvedValue('previoushash');
+
+    const res = await request(app)
+      .post('/api/v1/auth/forgot-password')
+      .send({ email: activeUser.email });
+
+    expect(res.status).toBe(200);
+    expect(mocks.redis.del).toHaveBeenCalledWith('reset:previoushash');
   });
 
   it('200s without storing a token for an unknown email (no enumeration)', async () => {

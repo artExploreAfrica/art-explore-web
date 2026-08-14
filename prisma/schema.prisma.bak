@@ -1,0 +1,276 @@
+// Art Explore — Prisma data model
+// Stack: PostgreSQL via Prisma ORM
+// See docs/schema.md for plain-language field documentation.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+enum InstitutionType {
+  ART_GALLERY
+  MUSEUM
+  INSTITUTE
+  FOUNDATION
+  STUDIO
+  CULTURAL_SPACE
+}
+
+enum Area {
+  ISLAND
+  MAINLAND
+  OTHER
+}
+
+// Lifecycle of an institution or exhibition record from submission to publication.
+// Admin-created records default to APPROVED; USER-submitted records start PENDING.
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Controlled vocabulary grouping for Tag (v2).
+enum TagCategory {
+  OWNERSHIP
+  STYLE
+  CURATION
+  FORMAT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  PUBLISH
+  UNPUBLISH
+  DEACTIVATE
+  IMAGE_UPLOAD
+  SUBMIT
+  APPROVE
+  REJECT
+  // v2 additions — granular approval/exhibition actions.
+  APPROVE_USER
+  REJECT_USER
+  APPROVE_INSTITUTION
+  REJECT_INSTITUTION
+  EXHIBITION_CREATE
+  EXHIBITION_UPDATE
+  EXHIBITION_DELETE
+  APPROVE_EXHIBITION
+  REJECT_EXHIBITION
+  // v3 additions — contributor reviews and record restore.
+  REVIEW_CREATE
+  REVIEW_UPDATE
+  REVIEW_DELETE
+  APPROVE_REVIEW
+  REJECT_REVIEW
+  RESTORE
+  WITHDRAW
+}
+
+enum TargetModel {
+  INSTITUTION
+  USER
+  SUBCATEGORY
+  TAG
+  EXHIBITION
+  REVIEW
+}
+
+model User {
+  id                    String        @id @default(cuid())
+  fullName              String
+  email                 String        @unique
+  password              String
+  role                  Role          @default(ADMIN)
+  isActive              Boolean       @default(true)
+  auditLogs             AuditLog[]
+  submittedInstitutions Institution[] @relation("SubmittedBy")
+  reviewedInstitutions  Institution[] @relation("ReviewedBy")
+  submittedExhibitions  Exhibition[]  @relation("ExhibitionSubmitter")
+  approvedExhibitions   Exhibition[]  @relation("ExhibitionApprover")
+  reviews               Review[]      @relation("ReviewAuthor")
+  moderatedReviews      Review[]      @relation("ReviewModerator")
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+}
+
+// Admin-managed sub-classification nested under an InstitutionType
+// (e.g. type GALLERY → "Contemporary", "Photography").
+model SubCategory {
+  id           String          @id @default(cuid())
+  name         String
+  type         InstitutionType
+  description  String?
+  institutions Institution[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@unique([type, name])
+  @@index([type])
+}
+
+// Admin-curated tag, many-to-many with Institution (implicit join _InstitutionToTag).
+// `category` groups tags into the controlled vocabulary defined in v2; `label` is
+// the human-facing display text (the unique `name` is the machine slug).
+// Note: v2's explicit `InstitutionTag` junction carries no extra columns, so the
+// Prisma implicit M2M join (`_InstitutionToTag`) is the equivalent representation.
+model Tag {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  label        String
+  category     TagCategory
+  institutions Institution[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([category])
+}
+
+model Institution {
+  id           String          @id @default(cuid())
+  name         String
+  description  String?
+  type         InstitutionType
+  address      String
+  area         Area
+  lat          Float
+  lng          Float
+  images       String[]
+  website      String?
+  instagram    String?
+  phone        String?
+  email        String?
+  openingHours Json?
+  tags         Tag[]
+  subCategoryId String?
+  subCategory   SubCategory?   @relation(fields: [subCategoryId], references: [id])
+  exhibitions   Exhibition[]
+  hasExhibition Boolean         @default(false)
+
+  // Contributor reviews. `rating` is the mean of APPROVED reviews and
+  // `reviewCount` how many produced it — both recomputed on every review write,
+  // so the public list can filter/sort without aggregating per request.
+  // `rating` stays null until the venue has its first approved review.
+  reviews       Review[]
+  rating        Float?
+  reviewCount   Int             @default(0)
+
+  // Submission / approval workflow.
+  approvalStatus ApprovalStatus @default(APPROVED)
+  submittedById  String?
+  submittedBy    User?          @relation("SubmittedBy", fields: [submittedById], references: [id])
+  reviewedById   String?
+  reviewedBy     User?          @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewNote     String?
+  reviewedAt     DateTime?
+
+  isPublished  Boolean         @default(false)
+  deletedAt    DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([area])
+  @@index([type])
+  @@index([isPublished])
+  @@index([deletedAt])
+  @@index([subCategoryId])
+  @@index([hasExhibition])
+  @@index([approvalStatus])
+  @@index([submittedById])
+  @@index([rating])
+}
+
+// An exhibition hosted by an institution. One-to-many: an institution can have
+// many exhibitions over time. `Institution.hasExhibition` is recomputed on every
+// write from these rows. Carries its own submission/approval workflow (v2).
+model Exhibition {
+  id             String         @id @default(cuid())
+  institutionId  String
+  institution    Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  name           String
+  images         String[]
+  startDate      DateTime
+  endDate        DateTime
+  startTime      String
+  endTime        String
+  link           String?
+  description    String?
+
+  // Submission & approval — mirrors the Institution flow.
+  approvalStatus ApprovalStatus @default(PENDING)
+  submittedById  String?
+  submittedBy    User?          @relation("ExhibitionSubmitter", fields: [submittedById], references: [id])
+  approvedById   String?
+  approvedBy     User?          @relation("ExhibitionApprover", fields: [approvedById], references: [id])
+  approvedAt     DateTime?
+  // Reviewer's reason when rejected; cleared on approval. The rejecting admin's
+  // identity lives in the audit log — approvedById only ever means "approved by".
+  reviewNote     String?
+
+  isActive       Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([institutionId])
+  @@index([startDate])
+  @@index([approvalStatus])
+  @@index([submittedById])
+  @@index([approvedById])
+}
+
+// A contributor's rating + optional comment for a venue. Moderated like every
+// other public submission: created PENDING, and only APPROVED rows feed the
+// public list and the Institution.rating average.
+model Review {
+  id             String         @id @default(cuid())
+  institutionId  String
+  institution    Institution    @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User           @relation("ReviewAuthor", fields: [userId], references: [id])
+  rating         Int
+  comment        String?
+
+  // Moderation — mirrors the Institution/Exhibition review flow.
+  approvalStatus ApprovalStatus @default(PENDING)
+  reviewedById   String?
+  reviewedBy     User?          @relation("ReviewModerator", fields: [reviewedById], references: [id])
+  reviewedAt     DateTime?
+  reviewNote     String?
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // One review per person per venue — an edit replaces it rather than stacking.
+  @@unique([institutionId, userId])
+  @@index([institutionId])
+  @@index([userId])
+  @@index([approvalStatus])
+  @@index([reviewedById])
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  actorId     String
+  actor       User        @relation(fields: [actorId], references: [id])
+  action      AuditAction
+  targetModel TargetModel
+  targetId    String
+  metadata    Json?
+  timestamp   DateTime    @default(now())
+
+  @@index([actorId])
+  @@index([targetModel, targetId])
+  @@index([timestamp])
+}

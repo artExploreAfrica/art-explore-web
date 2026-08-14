@@ -24,6 +24,8 @@ const RESET_TTL_SECONDS = 60 * 60; // 1 hour
 
 const refreshKey = (userId: string): string => `refresh:${userId}`;
 const resetKey = (tokenHash: string): string => `reset:${tokenHash}`;
+/** Reverse index so issuing a reset can revoke the user's previous token. */
+const resetUserKey = (userId: string): string => `reset:user:${userId}`;
 
 /**
  * Deterministic SHA-256 of a reset token so we can look it up by key. Only the
@@ -213,7 +215,7 @@ export const changePassword = async (
  * Begin a password reset. Generates a single-use token, stores only its hash in
  * Redis (`reset:{hash}` → userId, 1-hour TTL), and emails a reset link. Always
  * resolves without revealing whether the email is registered, and only acts for
- * active accounts.
+ * active accounts. Only the most recently issued link stays valid.
  */
 export const forgotPassword = async (email: string): Promise<void> => {
   const user = await prisma.user.findUnique({ where: { email } });
@@ -221,14 +223,23 @@ export const forgotPassword = async (email: string): Promise<void> => {
 
   const rawToken = crypto.randomBytes(32).toString('hex');
   const tokenHash = hashResetToken(rawToken);
+
+  // At most one live reset link per user: issuing a new one revokes the
+  // previous, so an older leaked link cannot be redeemed after this request.
+  const previousHash = await redis.get<string>(resetUserKey(user.id));
+  if (previousHash) await redis.del(resetKey(previousHash));
+
   await redis.set(resetKey(tokenHash), user.id, { ex: RESET_TTL_SECONDS });
+  await redis.set(resetUserKey(user.id), tokenHash, { ex: RESET_TTL_SECONDS });
 
   // Trim a trailing slash so we never emit "//reset-password".
   const base = env.FRONTEND_URL.replace(/\/$/, '');
   const resetUrl = `${base}/reset-password?token=${rawToken}`;
 
-  // Best-effort send — a mail failure must not leak account existence.
-  await sendPasswordResetEmail(user.email, user.fullName, resetUrl);
+  // Fire-and-forget: awaiting the send would make a registered address take
+  // hundreds of ms longer to respond than an unknown one, turning this endpoint
+  // into a timing oracle for account enumeration.
+  void sendPasswordResetEmail(user.email, user.fullName, resetUrl);
 };
 
 /**
@@ -254,6 +265,7 @@ export const resetPassword = async (
 
   // Consume the token and force re-authentication on any active session.
   await redis.del(resetKey(tokenHash));
+  await redis.del(resetUserKey(userId));
   await redis.del(refreshKey(userId));
 
   await auditLog(userId, AuditAction.UPDATE, TargetModel.USER, userId, {
@@ -261,10 +273,24 @@ export const resetPassword = async (
   });
 };
 
-/** Invalidate a user's refresh token by deleting the Redis key. */
+/**
+ * Invalidate a user's refresh token by deleting the Redis key.
+ *
+ * The presented token is matched against the stored hash before anything is
+ * deleted: a merely well-formed token — an old one already rotated out, or one
+ * replayed by someone else — must not be able to end the account's live session.
+ * Always resolves, so a caller can never tell a stale token from a current one.
+ */
 export const logout = async (refreshToken: string): Promise<void> => {
   try {
     const payload = verifyRefreshToken(refreshToken);
+
+    const stored = await redis.get<string>(refreshKey(payload.sub));
+    if (!stored) return;
+
+    const matches = await bcrypt.compare(refreshToken, stored);
+    if (!matches) return;
+
     await redis.del(refreshKey(payload.sub));
   } catch {
     // Token already invalid/expired — nothing to revoke. Treat as success.

@@ -6,7 +6,7 @@ import { AppError, ConflictError, NotFoundError } from '../utils/AppError';
 import { auditLog } from '../utils/auditLogger';
 import { sendWelcomeEmail } from '../utils/mailer';
 import { PaginationMeta } from '../utils/response';
-import { CreateUserInput, PaginationQuery } from '../validators/user.validator';
+import { CreateUserInput, ListUsersQuery } from '../validators/user.validator';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -31,10 +31,15 @@ interface ListResult {
   pagination: PaginationMeta;
 }
 
-/** List staff users only (Super Admin only). */
-export const list = async (query: PaginationQuery): Promise<ListResult> => {
-  const { page, limit } = query;
-  const where: Prisma.UserWhereInput = { role: { in: STAFF_ROLES } };
+/**
+ * List users (Super Admin only). Defaults to staff, which is what this endpoint
+ * has always returned; `role=USER` surfaces public accounts, which were
+ * otherwise only visible as a count on the dashboard and so could never be
+ * found in order to be deactivated.
+ */
+export const list = async (query: ListUsersQuery): Promise<ListResult> => {
+  const { page, limit, role } = query;
+  const where: Prisma.UserWhereInput = { role: role ?? { in: STAFF_ROLES } };
   const [data, total] = await Promise.all([
     prisma.user.findMany({
       where,
@@ -111,10 +116,6 @@ export const deactivate = async (actorId: string, targetId: string): Promise<Saf
 export const activate = async (actorId: string, targetId: string): Promise<SafeUser> => {
   const target = await prisma.user.findUnique({ where: { id: targetId } });
   if (!target) throw NotFoundError('User');
-
-  if (!STAFF_ROLES.includes(target.role)) {
-    throw new AppError('Only staff accounts can be activated via this endpoint', 400);
-  }
 
   const user = await prisma.user.update({
     where: { id: targetId },

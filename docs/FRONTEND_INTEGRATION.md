@@ -69,14 +69,26 @@ Base path for everything: `http://localhost:4000/api/v1`
 | GET | `/institutions/map` | lightweight pins `{id,name,lat,lng,type}` | none |
 | GET | `/institutions/:id` | one institution | none |
 | GET | `/institutions/:id/exhibitions` | that institution's exhibitions | none |
+| GET | `/exhibitions` | what's on across **every** venue | none |
+| GET | `/institutions/:id/reviews` | approved reviews for a venue | none |
+| POST | `/institutions/:id/reviews` | leave a review (`{rating, comment?}`) | token (USER) |
+| PUT/DELETE | `/reviews/:id` | edit / delete your own review | token (USER) |
 | GET | `/subcategories`, `/tags` | filter options | none |
 | POST | `/auth/signup` `/auth/login` | create / log in a USER | none |
 | POST | `/auth/logout` `/auth/refresh` | session management | token |
 | GET | `/auth/me` | current user | token |
+| POST | `/submissions` | submit a venue for review | token (USER) |
+| POST | `/submissions/:id/images` | upload an image to your submission | token (USER) |
 
 **`/institutions` query params:** `page`, `limit` (max 100), `area`
 (`ISLAND|MAINLAND|OTHER`), `type` (see enum below), `tag`, `subCategoryId`,
-`search` (free text over name/description/tags).
+`search` (free text over name/description/tags), `minRating` (0–5),
+`openNow` (`true|false`), `hasExhibition` (`true|false`),
+`sort` (`newest|oldest|name|rating`).
+
+**`/exhibitions` and `/institutions/:id/exhibitions` query params:**
+`scope` (`live` — default, still running; `past`; `all`), plus `area`, `type`,
+`institutionId`, `search` on the cross-venue endpoint.
 
 Full interactive docs (try every endpoint in the browser):
 **http://localhost:4000/api-docs**
@@ -99,8 +111,8 @@ fields. `src/lib/adapters.js` does the translation. Here's exactly what it does:
 | `artTypes` | `type` (+ `hasExhibition`) | enum → one keyword; adds `"exhibition"` if `hasExhibition`. **See note A.** |
 | `image` | `images[0]` | first image, or `null` → card shows the initials placeholder |
 | `neighborhood` | derived from `address` | backend has no neighborhood field; we take the last address segment |
-| `rating` | — | **GAP — no backend field. See note B.** |
-| `hours` | `openingHours` | **GAP — shapes differ. See note C.** |
+| `rating` | `rating` (+ `reviewCount`) | Mean of approved reviews, 1 decimal; `null` until a venue has one. **See note B.** |
+| `hours` | `openingHours` | Now day-indexed and parseable. **See note C.** |
 | `description`, `website`, `phone`, `email`, `tags`, `openingHours` | passed through | available for a detail page later |
 
 ### Backend `type` enum
@@ -112,11 +124,11 @@ The current type→category mapping (edit in `adapters.js` → `TYPE_TO_ARTTYPE`
 
 ---
 
-## 5. The three known gaps (decide these, don't guess)
+## 5. Known gaps
 
-These are **not bugs in the code** — they're places where the backend and the old
-mock data genuinely disagree. The adapter fills them with safe defaults so nothing
-crashes, but you should make a real decision on each.
+Gaps **B** and **C** below are now **closed** — the backend grew the fields the UI
+was already asking for, so the "hide the control" advice no longer applies. Gap A
+is still a real product decision.
 
 ### A. `artTypes` — tabs are multi-value, backend `type` is single
 The UI tabs (Galleries / Exhibitions / Artists / Events) filter on an **array** of
@@ -126,29 +138,50 @@ If you want richer tab behavior (e.g. an institution showing under both "Artists
 and "Events"), drive it from `tags[]` — extend `adaptInstitution()` to push tag
 names into `artTypes`.
 
-### B. `rating` — backend has no rating field
-The old mock had `rating: 4.8`. The backend does **not** store ratings. The adapter
-sets `rating: null`. Consequences in the UI:
-- The **"Top Rated"** filter and the **"Top Rated" sort option** won't do anything useful.
+### B. `rating` — RESOLVED, backend now stores it
+`Institution.rating` is the mean of **approved** reviews (one decimal), with
+`reviewCount` alongside it. It is `null` until a venue has its first approved
+review, so "unrated" stays distinguishable from a genuine 0 — treat `null` as
+"no rating yet", not as zero, or unrated venues will sort below 1-star ones.
 
-**Recommended:** hide those two controls for now (in `ArtGalleryApp.jsx`, the
-`topRated` toggle in `FilterRow` and the `rating` entry in `SORT_OPTIONS`). If
-ratings are wanted later, that's a **backend change** (add a `rating` column +
-expose it) — flag it to the backend owner; don't fake it on the frontend.
+Keep the "Top Rated" controls. Prefer filtering and sorting **server-side** —
+`?minRating=4` and `?sort=rating` are indexed and page correctly, whereas the
+client-side `g.rating >= 4.0` only ever filters the current page.
 
-### C. `hours` / "Open Now" — incompatible formats + a pre-existing bug
-- Backend `openingHours` looks like `{"mon":"10am-6pm","tue":"10am-6pm",...}`
-  (human strings, keyed by day name).
-- The old UI expected a 7-element array of `{open:"09:00", close:"17:00"}` and ran
-  `isOpenNow()` on it.
-- **Separately**, `data/galleries.js`'s `timeToMinutes()` has a stray `return;`
-  before its expression, so it always returns `undefined` — meaning "Open Now" was
-  **already broken** before any of this.
+Reviews are user-generated and moderated: `POST /institutions/:id/reviews`
+creates one as `PENDING` (invisible and uncounted until an admin approves it),
+one per account per venue — a second attempt returns **409**, so the UI should
+offer "edit your review" rather than a second form. Editing returns it to
+`PENDING`, so warn that an edit temporarily removes it from public view.
 
-The adapter sets `hours: null` (which makes `isOpenNow` harmless). **Recommended:**
-hide the "Open Now" toggle for now. To make it real later, pick ONE hours format
-and convert in the adapter — but first the backend's `openingHours` should be
-normalized to something parseable (e.g. 24h `HH:MM`).
+### C. `hours` / "Open Now" — RESOLVED, shape is now parseable
+`openingHours` is keyed by **JavaScript day index** so it can be indexed straight
+from `getDay()` — which is exactly what the existing `isOpenNow(hours)` expects:
+
+```jsonc
+{
+  "0": null,                              // closed Sunday
+  "1": { "open": "10:00", "close": "18:00" },
+  "6": { "open": "11:00", "close": "16:00" }
+}
+```
+
+Times are 24-hour `HH:mm`, zero-padded. A **missing** day means hours are
+unknown; `null` means closed that day. A `close` earlier than `open`
+(e.g. `"20:00"` → `"02:00"`) means the venue trades past midnight — the existing
+client `isOpenNow` does **not** handle that wrap, so prefer the server filter.
+
+> **Breaking change:** the old `{"mon":"9am-5pm"}` shape is now rejected with a
+> **400** on write. Anything posting that format must be updated. The seed
+> converts the client sheet's text automatically on import.
+
+Use `GET /institutions?openNow=true` to filter server-side; it handles the
+midnight wrap and pages correctly. Note it treats a venue with no hours recorded
+as open (unknown, not closed) — matching the client's own `isOpenNow`.
+
+Still worth fixing on the frontend: `data/galleries.js`'s `timeToMinutes()` has a
+stray `return;` before its expression, so it always returns `undefined`. That bug
+predates all of this and will break any **client-side** "Open Now" evaluation.
 
 ---
 
@@ -194,8 +227,15 @@ const { data, pagination } = await apiGet("/institutions", {   // filtered list
    there's one fetch, not two). The adapted shape already includes everything
    `buildGalleriesGeoJSON` reads (`name`, `neighborhood`, `address`, `region`,
    `rating`, `image`, `artTypes`).
-2. Decide the **three gaps** in §5 (hide rating/open-now controls is the quick win).
-3. Once both consumers use the API, delete `src/data/galleries.js`.
+2. Decide gap **A** in §5 (`artTypes`). Gaps B and C are closed — instead of
+   hiding the "Top Rated" and "Open Now" controls, point them at the server:
+   `?minRating=`, `?sort=rating`, `?openNow=true`.
+3. Update the adapter for the two fields that now exist: pass `rating` /
+   `reviewCount` straight through, and stop forcing `hours: null` — the backend
+   shape is now exactly what `isOpenNow` indexes into.
+4. Fix the stray `return;` in `timeToMinutes()` (`data/galleries.js`) if you keep
+   any client-side "Open Now" evaluation.
+5. Once both consumers use the API, delete `src/data/galleries.js`.
 
 ---
 

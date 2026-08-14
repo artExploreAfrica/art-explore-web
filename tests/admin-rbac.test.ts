@@ -63,6 +63,32 @@ describe('Admin route auth & RBAC — GET /api/v1/admin/users (Super Admin only)
     expect(whereArg.role.in).toEqual(expect.arrayContaining([Role.ADMIN, Role.SUPER_ADMIN]));
   });
 
+  it('lists public USER accounts when role=USER is supplied', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.SUPER_ADMIN);
+    mocks.prisma.user.findMany.mockResolvedValue([]);
+    mocks.prisma.user.count.mockResolvedValue(0);
+
+    const res = await request(app)
+      .get('/api/v1/admin/users?role=USER')
+      .set(bearer(signAccess(Role.SUPER_ADMIN)));
+
+    expect(res.status).toBe(200);
+    // Without this filter public accounts are unreachable, so they can never be
+    // found in order to be deactivated.
+    expect(mocks.prisma.user.findMany.mock.calls[0][0].where).toEqual({ role: Role.USER });
+  });
+
+  it('400s on an unknown role filter', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.SUPER_ADMIN);
+
+    const res = await request(app)
+      .get('/api/v1/admin/users?role=NOPE')
+      .set(bearer(signAccess(Role.SUPER_ADMIN)));
+
+    expect(res.status).toBe(400);
+    expect(mocks.prisma.user.findMany).not.toHaveBeenCalled();
+  });
+
   it('401s when the account is deactivated even with a valid JWT', async () => {
     stubActiveUser(mocks.prisma.user.findUnique, Role.SUPER_ADMIN, { isActive: false });
 
