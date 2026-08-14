@@ -29,7 +29,7 @@ export default function LoginPage() {
   return (
     <div className="app">
       <Navbar />
-      <div className="auth-page container">
+      <div className="auth-page">
         <div className="auth-card">
           <h1>Log in</h1>
           <p className="auth-note">Log in to submit a gallery for review.</p>

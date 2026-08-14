@@ -30,7 +30,7 @@ export default function SignupPage() {
   return (
     <div className="app">
       <Navbar />
-      <div className="auth-page container">
+      <div className="auth-page">
         <div className="auth-card">
           <h1>Create an account</h1>
           <p className="auth-note">You'll need an account to submit a gallery for review.</p>

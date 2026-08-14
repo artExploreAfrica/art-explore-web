@@ -1,13 +1,26 @@
 .auth-page {
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding: 60px 16px;
   min-height: calc(100dvh - var(--navbar-h, 70px));
+  padding: 60px 24px;
+  background: #f9fafb;
+  box-sizing: border-box;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.03);
+  padding: 40px 36px;
+  box-sizing: border-box;
+
+  @media (max-width: 480px) {
+    padding: 28px 20px;
+  }
 
   h1 {
     font-family: Georgia, serif;
@@ -17,13 +30,13 @@
 
   .auth-note {
     color: #6b7280;
-    margin-bottom: 24px;
+    margin-bottom: 28px;
   }
 
   form {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 18px;
   }
 
   label {
@@ -35,21 +48,30 @@
   }
 
   input {
-    padding: 10px 12px;
+    padding: 12px 14px;
     border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 15px;
     font-family: inherit;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: #d97706;
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12);
+    }
   }
 
   button {
-    margin-top: 8px;
+    margin-top: 10px;
+    width: 100%;
   }
 
   .auth-switch {
-    margin-top: 20px;
+    margin-top: 24px;
     font-size: 14px;
     color: #6b7280;
+    text-align: center;
 
     a {
       color: #d97706;

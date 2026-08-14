@@ -191,7 +191,8 @@ export default function SubmitGalleryPage() {
   return (
     <div className="app">
       <Navbar />
-      <div className="container submit-gallery-page">
+      <div className="submit-gallery-page">
+      <div className="submit-gallery-card">
         <div className="section-header">
           <h2>Submit a Gallery</h2>
           <p>Know a gallery, studio, or cultural space we're missing? Submit it below for review.</p>
@@ -427,6 +428,7 @@ export default function SubmitGalleryPage() {
             </ul>
           )}
         </div>
+      </div>
       </div>
     </div>
   );
