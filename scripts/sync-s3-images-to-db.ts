@@ -20,9 +20,7 @@ const IMAGE_EXT = /\.(jpe?g|png|webp|gif)$/i;
 const DRY_RUN = process.argv.includes('--dry-run');
 
 const BUCKET =
-  process.env.SYNC_S3_BUCKET ||
-  process.env.AWS_S3_BUCKET_NAME ||
-  'art-explore-db-images';
+  process.env.SYNC_S3_BUCKET || process.env.AWS_S3_BUCKET_NAME || 'art-explore-db-images';
 const REGION = process.env.SYNC_S3_REGION || process.env.AWS_REGION || 'eu-north-1';
 
 /** Known S3 folder slug → DB institution name (when auto-slug fails). */
@@ -102,9 +100,7 @@ async function listInstitutionKeys(): Promise<Map<string, string[]>> {
   return bySlug;
 }
 
-function buildNameIndex(
-  institutions: { id: string; name: string; images: string[] }[],
-): {
+function buildNameIndex(institutions: { id: string; name: string; images: string[] }[]): {
   byExactSlug: Map<string, (typeof institutions)[0]>;
   byNormalized: Map<string, (typeof institutions)[0]>;
   byNameLower: Map<string, (typeof institutions)[0]>;
@@ -163,9 +159,7 @@ async function main(): Promise<void> {
   let unmatched = 0;
   const unmatchedSlugs: string[] = [];
 
-  for (const [slug, keys] of [...bySlug.entries()].sort((a, b) =>
-    a[0].localeCompare(b[0]),
-  )) {
+  for (const [slug, keys] of [...bySlug.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
     if (keys.length === 0) {
       skippedEmpty += 1;
       continue;
@@ -181,18 +175,14 @@ async function main(): Promise<void> {
 
     matched += 1;
     const urls = keys.map(publicUrl);
-    const same =
-      urls.length === inst.images.length &&
-      urls.every((u, i) => u === inst.images[i]);
+    const same = urls.length === inst.images.length && urls.every((u, i) => u === inst.images[i]);
 
     if (same) {
       console.log(`=  ${inst.name} — already synced (${urls.length})`);
       continue;
     }
 
-    console.log(
-      `${DRY_RUN ? '~' : '✓'}  ${inst.name} ← ${slug} (${urls.length} image(s))`,
-    );
+    console.log(`${DRY_RUN ? '~' : '✓'}  ${inst.name} ← ${slug} (${urls.length} image(s))`);
     for (const u of urls) console.log(`     ${u}`);
 
     if (!DRY_RUN) {
@@ -209,9 +199,7 @@ async function main(): Promise<void> {
   // Optional: clear Redis institution list/map cache (best-effort).
   if (!DRY_RUN && updated > 0) {
     try {
-      const { invalidateInstitutionCache } = await import(
-        '../src/utils/institutionCache'
-      );
+      const { invalidateInstitutionCache } = await import('../src/utils/institutionCache');
       await invalidateInstitutionCache();
       console.log('\nRedis institution cache invalidated.');
     } catch (err) {
@@ -224,6 +212,7 @@ async function main(): Promise<void> {
 
   console.log('\n── Summary ──────────────────────────');
   console.log(`S3 slugs with images: ${bySlug.size}`);
+  console.log(`Skipped (no images):  ${skippedEmpty}`);
   console.log(`Matched:              ${matched}`);
   console.log(`${DRY_RUN ? 'Would update' : 'Updated'}:           ${updated}`);
   console.log(`Unmatched slugs:      ${unmatched}`);
@@ -232,9 +221,7 @@ async function main(): Promise<void> {
   }
   console.log(`DB institutions:      ${institutions.length}`);
   console.log(
-    `DB still without images after match: ${
-      institutions.length - matched
-    } (no S3 folder or empty)`,
+    `DB still without images after match: ${institutions.length - matched} (no S3 folder or empty)`,
   );
 }
 
