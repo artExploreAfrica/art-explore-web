@@ -310,6 +310,7 @@ export function InstitutionsPage() {
     endTime: "18:00",
   });
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   // Rows whose stored image URL exists but failed to load (403/404 from S3).
   // Keyed by URL, not by institution id: after an upload the row keeps its id
@@ -567,7 +568,14 @@ export function InstitutionsPage() {
       setUploadError(err.message);
     } finally {
       setUploadTargetId(null);
+      setUploadFile(null);
     }
+  }
+
+  function toggleUploadTarget(id: string) {
+    setUploadTargetId((prev) => (prev === id ? null : id));
+    setUploadFile(null);
+    setUploadError(null);
   }
 
   function toggleManage(id: string) {
@@ -1049,7 +1057,7 @@ export function InstitutionsPage() {
                           Publish
                         </button>
                       )}
-                      <button className="admin-btn" onClick={() => setUploadTargetId(uploadTargetId === item.id ? null : item.id)}>
+                      <button className="admin-btn" onClick={() => toggleUploadTarget(item.id)}>
                         Image
                       </button>
                       <button className="admin-btn" onClick={() => toggleManage(item.id)}>
@@ -1069,11 +1077,16 @@ export function InstitutionsPage() {
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleUpload(item.id, file);
-                            }}
+                            onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
                           />
+                          <button
+                            className="admin-btn admin-btn-primary"
+                            type="button"
+                            disabled={!uploadFile || busyId === item.id}
+                            onClick={() => uploadFile && handleUpload(item.id, uploadFile)}
+                          >
+                            Submit
+                          </button>
                         </div>
                       </td>
                     </tr>
