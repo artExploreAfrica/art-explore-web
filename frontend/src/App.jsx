@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Home from './components/pages/Home';
 import LoginPage from './components/pages/LoginPage';
 import SignupPage from './components/pages/SignupPage';
@@ -13,7 +13,8 @@ function App() {
     return (
       <PublicAuthProvider>
         <Routes>
-          <Route path="/*" element={<AdminRoutes />} />
+          <Route path="/" element={<Navigate to="/admin" replace />} />
+          <Route path="/admin/*" element={<AdminRoutes />} />
         </Routes>
       </PublicAuthProvider>
     );
