@@ -6,7 +6,19 @@ import SubmitGalleryPage from './components/pages/SubmitGalleryPage';
 import { AdminRoutes } from './admin/routes';
 import { AuthProvider as PublicAuthProvider } from './lib/AuthContext';
 
+const isAdminHost = window.location.hostname.startsWith('admin.');
+
 function App() {
+  if (isAdminHost) {
+    return (
+      <PublicAuthProvider>
+        <Routes>
+          <Route path="/*" element={<AdminRoutes />} />
+        </Routes>
+      </PublicAuthProvider>
+    );
+  }
+
   return (
     <PublicAuthProvider>
       <Routes>
