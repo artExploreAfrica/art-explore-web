@@ -1,4 +1,12 @@
-import { Area, InstitutionType, Prisma, PrismaClient, Role, TagCategory } from '@prisma/client';
+import {
+  Area,
+  InstitutionSubType,
+  InstitutionType,
+  Prisma,
+  PrismaClient,
+  Role,
+  TagCategory,
+} from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
@@ -62,7 +70,9 @@ interface GallerySeed {
   name: string;
   description?: string;
   type: InstitutionType;
-  address: string;
+  subType?: InstitutionSubType;
+  address?: string;
+  mapUrl?: string;
   area: Area;
   /**
    * Neighbourhood within `area`, from the sheet's `sub_area` column.
@@ -73,8 +83,8 @@ interface GallerySeed {
    * the source sheet, not something to decide silently during an import.
    */
   subArea?: string;
-  lat: number;
-  lng: number;
+  lat?: number;
+  lng?: number;
   website?: string;
   instagram?: string;
   phone?: string;
@@ -85,6 +95,7 @@ interface GallerySeed {
 }
 
 const CSV_CANDIDATES = [
+  'ArtandCulturalSpacesDBlatest5.csv',
   'ArtandCulturalSpacesDB-latest-4.csv',
   'ArtandCulturalSpacesDB-latest.csv',
   'institutions-with-images.csv',
@@ -106,27 +117,33 @@ function mapInstitutionType(rawType: string, name: string): InstitutionType | nu
   const label = t.toLowerCase();
   const n = name.toLowerCase();
 
-  if (label === 'art galleries' || label === 'gallery') {
-    return InstitutionType.ART_GALLERY;
-  }
-  if (label === 'museums' || label === 'museum') {
-    return InstitutionType.MUSEUM;
-  }
-  // No FESTIVAL enum — festivals / fairs live under cultural spaces.
-  if (label === 'art festivals' || label.includes('festival')) {
-    return InstitutionType.CULTURAL_SPACE;
-  }
-
+  if (label === 'art galleries' || label === 'gallery') return InstitutionType.ART_GALLERY;
+  if (label === 'museums' || label === 'museum') return InstitutionType.MUSEUM;
+  if (label === 'art festivals' || label.includes('festival')) return InstitutionType.ART_FESTIVAL;
+  if (label === 'nomadic spaces' || label.includes('nomadic')) return InstitutionType.NOMADIC_SPACE;
   if (label === 'art hubs/institutions' || label === 'art hubs' || label.includes('hub')) {
-    if (/\bfoundation\b/.test(n)) return InstitutionType.FOUNDATION;
-    if (/\bmuseum\b/.test(n)) return InstitutionType.MUSEUM;
-    if (/\bstudio/.test(n)) return InstitutionType.STUDIO;
-    if (/\binstitut/.test(n) || /\binstitute\b/.test(n)) return InstitutionType.INSTITUTE;
-    if (/\bgallery\b/.test(n)) return InstitutionType.ART_GALLERY;
-    return InstitutionType.CULTURAL_SPACE;
+    return InstitutionType.HUB_INSTITUTION;
   }
-
   return null;
+}
+
+/** Derive InstitutionSubType from the resolved top-level type + name. */
+function guessSubType(type: InstitutionType, name: string): InstitutionSubType | undefined {
+  const n = name.toLowerCase();
+
+  if (type === InstitutionType.HUB_INSTITUTION) {
+    if (/\bfoundation\b/.test(n)) return InstitutionSubType.FOUNDATION;
+    if (/\bmuseum\b/.test(n)) return InstitutionSubType.MUSEUM;
+    if (/\bstudio/.test(n)) return InstitutionSubType.STUDIO;
+    if (/\binstitut/.test(n)) return InstitutionSubType.INSTITUTE;
+    if (/\bgallery\b/.test(n)) return InstitutionSubType.ART_GALLERY;
+    return InstitutionSubType.CULTURAL_SPACE;
+  }
+  if (type === InstitutionType.ART_GALLERY) return InstitutionSubType.ART_GALLERY;
+  if (type === InstitutionType.MUSEUM) return InstitutionSubType.MUSEUM;
+  if (type === InstitutionType.ART_FESTIVAL) return InstitutionSubType.ART_FESTIVAL;
+
+  return undefined; // NOMADIC_SPACE never gets a subType
 }
 
 /** Normalize phone strings that Excel exported as floats (e.g. 2348055….0). */
@@ -215,9 +232,22 @@ function loadGalleriesFromCsv(): GallerySeed[] {
       row[h] = (values[idx] ?? '').trim();
     });
 
-    const lat = Number(row.lat);
-    const lng = Number(row.lng);
+    const lat = row.lat ? Number(row.lat) : undefined;
+    const lng = row.lng ? Number(row.lng) : undefined;
     const type = mapInstitutionType(row.type ?? '', row.name ?? '');
+    const subType = type ? guessSubType(type, row.name ?? '') : undefined;
+    const coordsOptional =
+      type === InstitutionType.NOMADIC_SPACE || type === InstitutionType.ART_FESTIVAL;
+
+    if (
+      !row.name ||
+      !type ||
+      (!coordsOptional &&
+        (lat === undefined || lng === undefined || !Number.isFinite(lat) || !Number.isFinite(lng)))
+    ) {
+      skipped++;
+      continue;
+    }
     // Sheet export leaves area blank for city-wide festivals / some hubs.
     const areaRaw = (row.area ?? '').toUpperCase();
     const area = validAreas.has(areaRaw) ? areaRaw : Area.OTHER;
@@ -244,7 +274,9 @@ function loadGalleriesFromCsv(): GallerySeed[] {
       name: row.name,
       description: row.description || undefined,
       type,
-      address: row.address || 'Lagos',
+      subType,
+      address: row.address || undefined,
+      mapUrl: row.google_maps_url || undefined,
       area: area as Area,
       // `row` is built from every CSV header (see the loop above), so
       // `sub_area` has always been parsed and in scope here — it was simply
@@ -302,6 +334,8 @@ async function seedGalleries(): Promise<void> {
       name: g.name,
       description: g.description ?? null,
       type: g.type,
+      subType: g.subType ?? null,
+      mapUrl: g.mapUrl ?? null,
       address: g.address,
       area: g.area,
       subArea: g.subArea ?? null,
@@ -322,24 +356,44 @@ async function seedGalleries(): Promise<void> {
       // A blank CSV cell means "the sheet has no value", not "clear the field".
       // Most rows leave at least one of these empty, so writing them as null
       // would wipe anything curated in the admin UI on every re-seed.
-      const { description, website, instagram, phone, email, openingHours, subArea, ...rest } =
-        data;
+      const {
+        name,
+        description,
+        type,
+        subType,
+        address,
+        mapUrl,
+        area,
+        subArea,
+        lat,
+        lng,
+        website,
+        instagram,
+        phone,
+        email,
+        openingHours,
+        ...rest
+      } = data;
+
       await prisma.institution.update({
         where: { id: existing.id },
         data: {
           ...rest,
+          ...(g.name && { name }),
           ...(g.description && { description }),
+          ...(g.type && { type }),
+          ...(g.subType && { subType }),
+          ...(g.address && { address }),
+          ...(g.mapUrl && { mapUrl }),
+          ...(g.area && { area }),
+          ...(g.subArea && { subArea }),
+          ...(g.lat !== undefined && { lat }),
+          ...(g.lng !== undefined && { lng }),
           ...(g.website && { website }),
           ...(g.instagram && { instagram }),
           ...(g.phone && { phone }),
           ...(g.email && { email }),
           ...(g.openingHours && { openingHours }),
-          // Must be here, not in `rest`: the seed is idempotent by name and all
-          // 103 rows already exist, so every re-seed takes this branch. Adding
-          // subArea only to the create object would change nothing. Guarded
-          // like its neighbours so a blank cell never clears a value curated in
-          // the admin UI.
-          ...(g.subArea && { subArea }),
         },
       });
       updated++;
@@ -379,7 +433,6 @@ async function seedSubCategories(): Promise<void> {
 async function seedTags(): Promise<void> {
   const tags: { name: string; label: string; category: TagCategory }[] = [
     { name: 'WOMEN_OWNED', label: 'Women Owned', category: TagCategory.OWNERSHIP },
-    { name: 'BLACK_OWNED', label: 'Black Owned', category: TagCategory.OWNERSHIP },
     { name: 'ARTIST_LED', label: 'Artist Led', category: TagCategory.OWNERSHIP },
     { name: 'LIVE_EXHIBITION', label: 'Live Exhibition', category: TagCategory.FORMAT },
     { name: 'BY_APPOINTMENT', label: 'By Appointment', category: TagCategory.FORMAT },
