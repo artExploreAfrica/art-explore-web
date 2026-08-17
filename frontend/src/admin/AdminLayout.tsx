@@ -29,7 +29,10 @@ export function AdminLayout() {
   return (
     <div className="admin-shell">
       <aside className="admin-sidebar">
-        <p className="admin-sidebar-title">Art Explore admin</p>
+        <NavLink to="/admin" end className="admin-sidebar-brand">
+          <img src="/brand/wordmark-white.png" alt="Art Explore" />
+        </NavLink>
+        <p className="admin-sidebar-title">Admin</p>
         <nav>
           {navItems.map((item) => (
             <NavLink
