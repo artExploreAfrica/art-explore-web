@@ -643,16 +643,7 @@ export function InstitutionsPage() {
     }
   }
 
-  return (
-    <div>
-      <div className="admin-page-header">
-        <h1 className="admin-page-title">Institutions</h1>
-        <button className="admin-btn admin-btn-primary" onClick={startCreate}>
-          + New institution
-        </button>
-      </div>
-
-      {showForm && (
+  const formCard = !showForm ? null : (
         <form className="admin-form-card" onSubmit={handleSubmit}>
           <div className="admin-form-row">
             <label>Name</label>
@@ -945,7 +936,18 @@ export function InstitutionsPage() {
             Cancel
           </button>
         </form>
-      )}
+  );
+
+  return (
+    <div>
+      <div className="admin-page-header">
+        <h1 className="admin-page-title">Institutions</h1>
+        <button className="admin-btn admin-btn-primary" onClick={startCreate}>
+          + New institution
+        </button>
+      </div>
+
+      {!editingId && formCard}
 
       {error && <p className="admin-error">{error}</p>}
       {uploadError && <p className="admin-error">Image upload failed: {uploadError}</p>}
@@ -1163,6 +1165,12 @@ export function InstitutionsPage() {
                       </button>
                     </td>
                   </tr>
+
+                  {editingId === item.id && (
+                    <tr className="admin-detail-row">
+                      <td colSpan={5}>{formCard}</td>
+                    </tr>
+                  )}
 
                   {uploadTargetId === item.id && (
                     <tr className="admin-detail-row">

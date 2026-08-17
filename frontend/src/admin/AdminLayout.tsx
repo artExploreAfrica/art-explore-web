@@ -48,9 +48,7 @@ export function AdminLayout() {
       </aside>
       <div className="admin-main">
         <header className="admin-header">
-          <span className="admin-header-user">
-            {user?.fullName} - {user?.role}
-          </span>
+          <h4>Art Explore Admin</h4>
           <button className="admin-logout-button" onClick={logout}>
             Log out
           </button>
