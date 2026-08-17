@@ -24,6 +24,20 @@ enum InstitutionType {
   FOUNDATION
   STUDIO
   CULTURAL_SPACE
+  HUB_INSTITUTION
+  NOMADIC_SPACE
+  ART_FESTIVAL
+}
+
+enum InstitutionSubType {
+  ART_GALLERY
+  MUSEUM
+  INSTITUTE
+  FOUNDATION
+  STUDIO
+  CULTURAL_SPACE
+  ONLINE
+  ART_FESTIVAL
 }
 
 enum Area {
@@ -144,15 +158,16 @@ model Institution {
   name         String
   description  String?
   type         InstitutionType
-  address      String
-  area         Area
+  subType      InstitutionSubType?
+  address      String?
+  area         Area?
   subArea      String?
   mapUrl       String?
   notes        String?
   hasResidency Boolean         @default(false)
   hasSocial    Boolean         @default(false)
-  lat          Float
-  lng          Float
+  lat          Float?
+  lng          Float?
   images       String[]
   website      String?
   instagram    String?
