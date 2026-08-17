@@ -102,7 +102,7 @@ const CSV_CANDIDATES = [
 ] as const;
 
 /** Map sheet labels / enum strings → Prisma InstitutionType. */
-function mapInstitutionType(rawType: string, name: string): InstitutionType | null {
+function mapInstitutionType(rawType: string, _name: string): InstitutionType | null {
   const t = rawType.trim();
   const upper = t.toUpperCase().replace(/[\s/-]+/g, '_');
 
@@ -115,7 +115,6 @@ function mapInstitutionType(rawType: string, name: string): InstitutionType | nu
   }
 
   const label = t.toLowerCase();
-  const n = name.toLowerCase();
 
   if (label === 'art galleries' || label === 'gallery') return InstitutionType.ART_GALLERY;
   if (label === 'museums' || label === 'museum') return InstitutionType.MUSEUM;

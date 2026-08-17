@@ -166,8 +166,8 @@ model Institution {
   notes        String?
   hasResidency Boolean         @default(false)
   hasSocial    Boolean         @default(false)
-  lat          Float
-  lng          Float
+  lat          Float?
+  lng          Float?
   images       String[]
   website      String?
   instagram    String?
