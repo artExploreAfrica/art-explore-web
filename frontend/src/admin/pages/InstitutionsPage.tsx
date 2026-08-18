@@ -1,4 +1,27 @@
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  Plus,
+  Search,
+  SlidersHorizontal,
+  X,
+  Pencil,
+  Trash2,
+  ImagePlus,
+  CalendarRange,
+  CheckCircle2,
+  Building2,
+  SearchX,
+  AlertCircle,
+  Info,
+  MapPin,
+  Phone,
+  Clock,
+  SlidersHorizontal as FlagsIcon,
+  ImageIcon,
+  UploadCloud,
+  FileCheck2,
+  Star,
+} from "lucide-react";
 import { adminApi, Pagination } from "../api";
 import {
   AREAS,
@@ -6,6 +29,7 @@ import {
   DAYS,
   DayRow,
   emptyHours,
+  formatInstitutionType,
   hoursFromApi,
   hoursToApi,
   INSTITUTION_TYPES,
@@ -166,6 +190,43 @@ function toApiPayload(form: InstitutionForm, hours: Record<string, DayRow>): Rec
   if (openingHours) payload.openingHours = openingHours;
 
   return payload;
+}
+
+/** Skeleton rows shown while the catalogue is loading, shaped like the real table
+ * so the layout doesn't jump once data arrives. */
+function TableSkeleton() {
+  return (
+    <div className="admin-table-wrap">
+      <table className="admin-table">
+        <thead>
+          <tr>
+            <th>Institution</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 6 }, (_, i) => (
+            <tr key={i}>
+              <td>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div className="admin-skeleton-row" style={{ width: 44, height: 44, flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div className="admin-skeleton-row" style={{ width: "60%", height: 12, marginBottom: 6 }} />
+                    <div className="admin-skeleton-row" style={{ width: "35%", height: 10 }} />
+                  </div>
+                </div>
+              </td>
+              <td><div className="admin-skeleton-row" style={{ width: "70%", height: 12 }} /></td>
+              <td><div className="admin-skeleton-row" style={{ width: 70, height: 18, borderRadius: 999 }} /></td>
+              <td><div className="admin-skeleton-row" style={{ width: 120, height: 26 }} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export function InstitutionsPage() {
@@ -347,15 +408,6 @@ export function InstitutionsPage() {
     });
     return [...filtered].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   }, [allItems, search, filterArea, filterSubArea, filterTagId, filterType, filterStatus]);
-
-  // Coverage across the whole catalogue, not just the filtered page.
-  const imageStats = useMemo(() => {
-    const withImage = allItems.filter((inst) => getImageUrl(inst) !== null);
-    return {
-      withImage: withImage.length,
-      broken: withImage.filter((inst) => brokenImages[getImageUrl(inst)!]).length,
-    };
-  }, [allItems, brokenImages]);
 
   function startCreate() {
     setEditingId(null);
@@ -644,17 +696,26 @@ export function InstitutionsPage() {
   }
 
   const formCard = !showForm ? null : (
-        <form className="admin-form-card" onSubmit={handleSubmit}>
-          <div className="admin-form-row">
-            <label>Name</label>
-            <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+    <form className="admin-form-card" onSubmit={handleSubmit}>
+      <div className="admin-form-section">
+        <div className="admin-form-section-head">
+          <Info size={16} />
+          <div>
+            <h3>Basic details</h3>
+            <p>What it's called and how it's classified.</p>
           </div>
+        </div>
+        <div className="admin-form-row">
+          <label className="admin-required">Name</label>
+          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+        </div>
+        <div className="admin-form-row">
+          <label>Description <span className="admin-optional">(optional)</span></label>
+          <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        </div>
+        <div className="admin-form-grid">
           <div className="admin-form-row">
-            <label>Description</label>
-            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          </div>
-          <div className="admin-form-row">
-            <label>Type</label>
+            <label className="admin-required">Type</label>
             <select
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value as InstitutionType })}
@@ -662,17 +723,13 @@ export function InstitutionsPage() {
             >
               {INSTITUTION_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t.replace(/_/g, " ")}
+                  {formatInstitutionType(t)}
                 </option>
               ))}
             </select>
           </div>
           <div className="admin-form-row">
-            <label>Address</label>
-            <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
-          </div>
-          <div className="admin-form-row">
-            <label>Area</label>
+            <label className="admin-required">Area</label>
             <select
               value={form.area}
               onChange={(e) => setForm({ ...form, area: e.target.value as AreaEnum })}
@@ -680,28 +737,42 @@ export function InstitutionsPage() {
             >
               {AREAS.map((a) => (
                 <option key={a} value={a}>
-                  {a}
+                  {a.charAt(0) + a.slice(1).toLowerCase()}
                 </option>
               ))}
             </select>
           </div>
-          <div className="admin-form-row">
-            <label>Sub-area</label>
-            <input
-              placeholder="Lekki Phase 1, Ikoyi, Yaba…"
-              value={form.subArea}
-              onChange={(e) => setForm({ ...form, subArea: e.target.value })}
-            />
+        </div>
+        <div className="admin-form-row">
+          <label className="admin-required">Address</label>
+          <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
+        </div>
+        <div className="admin-form-row">
+          <label>Sub-area <span className="admin-optional">(optional)</span></label>
+          <input
+            placeholder="Lekki Phase 1, Ikoyi, Yaba…"
+            value={form.subArea}
+            onChange={(e) => setForm({ ...form, subArea: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="admin-form-section">
+        <div className="admin-form-section-head">
+          <MapPin size={16} />
+          <div>
+            <h3>Location</h3>
+            <p>Coordinates that place it on the map.</p>
           </div>
+        </div>
 
-          <hr className="admin-form-divider" />
-          <strong>Location</strong>
-
-          {/* Convenience only — writes straight into the lat/lng below, which
-              are the real columns. Nothing new is stored for this. */}
-          <div className="admin-form-row">
-            <label>Paste coordinates</label>
+        {/* Convenience only — writes straight into the lat/lng below, which
+            are the real columns. Nothing new is stored for this. */}
+        <div className="admin-form-row">
+          <label>Paste coordinates</label>
+          <div style={{ display: "flex", gap: 8 }}>
             <input
+              style={{ flex: 1 }}
               placeholder="6.4638, 3.4342 — paste from Google Maps, then Apply"
               value={geocodePaste}
               onChange={(e) => setGeocodePaste(e.target.value)}
@@ -716,10 +787,14 @@ export function InstitutionsPage() {
               Apply
             </button>
           </div>
-          {geocodeError && <p className="admin-error">{geocodeError}</p>}
+        </div>
+        {geocodeError && (
+          <p className="admin-error"><AlertCircle size={14} />{geocodeError}</p>
+        )}
 
+        <div className="admin-form-grid">
           <div className="admin-form-row">
-            <label>Latitude</label>
+            <label className="admin-required">Latitude</label>
             <input
               type="number"
               step="any"
@@ -731,7 +806,7 @@ export function InstitutionsPage() {
             />
           </div>
           <div className="admin-form-row">
-            <label>Longitude</label>
+            <label className="admin-required">Longitude</label>
             <input
               type="number"
               step="any"
@@ -742,24 +817,32 @@ export function InstitutionsPage() {
               required
             />
           </div>
-          <div className="admin-form-row">
-            <label>Map URL</label>
-            <input
-              type="url"
-              placeholder="https://maps.app.goo.gl/… (leave blank if none)"
-              value={form.mapUrl}
-              onChange={(e) => setForm({ ...form, mapUrl: e.target.value })}
-            />
+        </div>
+        <div className="admin-form-row">
+          <label>Map URL <span className="admin-optional">(optional)</span></label>
+          <input
+            type="url"
+            placeholder="https://maps.app.goo.gl/… (leave blank if none)"
+            value={form.mapUrl}
+            onChange={(e) => setForm({ ...form, mapUrl: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="admin-form-section">
+        <div className="admin-form-section-head">
+          <Phone size={16} />
+          <div>
+            <h3>Contact</h3>
+            <p>All optional — fill in whatever the venue has.</p>
           </div>
-
-          <hr className="admin-form-divider" />
-          <strong>Contact</strong>
-
+        </div>
+        <div className="admin-form-grid">
           <div className="admin-form-row">
             <label>Website</label>
             <input
               type="url"
-              placeholder="https://example.com (leave blank if none)"
+              placeholder="https://example.com"
               value={form.website}
               onChange={(e) => setForm({ ...form, website: e.target.value })}
             />
@@ -784,38 +867,43 @@ export function InstitutionsPage() {
             <label>Email</label>
             <input
               type="email"
-              placeholder="hello@example.com (leave blank if none)"
+              placeholder="hello@example.com"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
           </div>
+        </div>
+      </div>
 
-          <hr className="admin-form-divider" />
-          <strong>Opening hours</strong>
-          <p className="admin-page-note" style={{ marginTop: 0 }}>
-            Tick a day to record it. Untick means “not recorded”, which is not the same as closed — leave a day
-            unticked if you simply don’t know. These hours drive the public “Open Now” filter.
-          </p>
+      <div className="admin-form-section">
+        <div className="admin-form-section-head">
+          <Clock size={16} />
+          <div>
+            <h3>Opening hours</h3>
+            <p>Tick a day to record it — untick means "not recorded", not closed. Drives the public "Open Now" filter.</p>
+          </div>
+        </div>
+        <div className="admin-hours-grid">
           {DAYS.map(({ key, label }) => {
             const row = hours[key];
             return (
-              <div className="admin-form-row" key={key}>
-                <label>
+              <div className="admin-hours-row" key={key}>
+                <label className="admin-hours-day">
                   <input
                     type="checkbox"
                     checked={row.recorded}
                     onChange={(e) => setDay(key, { recorded: e.target.checked })}
-                  />{" "}
+                  />
                   {label}
                 </label>
                 {row.recorded && (
                   <>
-                    <label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
                       <input
                         type="checkbox"
                         checked={row.closed}
                         onChange={(e) => setDay(key, { closed: e.target.checked })}
-                      />{" "}
+                      />
                       Closed
                     </label>
                     {!row.closed && (
@@ -825,6 +913,7 @@ export function InstitutionsPage() {
                           value={row.open}
                           onChange={(e) => setDay(key, { open: e.target.value })}
                         />
+                        <span style={{ color: "var(--ae-muted)" }}>–</span>
                         <input
                           type="time"
                           value={row.close}
@@ -837,141 +926,171 @@ export function InstitutionsPage() {
               </div>
             );
           })}
+        </div>
+      </div>
 
-          <hr className="admin-form-divider" />
-          <strong>Flags & internal</strong>
-
-          <div className="admin-form-row">
+      <div className="admin-form-section">
+        <div className="admin-form-section-head">
+          <FlagsIcon size={16} />
+          <div>
+            <h3>Flags &amp; internal</h3>
+            <p>Notes here are internal — never shown on the public site.</p>
+          </div>
+        </div>
+        <div className="admin-form-grid" style={{ marginBottom: 12 }}>
+          <div className="admin-checkbox-row">
             <label>
               <input
                 type="checkbox"
                 checked={form.hasResidency}
                 onChange={(e) => setForm({ ...form, hasResidency: e.target.checked })}
-              />{" "}
+              />
               Runs a residency programme
             </label>
           </div>
-          <div className="admin-form-row">
+          <div className="admin-checkbox-row">
             <label>
               <input
                 type="checkbox"
                 checked={form.hasSocial}
                 onChange={(e) => setForm({ ...form, hasSocial: e.target.checked })}
-              />{" "}
+              />
               Has a social presence
             </label>
           </div>
-          <div className="admin-form-row">
-            <label>Internal notes</label>
-            <textarea
-              placeholder="Not shown on the public site."
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
+        </div>
+        <div className="admin-form-row">
+          <label>Internal notes</label>
+          <textarea
+            placeholder="Not shown on the public site."
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="admin-form-section">
+        <div className="admin-form-section-head">
+          <ImageIcon size={16} />
+          <div>
+            <h3>Photo</h3>
+            <p>{editingId ? "Managed from the row's Image action, not here." : "Attached automatically once the institution is created."}</p>
           </div>
+        </div>
 
-          <hr className="admin-form-divider" />
-          <strong>Image</strong>
-
-          {editingId ? (
-            <>
-              {/* Read-only when editing: images are written by
-                  POST /institutions/:id/images, not by this PUT. An editable
-                  field here would imply otherwise and quietly do nothing. */}
-              {editingImages.length === 0 ? (
-                <p className="admin-page-note">
-                  None stored. Use the <em>Image</em> button on the row to upload one.
-                </p>
-              ) : (
-                <ul className="admin-page-note">
-                  {editingImages.map((url) => (
-                    <li key={url} style={{ wordBreak: "break-all" }}>
-                      <a href={url} target="_blank" rel="noreferrer">
-                        {url}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="admin-form-row">
-                <label>Cover image (optional)</label>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  onChange={(e) => pickNewFile(e.target.files?.[0] ?? null)}
-                />
+        {editingId ? (
+          <>
+            {/* Read-only when editing: images are written by
+                POST /institutions/:id/images, not by this PUT. An editable
+                field here would imply otherwise and quietly do nothing. */}
+            {editingImages.length === 0 ? (
+              <p className="admin-page-note" style={{ marginTop: 0 }}>
+                None stored. Use the <em>Image</em> action on the row to upload one.
+              </p>
+            ) : (
+              <div className="admin-cover-picker" style={{ marginTop: 0 }}>
+                {editingImages.map((url) => (
+                  <a key={url} href={url} target="_blank" rel="noreferrer" title={url}>
+                    <img src={url} alt="" className="admin-thumb" style={{ width: 64, height: 64 }} />
+                  </a>
+                ))}
               </div>
-              {newFile && (
-                <p className="admin-page-note" style={{ marginTop: 0 }}>
-                  Selected: <strong>{newFile.name}</strong> ({(newFile.size / 1024).toFixed(0)} KB) — uploaded
-                  automatically once the institution is created.
-                </p>
-              )}
-              {fileError && <p className="admin-error">{fileError}</p>}
-            </>
-          )}
+            )}
+          </>
+        ) : (
+          <>
+            <label className="admin-dropzone">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={(e) => pickNewFile(e.target.files?.[0] ?? null)}
+              />
+              <UploadCloud size={22} />
+              <p className="admin-dropzone-label">Click to choose a cover image</p>
+              <p className="admin-dropzone-hint">JPG, PNG, WEBP or GIF — up to {MAX_IMAGE_BYTES / 1024 / 1024} MB</p>
+            </label>
+            {newFile && (
+              <div className="admin-file-picked">
+                <FileCheck2 size={16} />
+                <span>{newFile.name} ({(newFile.size / 1024).toFixed(0)} KB)</span>
+              </div>
+            )}
+            {fileError && <p className="admin-error"><AlertCircle size={14} />{fileError}</p>}
+          </>
+        )}
+      </div>
 
-          <hr className="admin-form-divider" />
-          <p className="admin-page-note" style={{ marginTop: 0 }}>
-            Name, type, address, area, latitude and longitude are required. Sub-category and tags are writable on the
-            API but have no field here yet.
-          </p>
-          <button className="admin-btn admin-btn-primary" type="submit" disabled={saving}>
-            {saveStage === "creating"
-              ? "Creating institution..."
-              : saveStage === "uploading"
-                ? "Uploading image..."
-                : saving
-                  ? "Saving..."
-                  : editingId
-                    ? "Save changes"
-                    : newFile
-                      ? "Create institution + upload image"
-                      : "Create institution"}
-          </button>
-          <button className="admin-btn" type="button" onClick={() => setShowForm(false)}>
-            Cancel
-          </button>
-        </form>
+      <p className="admin-form-footnote">
+        Fields marked * are required. Sub-category and tags are writable on the API but have no field here yet.
+      </p>
+      <div className="admin-form-actions">
+        <button className="admin-btn admin-btn-primary" type="submit" disabled={saving}>
+          {saveStage === "creating"
+            ? "Creating institution..."
+            : saveStage === "uploading"
+              ? "Uploading image..."
+              : saving
+                ? "Saving..."
+                : editingId
+                  ? "Save changes"
+                  : newFile
+                    ? "Create institution + upload image"
+                    : "Create institution"}
+        </button>
+        <button className="admin-btn" type="button" onClick={() => setShowForm(false)}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 
   return (
     <div>
       <div className="admin-page-header">
-        <h1 className="admin-page-title">Institutions</h1>
+        <div className="admin-page-header-text">
+          <h1 className="admin-page-title">Institutions</h1>
+          <p className="admin-page-subtitle">
+            {loading ? "Loading catalogue…" : `${allItems.length} institution${allItems.length === 1 ? "" : "s"} in the catalogue`}
+          </p>
+        </div>
         <button className="admin-btn admin-btn-primary" onClick={startCreate}>
-          + New institution
+          <Plus size={15} />
+          New institution
         </button>
       </div>
 
       {!editingId && formCard}
 
-      {error && <p className="admin-error">{error}</p>}
-      {uploadError && <p className="admin-error">Image upload failed: {uploadError}</p>}
+      {error && <p className="admin-error"><AlertCircle size={16} />{error}</p>}
+      {uploadError && <p className="admin-error"><AlertCircle size={16} />Image upload failed: {uploadError}</p>}
       {/* Partial success: the row exists, the image did not attach. Deliberately
           not styled as an error — calling this a failure would send the admin
           off to create a second copy of an institution that already saved. */}
       {notice && (
-        <p className="admin-page-note" style={{ borderLeft: "3px solid #d9a441", paddingLeft: 10 }}>
-          {notice}{" "}
-          <button className="admin-btn" onClick={() => setNotice(null)}>
-            Dismiss
-          </button>
+        <p className="admin-notice">
+          <Info size={16} />
+          <span>
+            {notice}{" "}
+            <button className="admin-btn admin-btn-sm" style={{ marginLeft: 6 }} onClick={() => setNotice(null)}>
+              Dismiss
+            </button>
+          </span>
         </p>
       )}
 
       <div className="admin-search-bar">
-        <input
-          type="text"
-          placeholder="Search institutions by name, area, or sub-area..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+        <div className="admin-search-input-wrap">
+          <Search size={15} />
+          <input
+            type="text"
+            placeholder="Search by name, area, or sub-area..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
         {search && (
-          <button className="admin-btn" onClick={() => setSearch("")}>
+          <button className="admin-btn admin-btn-sm" onClick={() => setSearch("")}>
+            <X size={13} />
             Clear
           </button>
         )}
@@ -979,13 +1098,14 @@ export function InstitutionsPage() {
           className={`admin-btn${activeFilterCount > 0 ? " admin-btn-primary" : ""}`}
           onClick={() => setShowFilters((v) => !v)}
         >
+          <SlidersHorizontal size={14} />
           Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
         </button>
-        <span className="admin-search-count">
-          {loading
-            ? "Loading..."
-            : `Showing ${visibleItems.length} of ${allItems.length} total (sorted A–Z)`}
-        </span>
+        {!loading && (
+          <span className="admin-search-count">
+            Showing {visibleItems.length} of {allItems.length}
+          </span>
+        )}
       </div>
 
       {showFilters && (
@@ -1044,7 +1164,7 @@ export function InstitutionsPage() {
               <option value="">All</option>
               {INSTITUTION_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t.replace(/_/g, " ")}
+                  {formatInstitutionType(t)}
                 </option>
               ))}
             </select>
@@ -1055,250 +1175,320 @@ export function InstitutionsPage() {
         </div>
       )}
 
-      {/*
-        Image coverage at a glance. This is the number that actually answers
-        "is the image pipeline working?" — a row count of stored URLs, separate
-        from how many of them the browser could fetch. Reading it off the table
-        by eye across ~100 rows is not realistic.
-      */}
-      {!loading && (
-        <p className="admin-page-note">
-          Images: {imageStats.withImage} of {allItems.length} institution(s) have a URL stored
-          {imageStats.broken > 0 && ` · ${imageStats.broken} stored URL(s) failed to load`}
-          {imageStats.withImage === 0 &&
-            " — nothing has been synced yet, so every row correctly shows “No image”."}
-        </p>
+      {loading && <TableSkeleton />}
+
+      {!loading && visibleItems.length === 0 && (
+        <div className="admin-empty-state">
+          {allItems.length === 0 ? (
+            <>
+              <Building2 size={40} strokeWidth={1.4} />
+              <p className="admin-empty-state-title">No institutions yet</p>
+              <p className="admin-empty-state-body">Add the first gallery, museum, or cultural space to get the catalogue started.</p>
+              <button className="admin-btn admin-btn-primary" onClick={startCreate}>
+                <Plus size={15} />
+                New institution
+              </button>
+            </>
+          ) : (
+            <>
+              <SearchX size={40} strokeWidth={1.4} />
+              <p className="admin-empty-state-title">No matches</p>
+              <p className="admin-empty-state-body">Nothing matches your search and filters. Try clearing them.</p>
+              <button
+                className="admin-btn"
+                onClick={() => {
+                  setSearch("");
+                  clearFilters();
+                }}
+              >
+                Clear search &amp; filters
+              </button>
+            </>
+          )}
+        </div>
       )}
 
-      {loading && <p>Loading...</p>}
+      {!loading && visibleItems.length > 0 && (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Institution</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleItems.map((item) => {
+                const imgUrl = getImageUrl(item);
+                const imageCount = countImages(item);
+                return (
+                  <React.Fragment key={item.id}>
+                    <tr>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          {/*
+                            Three distinct states, deliberately never collapsed into
+                            one placeholder:
 
-      {!loading && (
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>Image</th>
-              <th>Name</th>
-              <th>Location</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleItems.map((item) => {
-              const imgUrl = getImageUrl(item);
-              const imageCount = countImages(item);
-              return (
-                <React.Fragment key={item.id}>
-                  <tr>
-                    <td>
-                      {/*
-                        Three distinct states, deliberately never collapsed into
-                        one placeholder:
+                              images[] empty        → building icon  (nothing stored — expected for most rows)
+                              URL stored, loaded    → the thumbnail
+                              URL stored, 403/404   → alert icon     (S3 or data problem)
 
-                          images[] empty        → "No image"          (nothing stored — expected for most rows)
-                          URL stored, loaded    → the thumbnail
-                          URL stored, 403/404   → "Image URL broken"  (S3 or data problem)
-
-                        The original code hid a failed <img> with
-                        display:none, which made a broken S3 URL look identical
-                        to an institution that simply has no photo. Those are
-                        different bugs owned by different people, and telling
-                        them apart is the whole point of this cell.
-                      */}
-                      {imgUrl ? (
-                        brokenImages[imgUrl] ? (
-                          <div
-                            className="admin-thumb-placeholder"
-                            title={`Stored URL did not load (403/404?):\n${imgUrl}`}
-                          >
-                            Image URL broken
-                          </div>
-                        ) : (
-                          <img
-                            className="admin-thumb"
-                            src={imgUrl}
-                            alt={item.name}
-                            loading="lazy"
-                            title={
-                              imageCount > 1
-                                ? `${imageCount} images stored. Showing the first:\n${imgUrl}`
-                                : imgUrl
-                            }
-                            onError={() =>
-                              setBrokenImages((prev) => ({ ...prev, [imgUrl]: true }))
-                            }
-                          />
-                        )
-                      ) : (
-                        <div
-                          className="admin-thumb-placeholder"
-                          title="images[] is empty for this institution — nothing has been uploaded or synced yet."
-                        >
-                          No image
-                        </div>
-                      )}
-                    </td>
-                    <td>{item.name}</td>
-                    <td>{[item.area, item.subArea].filter(Boolean).join(" · ") || "—"}</td>
-                    <td>
-                      <span className={`admin-badge ${item.isPublished ? "admin-badge-success" : "admin-badge-neutral"}`}>
-                        {item.isPublished ? "Published" : "Unpublished"}
-                      </span>
-                    </td>
-                    <td>
-                      <button className="admin-btn" onClick={() => startEdit(item)}>
-                        Edit
-                      </button>
-                      {!item.isPublished && (
-                        <button className="admin-btn admin-btn-success" disabled={busyId === item.id} onClick={() => handlePublish(item.id)}>
-                          Publish
-                        </button>
-                      )}
-                      <button className="admin-btn" onClick={() => toggleUploadTarget(item.id)}>
-                        Image
-                      </button>
-                      <button className="admin-btn" onClick={() => toggleManage(item.id)}>
-                        Manage
-                      </button>
-                      <button className="admin-btn admin-btn-danger" disabled={busyId === item.id} onClick={() => handleDelete(item.id, item.name)}>
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-
-                  {editingId === item.id && (
-                    <tr className="admin-detail-row">
-                      <td colSpan={5}>{formCard}</td>
-                    </tr>
-                  )}
-
-                  {uploadTargetId === item.id && (
-                    <tr className="admin-detail-row">
-                      <td colSpan={5}>
-                        {Array.isArray(item.images) && item.images.length > 0 && (
-                          <>
-                            <label>Stored images — pick one to use as the cover</label>
-                            <div className="admin-cover-picker">
-                              {item.images.map((url) => {
-                                const isCover = url === imgUrl;
-                                return (
-                                  <div key={url} className="admin-cover-picker-item">
-                                    <img
-                                      src={url}
-                                      alt=""
-                                      className="admin-thumb"
-                                      title={url}
-                                    />
-                                    {isCover ? (
-                                      <span className="admin-badge admin-badge-success">Cover</span>
-                                    ) : (
-                                      <button
-                                        className="admin-btn"
-                                        type="button"
-                                        disabled={coverBusyUrl !== null}
-                                        onClick={() => handleSetCover(item.id, url)}
-                                      >
-                                        {coverBusyUrl === url ? "Setting..." : "Set as cover"}
-                                      </button>
-                                    )}
-                                    <button
-                                      className="admin-btn admin-btn-danger"
-                                      type="button"
-                                      disabled={deleteBusyUrl !== null}
-                                      onClick={() => handleDeleteImage(item.id, url)}
-                                    >
-                                      {deleteBusyUrl === url ? "Deleting..." : "Delete"}
-                                    </button>
-                                  </div>
-                                );
-                              })}
+                            The original code hid a failed <img> with
+                            display:none, which made a broken S3 URL look identical
+                            to an institution that simply has no photo. Those are
+                            different bugs owned by different people, and telling
+                            them apart is the whole point of this cell.
+                          */}
+                          {imgUrl ? (
+                            brokenImages[imgUrl] ? (
+                              <div
+                                className="admin-thumb-placeholder"
+                                title={`Stored URL did not load (403/404?):\n${imgUrl}`}
+                              >
+                                <AlertCircle size={16} />
+                              </div>
+                            ) : (
+                              <img
+                                className="admin-thumb"
+                                src={imgUrl}
+                                alt={item.name}
+                                loading="lazy"
+                                title={
+                                  imageCount > 1
+                                    ? `${imageCount} images stored. Showing the first:\n${imgUrl}`
+                                    : imgUrl
+                                }
+                                onError={() =>
+                                  setBrokenImages((prev) => ({ ...prev, [imgUrl]: true }))
+                                }
+                              />
+                            )
+                          ) : (
+                            <div
+                              className="admin-thumb-placeholder"
+                              title="images[] is empty for this institution — nothing has been uploaded or synced yet."
+                            >
+                              <Building2 size={16} />
                             </div>
-                          </>
-                        )}
-                        <div className="admin-form-row">
-                          <label>Upload image(s)</label>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={(e) => setUploadFiles(Array.from(e.target.files ?? []))}
-                          />
+                          )}
+                          <div>
+                            <span className="admin-table-name">{item.name}</span>
+                            {item.type && (
+                              <span className="admin-table-sub">{formatInstitutionType(item.type)}</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td>{[item.area && (item.area.charAt(0) + item.area.slice(1).toLowerCase()), item.subArea].filter(Boolean).join(" · ") || "—"}</td>
+                      <td>
+                        <span className={`admin-badge ${item.isPublished ? "admin-badge-success" : "admin-badge-neutral"}`}>
+                          <span className="admin-badge-dot" />
+                          {item.isPublished ? "Published" : "Unpublished"}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="admin-row-actions">
+                          <button className="admin-btn admin-btn-sm" onClick={() => startEdit(item)}>
+                            <Pencil size={13} />
+                            Edit
+                          </button>
+                          {!item.isPublished && (
+                            <button
+                              className="admin-icon-btn"
+                              title="Publish"
+                              disabled={busyId === item.id}
+                              onClick={() => handlePublish(item.id)}
+                            >
+                              <CheckCircle2 size={15} />
+                            </button>
+                          )}
                           <button
-                            className="admin-btn admin-btn-primary"
-                            type="button"
-                            disabled={uploadFiles.length === 0 || uploadBusy}
-                            onClick={() => handleUpload(item.id, uploadFiles)}
+                            className={"admin-icon-btn" + (uploadTargetId === item.id ? " admin-icon-btn-active" : "")}
+                            title="Manage images"
+                            onClick={() => toggleUploadTarget(item.id)}
                           >
-                            {uploadBusy
-                              ? "Uploading..."
-                              : uploadFiles.length > 1
-                                ? `Submit (${uploadFiles.length} images)`
-                                : "Submit"}
+                            <ImagePlus size={15} />
+                          </button>
+                          <button
+                            className={"admin-icon-btn" + (manageId === item.id ? " admin-icon-btn-active" : "")}
+                            title="Manage exhibitions"
+                            onClick={() => toggleManage(item.id)}
+                          >
+                            <CalendarRange size={15} />
+                          </button>
+                          <button
+                            className="admin-icon-btn admin-icon-btn-danger"
+                            title="Delete"
+                            disabled={busyId === item.id}
+                            onClick={() => handleDelete(item.id, item.name)}
+                          >
+                            <Trash2 size={15} />
                           </button>
                         </div>
                       </td>
                     </tr>
-                  )}
 
-                  {manageId === item.id && (
-                    <tr className="admin-detail-row">
-                      <td colSpan={5}>
-                        <strong>Exhibitions</strong>
-                        {exLoading && <p>Loading exhibitions...</p>}
-                        {!exLoading && exhibitions.length === 0 && <p className="admin-page-note">No exhibitions yet.</p>}
-                        {!exLoading && exhibitions.length > 0 && (
-                          <ul>
-                            {exhibitions.map((ex) => (
-                              <li key={ex.id}>
-                                {ex.name}{" "}
-                                {ex.startDate
-                                  ? `(${formatDate(ex.startDate)}${ex.endDate ? ` – ${formatDate(ex.endDate)}` : ""})`
-                                  : ""}{" "}
-                                {ex.approvalStatus && ex.approvalStatus !== "APPROVED" && (
-                                  <span className="admin-badge admin-badge-neutral">{ex.approvalStatus}</span>
-                                )}{" "}
-                                <button className="admin-btn admin-btn-danger" onClick={() => handleDeleteExhibition(item.id, ex.id)}>
-                                  Delete
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        <div className="admin-form-row">
-                          <label>New exhibition name</label>
-                          <input value={exForm.name} onChange={(e) => setExForm({ ...exForm, name: e.target.value })} />
-                        </div>
-                        <div className="admin-form-row">
-                          <label>Start date</label>
-                          <input type="date" value={exForm.startDate} onChange={(e) => setExForm({ ...exForm, startDate: e.target.value })} />
-                        </div>
-                        <div className="admin-form-row">
-                          <label>End date</label>
-                          <input type="date" value={exForm.endDate} onChange={(e) => setExForm({ ...exForm, endDate: e.target.value })} />
-                        </div>
-                        <div className="admin-form-row">
-                          <label>Opening time</label>
-                          <input type="time" value={exForm.startTime} onChange={(e) => setExForm({ ...exForm, startTime: e.target.value })} />
-                        </div>
-                        <div className="admin-form-row">
-                          <label>Closing time</label>
-                          <input type="time" value={exForm.endTime} onChange={(e) => setExForm({ ...exForm, endTime: e.target.value })} />
-                        </div>
-                        <button
-                          className="admin-btn admin-btn-primary"
-                          disabled={!exForm.name.trim() || !exForm.startDate || !exForm.endDate}
-                          onClick={() => handleAddExhibition(item.id)}
-                        >
-                          Add exhibition
-                        </button>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+                    {editingId === item.id && (
+                      <tr className="admin-detail-row">
+                        <td colSpan={4}>{formCard}</td>
+                      </tr>
+                    )}
+
+                    {uploadTargetId === item.id && (
+                      <tr className="admin-detail-row">
+                        <td colSpan={4}>
+                          <h3 className="admin-section-title"><ImagePlus size={15} /> Images</h3>
+                          {Array.isArray(item.images) && item.images.length > 0 && (
+                            <>
+                              <p className="admin-form-hint" style={{ margin: "0 0 8px" }}>Pick one to use as the cover</p>
+                              <div className="admin-cover-picker">
+                                {item.images.map((url) => {
+                                  const isCover = url === imgUrl;
+                                  return (
+                                    <div key={url} className="admin-cover-picker-item">
+                                      <img
+                                        src={url}
+                                        alt=""
+                                        className="admin-thumb"
+                                        title={url}
+                                      />
+                                      {isCover ? (
+                                        <span className="admin-badge admin-badge-success">
+                                          <Star size={11} />
+                                          Cover
+                                        </span>
+                                      ) : (
+                                        <button
+                                          className="admin-btn admin-btn-sm"
+                                          type="button"
+                                          disabled={coverBusyUrl !== null}
+                                          onClick={() => handleSetCover(item.id, url)}
+                                        >
+                                          {coverBusyUrl === url ? "Setting..." : "Set as cover"}
+                                        </button>
+                                      )}
+                                      <button
+                                        className="admin-btn admin-btn-sm admin-btn-danger"
+                                        type="button"
+                                        disabled={deleteBusyUrl !== null}
+                                        onClick={() => handleDeleteImage(item.id, url)}
+                                      >
+                                        {deleteBusyUrl === url ? "Deleting..." : "Delete"}
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
+                          <label className="admin-dropzone" style={{ maxWidth: 420 }}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={(e) => setUploadFiles(Array.from(e.target.files ?? []))}
+                            />
+                            <UploadCloud size={20} />
+                            <p className="admin-dropzone-label">
+                              {uploadFiles.length > 0
+                                ? `${uploadFiles.length} file${uploadFiles.length === 1 ? "" : "s"} selected`
+                                : "Click to choose image(s)"}
+                            </p>
+                            <p className="admin-dropzone-hint">You can select multiple files</p>
+                          </label>
+                          {uploadError && <p className="admin-error"><AlertCircle size={14} />{uploadError}</p>}
+                          <div style={{ marginTop: 10 }}>
+                            <button
+                              className="admin-btn admin-btn-primary"
+                              type="button"
+                              disabled={uploadFiles.length === 0 || uploadBusy}
+                              onClick={() => handleUpload(item.id, uploadFiles)}
+                            >
+                              {uploadBusy
+                                ? "Uploading..."
+                                : uploadFiles.length > 1
+                                  ? `Upload ${uploadFiles.length} images`
+                                  : "Upload"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
+                    {manageId === item.id && (
+                      <tr className="admin-detail-row">
+                        <td colSpan={4}>
+                          <h3 className="admin-section-title"><CalendarRange size={15} /> Exhibitions</h3>
+                          {exLoading && (
+                            <div className="admin-loading" style={{ padding: "8px 0" }}>
+                              <span className="admin-spinner" />
+                              Loading exhibitions...
+                            </div>
+                          )}
+                          {!exLoading && exhibitions.length === 0 && <p className="admin-page-note" style={{ marginTop: 4 }}>No exhibitions yet.</p>}
+                          {!exLoading && exhibitions.length > 0 && (
+                            <ul style={{ margin: "8px 0", paddingLeft: 18 }}>
+                              {exhibitions.map((ex) => (
+                                <li key={ex.id} style={{ marginBottom: 4 }}>
+                                  {ex.name}{" "}
+                                  {ex.startDate
+                                    ? `(${formatDate(ex.startDate)}${ex.endDate ? ` – ${formatDate(ex.endDate)}` : ""})`
+                                    : ""}{" "}
+                                  {ex.approvalStatus && ex.approvalStatus !== "APPROVED" && (
+                                    <span className="admin-badge admin-badge-neutral">{ex.approvalStatus}</span>
+                                  )}{" "}
+                                  <button className="admin-btn admin-btn-sm admin-btn-danger" onClick={() => handleDeleteExhibition(item.id, ex.id)}>
+                                    <Trash2 size={12} />
+                                    Delete
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          <div className="admin-form-grid-3" style={{ marginTop: 10 }}>
+                            <div className="admin-form-row admin-form-span-2">
+                              <label>New exhibition name</label>
+                              <input value={exForm.name} onChange={(e) => setExForm({ ...exForm, name: e.target.value })} />
+                            </div>
+                            <div />
+                            <div className="admin-form-row">
+                              <label>Start date</label>
+                              <input type="date" value={exForm.startDate} onChange={(e) => setExForm({ ...exForm, startDate: e.target.value })} />
+                            </div>
+                            <div className="admin-form-row">
+                              <label>End date</label>
+                              <input type="date" value={exForm.endDate} onChange={(e) => setExForm({ ...exForm, endDate: e.target.value })} />
+                            </div>
+                            <div />
+                            <div className="admin-form-row">
+                              <label>Opening time</label>
+                              <input type="time" value={exForm.startTime} onChange={(e) => setExForm({ ...exForm, startTime: e.target.value })} />
+                            </div>
+                            <div className="admin-form-row">
+                              <label>Closing time</label>
+                              <input type="time" value={exForm.endTime} onChange={(e) => setExForm({ ...exForm, endTime: e.target.value })} />
+                            </div>
+                          </div>
+                          <button
+                            className="admin-btn admin-btn-primary"
+                            style={{ marginTop: 10 }}
+                            disabled={!exForm.name.trim() || !exForm.startDate || !exForm.endDate}
+                            onClick={() => handleAddExhibition(item.id)}
+                          >
+                            Add exhibition
+                          </button>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

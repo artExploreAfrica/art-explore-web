@@ -26,7 +26,6 @@ export function LoginPage() {
 
   return (
     <div className="admin-login-page">
-      <img className="admin-login-logo" src="/brand/wordmark-brown.png" alt="Art Explore" />
       <form className="admin-login-card" onSubmit={handleSubmit}>
         <h1 className="admin-page-title">Admin login</h1>
         <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />

@@ -10,7 +10,10 @@ export type InstitutionType =
   | "INSTITUTE"
   | "FOUNDATION"
   | "STUDIO"
-  | "CULTURAL_SPACE";
+  | "CULTURAL_SPACE"
+  | "HUB_INSTITUTION"
+  | "NOMADIC_SPACE"
+  | "ART_FESTIVAL";
 export type AreaEnum = "ISLAND" | "MAINLAND" | "OTHER";
 
 export const INSTITUTION_TYPES: InstitutionType[] = [
@@ -20,8 +23,21 @@ export const INSTITUTION_TYPES: InstitutionType[] = [
   "FOUNDATION",
   "STUDIO",
   "CULTURAL_SPACE",
+  "HUB_INSTITUTION",
+  "NOMADIC_SPACE",
+  "ART_FESTIVAL",
 ];
 export const AREAS: AreaEnum[] = ["ISLAND", "MAINLAND", "OTHER"];
+
+/** Human-readable label for a type — used anywhere a badge or list shows it,
+ * instead of every call site re-deriving it from the raw enum string. */
+export function formatInstitutionType(type: string): string {
+  return type
+    .toLowerCase()
+    .split("_")
+    .map((w) => w[0]?.toUpperCase() + w.slice(1))
+    .join(" ");
+}
 
 /** Mirrors MAX_IMAGE_BYTES in src/middleware/upload.ts — keep the two in step. */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
