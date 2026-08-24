@@ -14,10 +14,13 @@ const app: Application = express();
 // Trust the first proxy hop (TLS terminates at Nginx/ALB/Cloudflare in prod) so
 // req.ip reflects the real client for rate limiting. See docs/deployment.md.
 app.set('trust proxy', 1);
+app.set('etag', false); // ← add this — dynamic authenticated JSON responses should never 304
 
 // Restrict CORS to ALLOWED_ORIGINS when set; otherwise reflect any origin.
 const allowedOrigins = env.ALLOWED_ORIGINS
-  ? env.ALLOWED_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  ? env.ALLOWED_ORIGINS.split(',')
+      .map((o) => o.trim())
+      .filter(Boolean)
   : [];
 
 // Security & parsing.
