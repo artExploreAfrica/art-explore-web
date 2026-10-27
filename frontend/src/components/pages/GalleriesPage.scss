@@ -1,0 +1,48 @@
+@use '../../styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// /galleries — page header above the directory.
+//
+// Centred, on the same measure as the homepage sections. Cream
+// ground, ink title, terracotta eyebrow (5.0:1 on cream).
+// ─────────────────────────────────────────────────────────────
+
+.gp__head {
+  background: var(--cream);
+  padding: clamp(56px, 10vh, 120px) var(--page-pad) clamp(24px, 4vh, 44px);
+  text-align: center;
+}
+
+.gp__eyebrow {
+  @include eyebrow;
+  justify-content: center;
+  margin: 0 0 clamp(16px, 2.5vh, 26px);
+}
+
+.gp__eyebrow-rule { @include eyebrow-rule; }
+
+.gp__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.1rem, 5.6vw, 4.4rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0 0 clamp(14px, 2vh, 22px);
+}
+
+.gp__lede {
+  font-family: var(--font-body);
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin: 0 auto;
+  max-width: 52ch;
+}
+
+// The directory's own hero ("Search") duplicated this header, so
+// it is suppressed on this route.
+.gp__head + .galleries .app__hero {
+  display: none;
+}

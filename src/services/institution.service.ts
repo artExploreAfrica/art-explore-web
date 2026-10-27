@@ -22,6 +22,7 @@ import {
 import {
   ListSubmissionsQuery,
   MySubmissionsQuery,
+  PublicSubmissionInput,
   SubmitInstitutionInput,
   UpdateSubmissionInput,
 } from '../validators/submission.validator';
@@ -532,6 +533,38 @@ export const submit = async (
   });
   // Not public yet — no cache invalidation needed.
   return institution;
+};
+
+/**
+ * A signed-out visitor suggests an institution from the home page. Same
+ * outcome as `submit` — PENDING, unpublished, in the admin review queue —
+ * but with no submitter account, so `submittedById` stays null and no audit
+ * row is written (AuditLog needs an actor). The visitor's contact details,
+ * if given, go into the internal `notes` for the reviewer.
+ */
+export const submitPublic = async (input: PublicSubmissionInput): Promise<Institution> => {
+  const { submitterName, submitterEmail, company: _honeypot, ...venue } = input;
+
+  const contact = [submitterName, submitterEmail && `<${submitterEmail}>`]
+    .filter(Boolean)
+    .join(' ');
+  const notes = [
+    'Suggested via the public home-page form (no account).',
+    contact && `Suggested by: ${contact}`,
+    'Needs a map pin (lat/lng) before publishing.',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return prisma.institution.create({
+    data: {
+      ...venue,
+      notes,
+      openingHours: Prisma.JsonNull,
+      approvalStatus: ApprovalStatus.PENDING,
+      isPublished: false,
+    },
+  });
 };
 
 /** A USER's own submissions, any status. */

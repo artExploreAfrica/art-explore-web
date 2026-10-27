@@ -1,0 +1,140 @@
+@use '../../styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// FOOTER — ink, like the header (ink's role covers both).
+//
+// Brand on the left, two link columns on the right, a thin legal
+// row beneath. Laid out across the width rather than stacked so it
+// stays the same height as the old three-line footer (~276px on
+// desktop). Links use the "navigation on ink" states: cream, turning
+// light orange with an underline on hover (4.97:1 on ink).
+// ─────────────────────────────────────────────────────────────
+
+.site-footer {
+  background: var(--ink);
+  color: var(--on-dark);
+  padding: clamp(36px, 5.5vh, 56px) var(--page-pad) clamp(20px, 3vh, 28px);
+}
+
+.site-footer__top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: clamp(24px, 4vw, 64px);
+  padding-bottom: clamp(20px, 3vh, 32px);
+  border-bottom: 1px solid var(--rule-on-dark);
+}
+
+.site-footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 34ch;
+}
+
+.site-footer__mark {
+  font-family: var(--font-logo);
+  font-weight: 900;
+  font-size: clamp(18px, 2vw, 22px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--on-dark);
+  margin: 0;
+
+  span { font-weight: 300; letter-spacing: 0.18em; }
+}
+
+.site-footer__line {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--on-dark-muted);
+  margin: 0;
+}
+
+.site-footer__nav {
+  display: flex;
+  gap: clamp(32px, 6vw, 96px);
+}
+
+.site-footer__heading {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+  margin: 0 0 12px;
+}
+
+.site-footer__col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-footer__link {
+  @include nav-link-on-ink;
+  display: inline-block;
+  padding-bottom: 2px;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+
+.site-footer__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: clamp(14px, 2vh, 20px);
+}
+
+.site-footer__legal {
+  font-family: var(--font-body);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+  margin: 0;
+}
+
+.site-footer__top-btn {
+  @include nav-link-on-ink;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0 0 2px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+// Phones: each column becomes one wrapping row of links under the
+// brand, so the footer keeps its height (~260px) instead of growing
+// into a stack of five links. Headings stay for screen readers.
+@media (max-width: 600px) {
+  .site-footer { padding-top: 40px; padding-bottom: 28px; }
+  .site-footer__top { flex-direction: column; gap: 14px; padding-bottom: 16px; }
+  .site-footer__brand { gap: 6px; }
+  .site-footer__line { font-size: 0.85rem; line-height: 1.45; }
+  .site-footer__nav { flex-direction: column; gap: 4px; }
+  .site-footer__heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .site-footer__col ul { flex-direction: row; flex-wrap: wrap; gap: 4px 20px; }
+  .site-footer__link { font-size: 0.85rem; line-height: 1.4; }
+  .site-footer__bottom { padding-top: 12px; }
+  .site-footer__legal { font-size: 10px; letter-spacing: 0.06em; }
+}
+
+.site-footer__top-btn { white-space: nowrap; }

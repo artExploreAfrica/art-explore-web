@@ -1,16 +1,88 @@
-// Variables
-$primary-color: #d97706;
-$primary-dark: #b45309;
-$secondary-color: #1f2937;
-$text-dark: #1f2937;
-$text-light: #6b7280;
-$bg-light: #f9fafb;
-$white: #ffffff;
-$border-color: #e5e7eb;
-$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-$transition: all 0.3s ease;
+@use './styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// THEME — Art Explore colour alignment.
+//
+// Source of truth: "Art Explore Colour Alignment.pdf". Five brand
+// colours, each with one fixed role:
+//
+//   Terracotta   #B0431C  primary    — buttons, links, active nav,
+//                                      key highlights. The colour
+//                                      people click.
+//   Ink brown    #241B12  secondary  — all text, secondary buttons,
+//                                      header and footer.
+//   Light orange #E0673A  accent     — hover fill, badges, map pins,
+//                                      underline marks. Never text
+//                                      on a light ground.
+//   Cream        #F6EFE2  background — the page, and text on ink or
+//                                      terracotta fills.
+//   Sand         #EDE0CB  surface    — cards, alternate sections,
+//                                      inputs, dividers.
+//
+// Page proportion: cream 55 · sand 20 · ink 15 · terracotta 7 ·
+// orange 3. Terracotta stays rare so it reads as the action colour.
+//
+// Approved text pairings (contrast):
+//   ink on cream 14.8   ink on sand 13.0   cream on ink 14.8
+//   cream on terracotta 5.0   ink on orange 5.0
+//   terracotta on cream 5.0 (links, headings)
+// Never: cream on orange (2.9), orange text on cream, orange on
+// terracotta, terracotta text on sand at body size (4.4).
+//
+// The state shades below come from the PDF's state table and are
+// used ONLY for those states. Hover/press/focus mixins live in
+// styles/_brand.scss.
+// ─────────────────────────────────────────────────────────────
+:root {
+  // Brand palette.
+  --terracotta: #b0431c;
+  --ink:        #241b12;
+  --orange:     #e0673a;
+  --cream:      #f6efe2;
+  --sand:       #ede0cb;
+
+  // State shades (PDF section 03).
+  --terracotta-press: #8a3216;  // primary pressed, link hover
+  --ink-press:        #3a2d20;  // secondary pressed
+  --sand-dark:        #d5c8b5;  // disabled fill ("darker sand")
+
+  // Text, by ground. Muted ink is 72% so it holds 5.8:1 or better
+  // on both cream and sand; muted cream on ink is 9.4:1.
+  --text:           var(--ink);
+  --text-muted:     rgba(36, 27, 18, 0.72);
+  --text-disabled:  rgba(36, 27, 18, 0.55);
+  --on-dark:        var(--cream);
+  --on-dark-muted:  rgba(246, 239, 226, 0.78);
+
+  // Lines. --rule is a hairline divider; --control-border is the
+  // 3:1 edge a form control or outlined button needs.
+  --rule:           rgba(36, 27, 18, 0.14);
+  --rule-on-dark:   rgba(246, 239, 226, 0.18);
+  --control-border: rgba(36, 27, 18, 0.5);
+
+  // Type. Archivo for headings and labels, Instrument Serif Italic
+  // for accents. Lato stays for the footer wordmark lockup.
+  --font-logo:    'Lato', system-ui, sans-serif;
+  --font-display: 'Archivo', system-ui, sans-serif;
+  --font-body:    'Archivo', system-ui, sans-serif;
+  --font-accent:  'Instrument Serif', Georgia, serif;
+
+  --ease:       cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out:   cubic-bezier(0.4, 0, 0.2, 1);
+
+  // ── Page measure ─────────────────────────────────────────
+  // Every section except the hero centres its content inside
+  // --page-max and keeps at least --gutter of air on each side.
+  //
+  // --page-pad does both jobs in one value: on a narrow screen it
+  // resolves to the gutter, and once the viewport is wider than
+  // --page-max it grows to the leftover half-width, which centres
+  // the content. Section backgrounds stay full-bleed because the
+  // padding is inside the section, not a max-width on it.
+  --page-max:   1400px;
+  --gutter:     clamp(20px, 4vw, 56px);
+  --page-pad:   max(var(--gutter), (100% - var(--page-max)) / 2);
+}
 
 // Global Reset
 *,
@@ -21,11 +93,40 @@ $transition: all 0.3s ease;
   box-sizing: border-box;
 }
 
+html {
+  background: var(--cream);
+}
+
 body {
-  font-family: "Red Hat Display", sans-serif;
-  color: $text-dark;
+  font-family: var(--font-body);
+  color: var(--text);
   line-height: 1.6;
-  background: $white;
+  background: var(--cream);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  scrollbar-color: var(--control-border) var(--sand);
+}
+*::-webkit-scrollbar       { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: var(--sand); }
+*::-webkit-scrollbar-thumb {
+  background: var(--control-border);
+  border: 2px solid var(--sand);
+  border-radius: 10px;
+  &:hover { background: var(--ink); }
+}
+
+// Ink on light orange is 5.0:1.
+::selection {
+  background: var(--orange);
+  color: var(--ink);
+}
+
+.app {
+  background: var(--cream);
+  min-height: 100vh;
 }
 
 img {
@@ -40,39 +141,15 @@ img {
   padding: 0 16px; // ← added so content never bleeds edge-to-edge on mobile
 }
 
-// Buttons
+// Buttons (login, signup and submit forms).
 .btn {
-  display: inline-block;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: $transition;
-  border: none;
-  font-size: 16px;
+  &-primary { @include btn-primary; }
+  &-outline { @include btn-secondary; }
+
+  &-small { padding: 9px 16px; }
 
   @media (max-width: 480px) {
-    padding: 10px 18px;
-    font-size: 14px;
-  }
-
-  &-primary {
-    background: $primary-color;
-    color: $white;
-    &:hover {
-      background: $primary-dark;
-      transform: translateY(-2px);
-    }
-  }
-
-  &-outline {
-    background: transparent;
-    border: 2px solid $primary-color;
-    color: $primary-color;
-    &:hover {
-      background: $primary-color;
-      color: $white;
-    }
+    padding: 12px 18px;
   }
 }
 
@@ -86,10 +163,12 @@ img {
   }
 
   h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
     font-size: 36px;
-    font-family: Georgia, serif;
+    letter-spacing: -0.02em;
     margin-bottom: 12px;
-    color: $text-dark;
+    color: var(--ink);
 
     @media (max-width: 768px) {
       font-size: 28px;
@@ -101,7 +180,7 @@ img {
   }
 
   p {
-    color: $text-light;
+    color: var(--text-muted);
     max-width: 600px;
     margin: 0 auto;
 
@@ -121,8 +200,8 @@ img {
   &-spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid $border-color;
-    border-top-color: $primary-color;
+    border: 3px solid var(--sand);
+    border-top-color: var(--terracotta);
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }
@@ -132,93 +211,4 @@ img {
   to { transform: rotate(360deg); }
 }
 
-// Footer
-.footer {
-  background: $secondary-color;
-  color: $white;
-  padding: 40px 0;
-  text-align: center;
-
-  @media (max-width: 480px) {
-    padding: 28px 16px;
-  }
-
-  p {
-    margin-bottom: 10px;
-    font-size: 15px;
-
-    @media (max-width: 480px) {
-      font-size: 13px;
-    }
-  }
-
-  small {
-    color: #9ca3af;
-
-    @media (max-width: 480px) {
-      font-size: 12px;
-    }
-  }
-}
-
-// Region buttons (above map)
-.region-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: white;
-  border-bottom: 2px solid #f0f0f0;
-  flex-wrap: wrap;
-
-  @media (max-width: 768px) {
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-  }
-
-  @media (max-width: 480px) {
-    gap: 0.5rem;
-    padding: 0.6rem 0.75rem;
-    justify-content: flex-start;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    scrollbar-width: none;
-    &::-webkit-scrollbar { display: none; }
-  }
-
-  button {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    border: none;
-    border-radius: 50px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    background: #f5f5f5;
-    color: #333;
-    font-family: inherit;
-    white-space: nowrap;
-
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      background: #e8e8e8;
-    }
-
-    &.active {
-      background: #d97706;
-      color: white;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    }
-
-    @media (max-width: 768px) {
-      padding: 0.5rem 1rem;
-      font-size: 0.875rem;
-    }
-
-    @media (max-width: 480px) {
-      padding: 0.45rem 0.9rem;
-      font-size: 0.8rem;
-    }
-  }
-}
+// Footer styles live in components/layout/Footer.scss.

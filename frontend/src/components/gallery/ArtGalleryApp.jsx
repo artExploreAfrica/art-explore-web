@@ -67,13 +67,12 @@ function countForTab(tab, data) {
 }
 
 function placeholderColor(name) {
+  // Brand colours only, each dark enough for cream initials.
   const palette = [
-    "#1a1714",
-    "#2d2a27",
-    "#8a6a5a",
-    "#c1440e",
-    "#3d3530",
-    "#4a3728",
+    "#241b12", // ink
+    "#3a2d20", // ink, pressed shade
+    "#b0431c", // terracotta
+    "#8a3216", // terracotta, pressed shade
   ];
   let hash = 0;
   for (let i = 0; i < name.length; i++)

@@ -13,7 +13,8 @@
 //   type         -> artTypes ([base type] + "exhibition" when hasExhibition)
 //   images[]     -> image    (first image, or null -> card shows initials)
 //   address      -> neighborhood (derived; backend has no neighborhood field)
-//   (none)       -> rating   (GAP: backend has no rating — see FRONTEND_INTEGRATION.md)
+//   rating       -> rating       (aggregate; null until a review is approved)
+//   reviewCount  -> reviewCount  (0 until a review is approved)
 //   openingHours -> hours    (GAP: shapes incompatible — left null for now)
 
 const AREA_TO_REGION = {
@@ -61,10 +62,15 @@ export function adaptInstitution(inst) {
     neighborhood: deriveNeighborhood(inst.address, region),
     artTypes: [...new Set(artTypes)],
     image: inst.images?.[0] ?? null,
-    rating: null, // GAP: no backend rating field yet.
+    // The backend does expose an aggregate rating and a review
+    // count on the institution row; both are null/0 until a
+    // review is approved for that venue.
+    rating: inst.rating ?? null,
+    reviewCount: inst.reviewCount ?? 0,
     hours: null, // GAP: openingHours shape differs; "Open Now" disabled.
 
     // Carried through untouched for detail views / future use.
+    subArea: inst.subArea ?? null,
     description: inst.description ?? null,
     website: inst.website ?? null,
     phone: inst.phone ?? null,

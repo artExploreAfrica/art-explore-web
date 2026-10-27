@@ -1,26 +1,44 @@
-// src/App.jsx
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Navbar from '../layout/Navbar.jsx';
 import Herosection3 from '../layout/HeroTypographic.jsx';
-import ArtGalleryApp from '../gallery/ArtGalleryApp.jsx';
+import PopularGalleries from '../sections/PopularGalleries.jsx';
 import Mapheader from '../Map/LagosMap.jsx';
 import MapView from '../Map/MapView.jsx';
+import Contribute from '../sections/Contribute.jsx';
+import Footer from '../layout/Footer.jsx';
 import '../../App.jsx';
 
+/**
+ * Home — read top to bottom as a guide to the city:
+ *   Hero        — what this is
+ *   The range   — popular venues, by kind of space
+ *   Map         — see it laid out
+ *   Contribute  — suggest a space that's missing (inline form)
+ *
+ * The full searchable directory lives on its own route, /galleries,
+ * reached from the "Galleries" nav link.
+ */
 function App() {
+  const { hash } = useLocation();
+
+  // Footer links such as /#map arrive here from other routes; scroll to
+  // the section once it has mounted.
+  useEffect(() => {
+    if (!hash) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [hash]);
+
   return (
     <div className="app">
       <Navbar />
       <Herosection3 />
+      <PopularGalleries />
       <Mapheader />
       <MapView />
-      <ArtGalleryApp />
-      <footer className="footer">
-        <div className="container">
-          <p>&copy; 2024 ArtLagos Directory. All rights reserved.</p>
-          <small>Discover and explore the vibrant art scene of Lagos, Nigeria</small>
-        </div>
-      </footer>
+      <Contribute />
+
+      <Footer />
     </div>
   );
 }

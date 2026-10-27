@@ -1,28 +1,31 @@
+@use '../../styles/brand' as *;
+
 // ─────────────────────────────────────────────────────────────
 //  MapView.module.scss
+//
+//  Cream section ground. The filter bar uses the shared button
+//  states: regions rest as secondary (ink outline) buttons and the
+//  selected region is terracotta (active nav). Popups and zoom
+//  controls are cream panels with ink type. Pins are terracotta,
+//  per the PDF's map pin row.
 // ─────────────────────────────────────────────────────────────
-
-$c-island:   #1a6bbd;
-$c-mainland: #b45309;
-$c-bg:       #0f172a;
-$c-border:   #1e293b;
-$font:       'Inter', 'Segoe UI', system-ui, sans-serif;
 
 // ── Map wrapper ───────────────────────────────────────────────
 .mapWrapper {
   position:       relative;
+  background:     var(--cream);
+  // Same centred measure as every other non-hero section.
+  padding:        0 var(--page-pad) clamp(48px, 8vh, 96px);
   height:         90vh;
   width:          100%;
-  max-width:      1400px;
-  margin:         0 auto;
   display:        flex;
   flex-direction: column;
-  font-family:    $font;
+  font-family:    var(--font-body);
 
   @media (max-width: 768px) {
-    height:    100svh;
-    height:    100vh; // fallback for browsers without svh
-    max-width: 100%;
+    height:  100svh;
+    height:  100vh; // fallback for browsers without svh
+    padding: 0;
   }
 }
 
@@ -31,94 +34,105 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   display:         flex;
   justify-content: center;
   align-items:     center;
-  gap:             8px;
-  padding:         10px 0;
+  gap:             10px;
+  padding:         0 0 18px;
   flex-wrap:       wrap;
   flex-shrink:     0;
   z-index:         10;
 
   @media (max-width: 768px) {
-    gap:             6px;
-    padding:         8px 12px;
-    background:      rgba(255, 255, 255, 0.96);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    gap:             8px;
+    padding:         10px 12px;
+    background:      rgba(246, 239, 226, 0.96);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     position:        sticky;
     top:             0;
     z-index:         20;
-    border-bottom:   1px solid rgba(226, 232, 240, 0.8);
+    border-bottom:   1px solid var(--rule);
   }
 }
 
 .regionBtn {
-  padding:       6px 16px;
-  border-radius: 20px;
-  border:        1.5px solid #cbd5e1;
-  background:    white;
-  font-size:     13px;
-  font-weight:   500;
-  cursor:        pointer;
-  color:         #475569;
-  transition:    all 0.2s ease;
-  font-family:   $font;
-
-  &:hover { border-color: #94a3b8; background: #f8fafc; }
+  @include btn-secondary;
+  padding:      12px 22px;
+  font-size:    11px;
+  border-color: var(--control-border);
 
   @media (max-width: 768px) {
-    padding:    9px 18px;
-    font-size:  13px;
-    min-height: 40px;
+    padding:    11px 16px;
+    min-height: 42px;
   }
 
   @media (max-width: 380px) {
-    padding:   7px 12px;
-    font-size: 12px;
+    padding:   9px 12px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
   }
 }
 
-.regionBtnActive   { font-weight: 700; }
-.regionBtnAll      { &.regionBtnActive { background: $c-bg;       color: white; border-color: $c-bg;       } }
-.regionBtnIsland   { &.regionBtnActive { background: $c-island;   color: white; border-color: $c-island;   } }
-.regionBtnMainland { &.regionBtnActive { background: $c-mainland; color: white; border-color: $c-mainland; } }
+// A swatch per region, colour-matched to that region's map labels
+// so the buttons still read as a legend. These two hues are data,
+// not brand colours.
+.regionBtnIsland::after,
+.regionBtnMainland::after {
+  content:       '';
+  width:         7px;
+  height:        7px;
+  border-radius: 50%;
+  flex:          0 0 auto;
+}
+.regionBtnIsland::after   { background: #1a6bbd; }
+.regionBtnMainland::after { background: #b45309; }
+
+.regionBtnActive,
+.regionBtnActive:hover:not(:disabled) {
+  @include selected;
+
+  &::after { background: var(--cream); }
+}
 
 .resetBtn {
-  padding:       6px 14px;
-  border-radius: 8px;
-  border:        1.5px solid #e2e8f0;
-  background:    white;
-  font-size:     12px;
-  cursor:        pointer;
-  color:         #64748b;
-  font-family:   $font;
-  transition:    all 0.15s ease;
+  @include btn-shape;
+  padding:     12px 18px;
+  font-size:   11px;
+  background:  transparent;
+  border:      1px solid transparent;
+  color:       var(--terracotta);
+  text-decoration: underline;
+  text-decoration-color: var(--orange);
+  text-underline-offset: 4px;
 
-  &:hover { background: #f1f5f9; border-color: #94a3b8; }
+  // A text-link action: terracotta, deepening on hover.
+  &:hover,
+  &:active { color: var(--terracotta-press); }
+  @include focus-ring(var(--ink));
 
   @media (max-width: 768px) {
-    padding:    9px 14px;
-    min-height: 40px;
+    padding:    11px 14px;
+    min-height: 42px;
   }
 
   @media (max-width: 380px) {
-    padding:   7px 10px;
-    font-size: 11px;
+    padding:   9px 11px;
+    font-size: 10px;
   }
 }
 
-// ── Map canvas ────────────────────────────────────────────────
+// ── Map frame ─────────────────────────────────────────────────
 .mapContainer {
   flex:          1;
   width:         100%;
-  border:        3px solid $c-border;
-  border-radius: 14px;
+  border:        1px solid var(--rule);
+  border-radius: 2px;
   overflow:      hidden;
-  box-shadow:    0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10);
+  background:    var(--sand);  // close to the light basemap while tiles load
   min-height:    0; // flex child must shrink below content height
 
   @media (max-width: 768px) {
     border-radius: 0;
     border:        none;
-    box-shadow:    none;
+    border-top:    1px solid var(--rule);
   }
 }
 
@@ -131,18 +145,17 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
     height:   38px;
     cursor:   pointer;
     position: relative;
+    color:    var(--terracotta);
 
     svg {
       width:  100%;
       height: 100%;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
-      transition: all 0.2s ease;
+      transition: transform 0.2s ease, color 0.2s ease;
     }
 
-    &:hover svg {
-      filter:    drop-shadow(0 4px 8px rgba(0,0,0,0.45));
-      transform: scale(1.12);
-    }
+    &:hover { color: var(--orange); }
+    &:hover svg { transform: scale(1.12); }
+    &:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 50%; }
 
     @media (max-width: 768px) { width: 32px; height: 43px; }
     @media (max-width: 480px) { width: 28px; height: 38px; }
@@ -156,7 +169,7 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
     width:         10px;
     height:        10px;
     border-radius: 50%;
-    background:    rgba(230, 57, 70, 0.5);
+    background:    rgba(224, 103, 58, 0.55);
     animation:     pulse 2s infinite;
 
     @media (max-width: 768px) { width: 14px; height: 14px; bottom: -6px; }
@@ -171,10 +184,11 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   // Desktop popup only — suppressed entirely on mobile
   .gallery-popup-wrapper .maplibregl-popup-content {
     padding:       0;
-    border-radius: 12px;
+    border-radius: 2px;
     overflow:      hidden;
-    box-shadow:    0 8px 30px rgba(0,0,0,0.22);
-    border:        1px solid #e2e8f0;
+    box-shadow:    0 3px 0 var(--orange) inset;
+    border:        1px solid var(--rule);
+    background:    var(--cream);
   }
 
   .popup-content {
@@ -193,8 +207,20 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
   .popup-text {
     padding: 12px 14px 14px;
 
-    h4 { margin: 0 0 4px; font-size: 15px; font-weight: 700; color: #0f172a; }
-    p  { margin: 0 0 8px; font-size: 12px; color: #64748b; line-height: 1.4; }
+    h4 {
+      margin: 0 0 4px;
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+    p {
+      margin: 0 0 8px;
+      font-family: var(--font-body);
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
   }
 
   .popup-meta {
@@ -206,17 +232,19 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
 
   .popup-region {
     font-size:      10px;
-    font-weight:    600;
+    font-weight:    700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    padding:        2px 8px;
-    border-radius:  10px;
+    padding:        3px 8px;
+    border-radius:  2px;
+    color:          var(--cream);
 
-    &--island   { background: rgba(26,107,189,0.12); color: #1a6bbd; }
-    &--mainland { background: rgba(180,83,9,0.12);   color: #b45309; }
+    // Region hues match the map labels and the filter swatches.
+    &--island   { background: #1a6bbd; }
+    &--mainland { background: #b45309; }
   }
 
-  .popup-neighbourhood { font-size: 11px; color: #94a3b8; }
+  .popup-neighbourhood { font-size: 11px; color: var(--text-muted); }
 
   .popup-footer {
     display:         flex;
@@ -225,8 +253,8 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
     margin-top:      4px;
   }
 
-  .popup-rating { font-size: 12px; font-weight: 600; color: #f59e0b; }
-  .popup-tags   { font-size: 11px; color: #94a3b8; }
+  .popup-rating { font-size: 12px; font-weight: 700; color: var(--ink); }
+  .popup-tags   { font-size: 11px; color: var(--text-muted); }
 
   // Landmark popup
   .landmark-popup {
@@ -237,8 +265,62 @@ $font:       'Inter', 'Segoe UI', system-ui, sans-serif;
     max-width:   220px;
 
     .landmark-popup__icon { font-size: 22px; flex-shrink: 0; }
-    strong { display: block; font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 3px; }
-    p      { margin: 0; font-size: 12px; color: #64748b; line-height: 1.4; }
+    strong {
+      display: block;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 3px;
+    }
+    p { margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  }
+
+  .maplibregl-popup-content {
+    background:    var(--cream);
+    border-radius: 2px;
+    font-family:   var(--font-body);
+  }
+
+  // Popup tip and close button, so the shell reads as one piece.
+  .maplibregl-popup-anchor-top    .maplibregl-popup-tip { border-bottom-color: var(--cream); }
+  .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color:    var(--cream); }
+  .maplibregl-popup-anchor-left   .maplibregl-popup-tip { border-right-color:  var(--cream); }
+  .maplibregl-popup-anchor-right  .maplibregl-popup-tip { border-left-color:   var(--cream); }
+
+  .maplibregl-popup-close-button {
+    color:       var(--ink);
+    font-size:   18px;
+    padding:     2px 8px;
+    background:  transparent;
+    transition:  color 0.2s ease;
+
+    &:hover { color: var(--terracotta); background: transparent; }
+    &:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+  }
+
+  // Zoom controls — cream panel, ink icons.
+  .maplibregl-ctrl-group {
+    background:    var(--cream);
+    border:        1px solid var(--control-border);
+    border-radius: 2px;
+    box-shadow:    none;
+
+    button {
+      background: transparent;
+
+      & + button { border-top: 1px solid var(--rule); }
+
+      &:hover { background: var(--sand); }
+      &:focus-visible { outline: 2px solid var(--terracotta); outline-offset: -2px; }
+    }
+  }
+
+  .maplibregl-ctrl-attrib {
+    background: rgba(246, 239, 226, 0.88);
+    color:      var(--text-muted);
+
+    a { color: var(--ink); }
   }
 
   // MapLibre navigation controls — mobile tweaks

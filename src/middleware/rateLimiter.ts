@@ -49,3 +49,26 @@ export const contributorWriteLimiter = rateLimit({
       429,
     ),
 });
+
+/**
+ * Throttle anonymous venue suggestions from the public home-page form.
+ * There is no account to key on, so this is per IP — and tighter than the
+ * contributor limit, because anyone can reach it. Five an hour is plenty for
+ * a visitor adding the galleries they know; a flood still needs many IPs and
+ * every row lands PENDING and unpublished for an admin to review.
+ */
+export const publicSubmissionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  limit: 5, // per IP per hour
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  store: new UpstashRateLimitStore(),
+  skip: () => env.NODE_ENV === 'test',
+  keyGenerator: (req: Request) => ipKeyGenerator(req.ip ?? 'unknown'),
+  handler: (_req, res) =>
+    errorResponse(
+      res,
+      'Too many suggestions from this connection — please try again later',
+      429,
+    ),
+});

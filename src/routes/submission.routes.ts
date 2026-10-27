@@ -3,7 +3,7 @@ import { Router } from 'express';
 import * as reviewController from '../controllers/review.controller';
 import * as submissionController from '../controllers/submission.controller';
 import { authenticate } from '../middleware/authenticate';
-import { contributorWriteLimiter } from '../middleware/rateLimiter';
+import { contributorWriteLimiter, publicSubmissionLimiter } from '../middleware/rateLimiter';
 import { roleGuard } from '../middleware/roleGuard';
 import { uploadImage } from '../middleware/upload';
 import { validate } from '../middleware/validate';
@@ -15,13 +15,38 @@ import { idParamSchema, removeImageSchema } from '../validators/institution.vali
 import { listReviewsQuerySchema } from '../validators/review.validator';
 import {
   mySubmissionsQuerySchema,
+  publicSubmissionSchema,
   submitInstitutionSchema,
   updateSubmissionSchema,
 } from '../validators/submission.validator';
 
 const router = Router();
 
-// All submission routes require an authenticated USER.
+/**
+ * @swagger
+ * /api/v1/submissions/public:
+ *   post:
+ *     summary: Suggest a venue without an account (created PENDING, unpublished)
+ *     description: >
+ *       Used by the "Are we missing a gallery?" form on the home page. Accepts
+ *       only name, type, area, address, subArea, website, instagram and
+ *       description, plus optional submitterName / submitterEmail, which are
+ *       stored in the internal notes. Rate limited per IP.
+ *     tags: [Submissions]
+ *     responses:
+ *       201: { description: Suggestion received and pending review }
+ *       400: { description: Validation failed }
+ *       429: { description: Too many suggestions from this connection }
+ */
+// Registered before the auth guard below — this one route is public.
+router.post(
+  '/public',
+  publicSubmissionLimiter,
+  validate({ body: publicSubmissionSchema }),
+  submissionController.submitPublic,
+);
+
+// Every other submission route requires an authenticated USER.
 router.use(authenticate, roleGuard(Role.USER));
 
 /**

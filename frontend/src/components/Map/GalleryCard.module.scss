@@ -9,8 +9,12 @@
 //  .backdrop data-state mirrors the sheet state so it tracks height.
 // ─────────────────────────────────────────────────────────────
 
-$font:       'Inter', 'Segoe UI', system-ui, sans-serif;
-$shadow:     0 12px 40px rgba(0,0,0,0.22), 0 3px 10px rgba(0,0,0,0.12);
+@use '../../styles/brand' as *;
+
+// Brand card: cream panel with the light orange top edge, ink type,
+// primary (terracotta) button for directions.
+$font:       var(--font-body);
+$shadow:     0 12px 40px rgba(36,27,18,0.22), 0 3px 10px rgba(36,27,18,0.12);
 $c-island:   #1a6bbd;
 $c-mainland: #b45309;
 $radius-top: 20px;
@@ -50,10 +54,11 @@ $radius-top: 20px;
   left:           16px;
   z-index:        200;
   width:          300px;
-  background:     white;
-  border-radius:  14px;
-  box-shadow:     $shadow;
-  border:         1px solid #e2e8f0;
+  background:     var(--cream);
+  color:          var(--ink);
+  border-radius:  2px;
+  box-shadow:     inset 0 3px 0 var(--orange), $shadow;
+  border:         1px solid var(--rule);
   font-family:    $font;
   overflow:       hidden;
   pointer-events: all;
@@ -68,8 +73,8 @@ $radius-top: 20px;
     width:         100%;
     border-radius: $radius-top $radius-top 0 0;
     border:        none;
-    border-top:    1px solid #e2e8f0;
-    box-shadow:    0 -4px 24px rgba(0,0,0,0.16), 0 -1px 4px rgba(0,0,0,0.08);
+    border-top:    1px solid var(--rule);
+    box-shadow:    inset 0 3px 0 var(--orange), 0 -4px 24px rgba(36,27,18,0.16);
     overflow:      hidden; // clip expanded content, NOT overflow-y scroll
     pointer-events: all;
     z-index:       301;
@@ -125,7 +130,7 @@ $radius-top: 20px;
     display:       block;
     width:         40px;
     height:        4px;
-    background:    #cbd5e1;
+    background:    var(--control-border);
     border-radius: 2px;
     flex-shrink:   0;
   }
@@ -147,7 +152,7 @@ $radius-top: 20px;
     border:          none;
     padding:         4px;
     cursor:          pointer;
-    color:           #94a3b8;
+    color:           var(--text-muted);
     line-height:     1;
   }
 }
@@ -170,8 +175,8 @@ $radius-top: 20px;
   top:             10px;
   right:           10px;
   z-index:         10;
-  background:      rgba(0,0,0,0.45);
-  color:           white;
+  background:      rgba(36,27,18,0.72);
+  color:           var(--cream);
   border:          none;
   border-radius:   50%;
   width:           30px;
@@ -183,14 +188,15 @@ $radius-top: 20px;
   justify-content: center;
   transition:      background 0.15s;
 
-  &:hover { background: rgba(0,0,0,0.65); }
+  &:hover { background: var(--ink); }
+  &:focus-visible { outline: 2px solid var(--terracotta); outline-offset: 2px; }
 
   @media (max-width: 768px) {
     top:        10px;
     right:      12px;
     width:      28px;
     height:     28px;
-    background: rgba(0,0,0,0.35);
+    background: rgba(36,27,18,0.72);
   }
 }
 
@@ -227,8 +233,10 @@ $radius-top: 20px;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
-.openBadgeOpen   { background: rgba(22,163,74,0.85);  color: white; }
-.openBadgeClosed { background: rgba(239,68,68,0.85);  color: white; }
+// Open is a badge, one of light orange's roles (ink on orange 5.0:1);
+// closed recedes to ink.
+.openBadgeOpen   { background: var(--orange); color: var(--ink); }
+.openBadgeClosed { background: var(--ink);    color: var(--cream); }
 
 .regionBadge {
   font-size:      10px;
@@ -240,8 +248,8 @@ $radius-top: 20px;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
-.regionIsland   { background: rgba(26,107,189,0.85); color: white; }
-.regionMainland { background: rgba(180,83,9,0.85);   color: white; }
+.regionIsland   { background: #1a6bbd; color: #fff; }
+.regionMainland { background: #b45309; color: #fff; }
 
 // Mobile badges — always visible (image is hidden on mobile)
 .mobileBadges {
@@ -258,10 +266,6 @@ $radius-top: 20px;
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
     }
-    .openBadgeOpen   { background: rgba(22,163,74,0.9);   }
-    .openBadgeClosed { background: rgba(239,68,68,0.9);   }
-    .regionIsland    { background: rgba(26,107,189,0.9);  }
-    .regionMainland  { background: rgba(180,83,9,0.9);    }
   }
 }
 
@@ -276,7 +280,7 @@ $radius-top: 20px;
   margin:      0 0 2px;
   font-size:   16px;
   font-weight: 800;
-  color:       #0f172a;
+  color:       var(--ink);
   line-height: 1.2;
 
   @media (max-width: 768px) { font-size: 15px; margin-bottom: 1px; }
@@ -286,7 +290,7 @@ $radius-top: 20px;
   margin:      0 0 0;
   font-size:   12px;
   font-weight: 600;
-  color:       #64748b;
+  color:       var(--text-muted);
 }
 
 // ── Peek hint ─────────────────────────────────────────────────
@@ -298,7 +302,7 @@ $radius-top: 20px;
     display:     block;
     margin:      6px 0 0;
     font-size:   11px;
-    color:       #94a3b8;
+    color:       var(--text-muted);
     cursor:      pointer;
     user-select: none;
   }
@@ -326,7 +330,7 @@ $radius-top: 20px;
 .address {
   margin:      6px 0 10px;
   font-size:   11px;
-  color:       #94a3b8;
+  color:       var(--text-muted);
   line-height: 1.4;
 }
 
@@ -335,8 +339,8 @@ $radius-top: 20px;
   align-items:   center;
   gap:           16px;
   padding:       8px 0;
-  border-top:    1px solid #f1f5f9;
-  border-bottom: 1px solid #f1f5f9;
+  border-top:    1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
   margin-bottom: 10px;
 
   @media (max-width: 768px) { padding: 6px 0; margin-bottom: 8px; }
@@ -352,12 +356,12 @@ $radius-top: 20px;
 .statValue {
   font-size:   13px;
   font-weight: 700;
-  color:       #0f172a;
+  color:       var(--ink);
 }
 
 .statLabel {
   font-size:      10px;
-  color:          #94a3b8;
+  color:          var(--text-muted);
   margin-top:     1px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -366,7 +370,7 @@ $radius-top: 20px;
 .statDivider {
   width:      1px;
   height:     24px;
-  background: #e2e8f0;
+  background: var(--rule);
 }
 
 .tags {
@@ -382,31 +386,17 @@ $radius-top: 20px;
   font-size:      11px;
   font-weight:    500;
   padding:        2px 9px;
-  border-radius:  20px;
-  background:     #f1f5f9;
-  color:          #475569;
+  border-radius:  2px;
+  background:     var(--sand);
+  color:          var(--ink);
   text-transform: capitalize;
 }
 
+// Primary button — the one action on the card.
 .directionsBtn {
-  display:         block;
-  width:           100%;
-  padding:         10px;
-  background:      #0f172a;
-  color:           white;
-  text-align:      center;
-  border-radius:   8px;
-  text-decoration: none;
-  font-size:       13px;
-  font-weight:     600;
-  font-family:     $font;
-  transition:      background 0.15s;
-  box-sizing:      border-box;
-
-  &:hover { background: #1e293b; }
-
-  @media (max-width: 768px) {
-    padding:   11px;
-    font-size: 13px;
-  }
+  @include btn-primary;
+  display:    flex;
+  width:      100%;
+  padding:    12px;
+  box-sizing: border-box;
 }

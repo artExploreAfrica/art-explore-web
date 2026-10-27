@@ -1,69 +1,37 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import "./HeroTypographic.scss";
 
 // ── SETUP NOTE ────────────────────────────────────────────────
-// This component uses CSS custom property --navbar-h to subtract
-// the navbar height from 100dvh so the ticker is always on-screen.
-//
-// Option A — set it globally in your index.css / App.scss:
-//   :root { --navbar-h: 80px; }
-//
-// Option B — measure it dynamically in your Navbar component:
-//   useEffect(() => {
-//     const h = navRef.current?.offsetHeight ?? 80;
-//     document.documentElement.style.setProperty('--navbar-h', `${h}px`);
-//   }, []);
-//
-// The component falls back to 80px if the var is not set.
+// Reads the CSS custom property --navbar-h (published by Navbar)
+// to size itself against the viewport. Falls back to 82px.
 // ─────────────────────────────────────────────────────────────
 
 // ── Data ──────────────────────────────────────────────────────
-const STATS = [
-  { number: "15+", label: "Galleries" },
-  { number: "2",   label: "Districts" },
-  { number: "6",   label: "Art Forms" },
+// Headline is split into lines so each can be mask-revealed
+// independently on load. Keep lines short — they are set at a
+// display scale and need to survive narrow viewports.
+const HEADLINE = ["Discover", "Art Galleries", "in Lagos"];
+
+// Background slides. These are real photographs of Lagos venues
+// already in the repo (public/uploads/institutions), copied to
+// public/images/hero. `place` names the venue in each photo.
+const SLIDES = [
+  { src: "/images/hero/quintessence.jpg", place: "Quintessence Gallery", pos: "50% 40%" },
+  { src: "/images/hero/smo.jpg", place: "SMO Contemporary Art", pos: "50% 55%" },
+  { src: "/images/hero/tiwani.webp", place: "Tiwani Contemporary", pos: "50% 50%" },
+  { src: "/images/hero/ko-art-space.webp", place: "kó Art Space", pos: "50% 45%" },
+  { src: "/images/hero/arthouse.jpg", place: "Arthouse Contemporary", pos: "50% 35%" },
 ];
-
-
-const IMAGES = [
-  {
-    src: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgbAIluUeGJpVsBlajHVi4Q7zZwTaGO4QZLUZDkKOz91fkCLqculuZkZxsXWGK5lcO4CPa_sPJHS6PHXCxHEwuts9Zk1Tv6Kg8r989a00nNW0wH6R8JbbytNhDkqGljEHc5GzI6BQG9ex8j/s1600/Terra+kulture+lagos.JPG",
-    alt: "terra kulture gallery",
-  },
-  {
-    src: "https://sumellist.com/wp-content/uploads/2023/02/Rele_New_Gallery_Day_1-112.jpg",
-    alt: "Rele gallery",
-  },
-  {
-    src: "https://www.artmajeur.com/medias/standard/s/i/signature-beyond-art-gallery/article/1150264_untitled-12.jpg",
-    alt: "signature beyound art",
-  },
-  {
-    src: "https://africanartists.org/wp-content/uploads/Installations-Coffi-28-scaled.jpg",
-    alt: "African Artists Foundation",
-  },
-  {
-    src: "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/09/2d/c9/c2/the-national-museum.jpg?w=1200&h=-1&s=1",
-    alt: "National Museum Lagos",
-  },
-  {
-    src: "https://www.artmajeur.com/medias/standard/s/i/signature-beyond-art-gallery/article/1150264_untitled-12.jpg",
-    alt: "signature beyound art",
-  },
-
-  {
-    src: "https://d1rgjmn2wmqeif.cloudfront.net/extra/b/HomePageModule-40923-95830.jpg",
-    alt: "Kalakuta Museum",
-  },
-];
+const SLIDE_MS = 6000;
 
 const TICKER_ITEMS = [
-  { title: "Studio",     place: "Yaba" },
+  { title: "Studio", place: "Yaba" },
   { title: "Exhibition", place: "Ikoyi" },
-  { title: "Art Fair",   place: "Lekki" },
-  { title: "Gallery",    place: "Victoria Island" },
-  { title: "Museum",     place: "Lagos Island" },
-  { title: "Workshop",   place: "Surulere" },
+  { title: "Art Fair", place: "Lekki" },
+  { title: "Gallery", place: "Victoria Island" },
+  { title: "Museum", place: "Lagos Island" },
+  { title: "Workshop", place: "Surulere" },
 ];
 
 const TICKER_DOUBLED = [...TICKER_ITEMS, ...TICKER_ITEMS];
@@ -71,127 +39,97 @@ const TICKER_DOUBLED = [...TICKER_ITEMS, ...TICKER_ITEMS];
 // ── Icons ─────────────────────────────────────────────────────
 const ArrowIcon = () => (
   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-    <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.4"
-      strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-const MapPinIcon = () => (
-  <svg width="18" height="22" viewBox="0 0 18 22" fill="none" aria-hidden="true">
-    <path d="M9 1C5.13 1 2 4.13 2 8c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
-      fill="currentColor" fillOpacity=".15" stroke="currentColor" strokeWidth="1.5" />
-    <circle cx="9" cy="8" r="2.5" fill="currentColor" />
+    <path
+      d="M2 7h10M8 3l4 4-4 4"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   </svg>
 );
 
 // ── Component ─────────────────────────────────────────────────
 export default function HeroTypographic() {
-  const [activeIdx, setActiveIdx] = useState(0);
+  const [slide, setSlide] = useState(0);
 
+  // Autoplay. Never runs for visitors who ask for reduced motion, and
+  // skips ticks while the tab is hidden so it is not cycling unseen.
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const id = setInterval(() => {
-      setActiveIdx((prev) => (prev + 1) % IMAGES.length);
-    }, 4000);
+      if (document.hidden) return;
+      setSlide((i) => (i + 1) % SLIDES.length);
+    }, SLIDE_MS);
     return () => clearInterval(id);
   }, []);
 
   return (
-    <section className="ht" aria-label="Lagos Art — Hero">
-      {/* ══════════════════════════════════════════════════════
-          ZONE 1 — HERO BODY
-          3-col grid: [sidebar] [left panel] [right panel]
-          flex-grows to fill viewport minus ticker height
-      ══════════════════════════════════════════════════════ */}
-      <div className="ht__body">
-        {/* ── Col B: Left Panel — all text blocks ── */}
-        <div className="ht__left" aria-label="Hero content">
-          <div className="ht__top-group">
-            <div className="ht__eyebrow-wrap">
-              <p className="ht__eyebrow">Lagos Art District</p>
-            </div>
-
-            <div className="ht__headline-wrap">
-              <h1 className="ht__headline">
-                Discover the
-                <br />
-                <em>galleries</em>
-                <br />
-                of Lagos island.
-              </h1>
-            </div>
-
-            <div className="ht__desc-wrap">
-              <p className="ht__desc">
-                From the landmark institutions of Victoria Island to the raw creative energy of Yaba
-                — every gallery, studio and exhibition space, mapped and ready to explore.
-              </p>
-            </div>
-
-            <div className="ht__cta-wrap">
-              <button className="ht__btn-primary">Open Map</button>
-              <button className="ht__btn-ghost">
-                Browse Galleries <ArrowIcon />
-              </button>
-            </div>
-          </div>
-
-          <div className="ht__stats-wrap">
-            <div className="ht__stats-rule" aria-hidden="true" />
-            <div className="ht__stats" role="list" aria-label="Gallery statistics">
-              {STATS.map(({ number, label }) => (
-                <div key={label} className="ht__stat" role="listitem">
-                  <span className="ht__stat-number">{number}</span>
-                  <span className="ht__stat-label">{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        {/* ── Col C: Right Panel — image carousel ── */}
-        <div className="ht__right" aria-label="Gallery image carousel">
-          {/* Carousel viewport — clips slides */}
-          <div className="ht__carousel">
-            {/* Slides — all stacked, active one visible */}
-            <div className="ht__slides">
-              {IMAGES.map((img, i) => (
-                <img
-                  key={i}
-                  src={img.src}
-                  alt={img.alt}
-                  className={`ht__slide${i === activeIdx ? ' ht__slide--active' : ''}`}
-                  onError={(e) => {
-                    // If this gallery CDN image 404s, fall back to the first (known-good) src
-                    if (e.currentTarget.src !== IMAGES[0].src) {
-                      e.currentTarget.src = IMAGES[0].src;
-                    }
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Progress dots */}
-            <div className="ht__dots" aria-label="Go to slide">
-              {IMAGES.map((_, i) => (
-                <button
-                  key={i}
-                  aria-label={`Slide ${i + 1}`}
-                  className={`ht__dot-btn${i === activeIdx ? ' ht__dot-btn--active' : ''}`}
-                  onClick={() => setActiveIdx(i)}
-                />
-              ))}
-            </div>
-          </div>
-          {/* /carousel */}
-        </div>
-        {/* /right */}
+    <section className="ht" id="home" aria-label="Discover art galleries in Lagos">
+      {/* BACKGROUND — image carousel under an Ink scrim.
+          Decorative: the headline carries the meaning, so the
+          images are aria-hidden with empty alt text. */}
+      <div className="ht__slides" aria-hidden="true">
+        {SLIDES.map((s, i) => (
+          <img
+            key={s.src}
+            className={`ht__slide${i === slide ? " ht__slide--on" : ""}`}
+            src={s.src}
+            alt=""
+            style={{ objectPosition: s.pos }}
+            // The first frame blocks render so the hero is never
+            // blank; the rest load as the visitor reads.
+            loading={i === 0 ? "eager" : "lazy"}
+            fetchPriority={i === 0 ? "high" : "auto"}
+            decoding="async"
+          />
+        ))}
       </div>
-      {/* /body */}
+      <div className="ht__wash" aria-hidden="true" />
+
+      {/* ══════════════════════════════════════════════════════
+          ZONE 1 — MONUMENTAL TYPE
+          Full-bleed. The headline is the layout; everything else
+          is subordinate to it.
+      ══════════════════════════════════════════════════════ */}
+      <div className="ht__inner">
+        <p className="ht__eyebrow">
+          <span className="ht__eyebrow-rule" aria-hidden="true" />
+          01 — Lagos Art District
+        </p>
+
+        <h1 className="ht__headline">
+          {HEADLINE.map((line, i) => (
+            // Each line gets a clipping mask so the text can slide
+            // up from beneath its own baseline on load.
+            <span className="ht__line" key={line}>
+              <span className="ht__line-inner" style={{ animationDelay: `${0.1 + i * 0.12}s` }}>
+                {line}
+              </span>
+            </span>
+          ))}
+        </h1>
+
+        <div className="ht__meta">
+          <p className="ht__desc">
+            From the landmark institutions of Victoria Island to the raw creative energy of
+            Yaba — every gallery, studio and exhibition space, mapped and ready to explore.
+          </p>
+
+          <div className="ht__cta">
+            <a className="ht__btn ht__btn--solid" href="#map">
+              Open Map
+            </a>
+            <Link className="ht__btn ht__btn--ghost" to="/galleries">
+              Browse Galleries <ArrowIcon />
+            </Link>
+          </div>
+        </div>
+      </div>
 
       {/* ══════════════════════════════════════════════════════
           ZONE 2 — TICKER
-          Own parent container, direct flex child of .ht
-          Always visible — fixed height, never grows/shrinks
+          Fixed height, always on screen.
       ══════════════════════════════════════════════════════ */}
       <div className="ht__ticker" aria-hidden="true">
         <div className="ht__ticker-track">

@@ -2,6 +2,8 @@ import app from './app';
 import { env } from './config/env';
 import prisma from './config/db';
 
+// Entry point: boots the Express app and starts listening.
+
 const server = app.listen(env.PORT, () => {
   console.log(`🚀 Art Explore API listening on http://localhost:${env.PORT}`);
   console.log(`📚 Swagger UI at   http://localhost:${env.PORT}/api-docs`);

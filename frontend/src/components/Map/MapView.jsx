@@ -61,12 +61,17 @@ const buildGalleriesGeoJSON = (galleryList) => ({
 });
 
 // ── SVG pin → HTMLImageElement for map.addImage() ─────────────
-const createPinImage = () =>
+// Brand map pin states (Colour Alignment PDF): terracotta with a cream
+// centre by default, light orange with an ink centre on hover.
+const PIN_DEFAULT = { body: '#b0431c', dot: '#f6efe2' };
+const PIN_HOVER   = { body: '#e0673a', dot: '#241b12' };
+
+const createPinImage = ({ body, dot }) =>
   new Promise((resolve) => {
     const svg = `
       <svg viewBox="0 0 28 38" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="38">
-        <path d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 24 14 24S28 24.5 28 14C28 6.3 21.7 0 14 0z" fill="#e63946"/>
-        <circle cx="14" cy="13" r="5.5" fill="white" fill-opacity="0.92"/>
+        <path d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 24 14 24S28 24.5 28 14C28 6.3 21.7 0 14 0z" fill="${body}"/>
+        <circle cx="14" cy="13" r="5.5" fill="${dot}"/>
       </svg>`;
     const img = new Image(28, 38);
     img.onload = () => resolve(img);
@@ -154,6 +159,7 @@ const MapView = () => {
     safe('island-label',          vis(layers.regionOverlays));
     safe('mainland-label',        vis(layers.regionOverlays));
     safe('gallery-pins',          vis(layers.galleries));
+    safe('gallery-pins-hover',    vis(layers.galleries));
     safe('gallery-labels',        vis(layers.galleries));
   }, []);
 
@@ -200,7 +206,7 @@ const MapView = () => {
 
     const map = new maplibregl.Map({
       container:          mapContainer.current,
-      style:              `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`,
+      style:              `https://api.maptiler.com/maps/streets-v2-light/style.json?key=${MAPTILER_KEY}`,
       center:             isMobile
                             ? [galleriesRef.current[2]?.lng || 3.4004, galleriesRef.current[2]?.lat || 6.5083]
                             : ALL_GALLERIES_CENTER,
@@ -222,7 +228,7 @@ const MapView = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 24; canvas.height = 24;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#4a5568';
+        ctx.fillStyle = '#5c3d33';
         ctx.beginPath(); ctx.arc(12, 12, 10, 0, 2 * Math.PI); ctx.fill();
         ctx.fillStyle = 'white'; ctx.font = '14px sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -237,8 +243,12 @@ const MapView = () => {
       // Register the gallery pin image.
       // pixelRatio:2 renders it at double resolution — keep icon-size ≤ 1.4
       // on mobile or the pin becomes enormous and overflows the canvas.
-      const pinImg = await createPinImage();
+      const [pinImg, pinHoverImg] = await Promise.all([
+        createPinImage(PIN_DEFAULT),
+        createPinImage(PIN_HOVER),
+      ]);
       map.addImage('gallery-pin', pinImg, { pixelRatio: 2 });
+      map.addImage('gallery-pin-hover', pinHoverImg, { pixelRatio: 2 });
 
       // 1 ── Neighbourhood fills ─────────────────────────────
       map.addSource('neighbourhoods', { type: 'geojson', data: neighbourhoodsGeoJSON });
@@ -272,7 +282,7 @@ const MapView = () => {
         },
         paint: {
           'text-color':      ['get', 'color'],
-          'text-halo-color': 'rgba(255,255,255,0.9)',
+          'text-halo-color': 'rgba(246,239,226,0.9)',
           'text-halo-width': 2,
           'text-opacity':    ['interpolate', ['linear'], ['zoom'], 9.5, 0, 10.5, 1],
         },
@@ -290,7 +300,7 @@ const MapView = () => {
         id: 'green-zone-fill', type: 'fill', source: 'green-zones',
         paint: {
           'fill-color':   '#16a34a',
-          'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.08, 14, 0.18],
+          'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.10, 14, 0.22],
         },
       });
       map.addLayer({
@@ -308,7 +318,7 @@ const MapView = () => {
         },
         paint: {
           'text-color':      '#15803d',
-          'text-halo-color': 'rgba(255,255,255,0.85)',
+          'text-halo-color': 'rgba(246,239,226,0.9)',
           'text-halo-width': 2,
         },
       });
@@ -323,7 +333,7 @@ const MapView = () => {
         id: 'landmark-icon', type: 'symbol', source: 'landmarks',
         minzoom: 11,
         layout: {
-          'text-field':         '📍',
+          'text-field':         '●',
           'text-size':          ['interpolate', ['linear'], ['zoom'], 11, 14, 14, 20],
           'text-allow-overlap': false,
         },
@@ -341,8 +351,8 @@ const MapView = () => {
           'text-max-width': 10,
         },
         paint: {
-          'text-color':      '#374151',
-          'text-halo-color': 'rgba(255,255,255,0.92)',
+          'text-color':      'rgba(36,27,18,0.78)',
+          'text-halo-color': 'rgba(246,239,226,0.92)',
           'text-halo-width': 1.5,
           'text-opacity':    ['interpolate', ['linear'], ['zoom'], 12, 0, 13, 1],
         },
@@ -373,17 +383,17 @@ const MapView = () => {
         type: 'geojson',
         data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[3.2,6.48],[3.46,6.48],[3.46,6.66],[3.2,6.66]]] } },
       });
-      map.addLayer({ id: 'island-overlay',   type: 'fill', source: 'island-region',   paint: { 'fill-color': '#0c50bd', 'fill-opacity': 0.04 } });
-      map.addLayer({ id: 'mainland-overlay', type: 'fill', source: 'mainland-region', paint: { 'fill-color': '#92400e', 'fill-opacity': 0.04 } });
+      map.addLayer({ id: 'island-overlay',   type: 'fill', source: 'island-region',   paint: { 'fill-color': '#0c50bd', 'fill-opacity': 0.10 } });
+      map.addLayer({ id: 'mainland-overlay', type: 'fill', source: 'mainland-region', paint: { 'fill-color': '#92400e', 'fill-opacity': 0.10 } });
       map.addLayer({
         id: 'island-label', type: 'symbol', source: 'island-region', maxzoom: 11,
         layout: { 'text-field': 'ISLAND',   'text-size': 12, 'text-letter-spacing': 0.2, 'text-font': ['Open Sans SemiBold', 'Arial Unicode MS Bold'] },
-        paint:  { 'text-color': '#1d4ed8', 'text-halo-color': 'rgba(255,255,255,0.8)', 'text-halo-width': 2 },
+        paint:  { 'text-color': '#1a6bbd', 'text-halo-color': 'rgba(246,239,226,0.9)', 'text-halo-width': 2 },
       });
       map.addLayer({
         id: 'mainland-label', type: 'symbol', source: 'mainland-region', maxzoom: 11,
         layout: { 'text-field': 'MAINLAND', 'text-size': 12, 'text-letter-spacing': 0.2, 'text-font': ['Open Sans SemiBold', 'Arial Unicode MS Bold'] },
-        paint:  { 'text-color': '#b45309',  'text-halo-color': 'rgba(255,255,255,0.8)', 'text-halo-width': 2 },
+        paint:  { 'text-color': '#b45309',  'text-halo-color': 'rgba(246,239,226,0.9)', 'text-halo-width': 2 },
       });
 
       // 5 ── Gallery pins ────────────────────────────────────
@@ -391,20 +401,29 @@ const MapView = () => {
       // while the API fetch is in flight); the sync effect below calls
       // setData once the live galleries arrive.
       map.addSource('galleries', { type: 'geojson', data: buildGalleriesGeoJSON(galleriesRef.current) });
+      const pinLayout = {
+        'icon-image':            'gallery-pin',
+        'icon-size':             ['interpolate', ['linear'], ['zoom'],
+                                   10, isMobile ? 0.8 : 1.0,
+                                   14, isMobile ? 1.1 : 1.2,
+                                   16, isMobile ? 1.4 : 1.5],
+        'icon-anchor':           'bottom',
+        'icon-allow-overlap':    true,
+        'icon-ignore-placement': true,
+        'text-field':            '',
+      };
       map.addLayer({
         id: 'gallery-pins', type: 'symbol', source: 'galleries',
-        layout: {
-          'icon-image':            'gallery-pin',
-          'icon-size':             ['interpolate', ['linear'], ['zoom'],
-                                     10, isMobile ? 0.8 : 1.0,
-                                     14, isMobile ? 1.1 : 1.2,
-                                     16, isMobile ? 1.4 : 1.5],
-          'icon-anchor':           'bottom',
-          'icon-allow-overlap':    true,
-          'icon-ignore-placement': true,
-          'text-field':            '',
-        },
+        layout: pinLayout,
         paint: { 'icon-opacity': ['interpolate', ['linear'], ['zoom'], 8.5, 0, 9.5, 1] },
+      });
+      // Hovered pin, drawn on top in the hover colours. Icon images are
+      // layout properties, which can't read feature-state, so the hover
+      // state is a filtered copy of the pin layer.
+      map.addLayer({
+        id: 'gallery-pins-hover', type: 'symbol', source: 'galleries',
+        filter: ['==', ['get', 'id'], ''],
+        layout: { ...pinLayout, 'icon-image': 'gallery-pin-hover' },
       });
       map.addLayer({
         id: 'gallery-labels', type: 'symbol', source: 'galleries',
@@ -419,8 +438,8 @@ const MapView = () => {
           'text-allow-overlap': false,
         },
         paint: {
-          'text-color':      '#1a1a2e',
-          'text-halo-color': 'rgba(255,255,255,0.95)',
+          'text-color':      '#241b12',
+          'text-halo-color': 'rgba(246,239,226,0.95)',
           'text-halo-width': 2.5,
           'text-opacity':    ['interpolate', ['linear'], ['zoom'], 12, 0, 13, 1],
         },
@@ -466,8 +485,14 @@ const MapView = () => {
         }
       });
 
-      map.on('mouseenter', 'gallery-pins', () => (map.getCanvas().style.cursor = 'pointer'));
-      map.on('mouseleave', 'gallery-pins', () => (map.getCanvas().style.cursor = ''));
+      map.on('mousemove', 'gallery-pins', (e) => {
+        map.getCanvas().style.cursor = 'pointer';
+        map.setFilter('gallery-pins-hover', ['==', ['get', 'id'], e.features[0].properties.id]);
+      });
+      map.on('mouseleave', 'gallery-pins', () => {
+        map.getCanvas().style.cursor = '';
+        map.setFilter('gallery-pins-hover', ['==', ['get', 'id'], '']);
+      });
 
       setMapReady(true);
     });

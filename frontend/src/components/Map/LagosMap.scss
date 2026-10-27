@@ -1,83 +1,58 @@
+@use '../../styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// MAP SECTION HEADER — "Looking for directions?"
+//
+// Cream ground, ink type, set at display scale to match the hero.
+// "directions?" is the accent: Instrument Serif Italic in
+// terracotta — terracotta on cream (5.0:1) is approved for
+// headings.
+// ─────────────────────────────────────────────────────────────
+
 .map-section {
-  background: white;
-  
+  background: var(--cream);
+  padding: clamp(64px, 11vh, 140px) var(--page-pad) clamp(32px, 5vh, 56px);
+}
 
-  @media (max-width: 760px) {
-    padding-top: 24px;
+.map-section__head {
+  text-align: center;
+}
+
+.map-section__eyebrow {
+  @include eyebrow;
+  justify-content: center;
+  margin: 0 0 clamp(16px, 2.5vh, 26px);
+}
+
+.map-section__eyebrow-rule { @include eyebrow-rule; }
+
+// Big and bold, in the hero's register — this is the second
+// largest piece of type on the page by design.
+.map-section__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.4rem, 7vw, 5.5rem);
+  line-height: 0.96;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0 0 clamp(18px, 3vh, 30px);
+
+  em {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: -0.01em;
+    color: var(--terracotta);
   }
+}
 
-  @media (max-width: 400px) {
-    padding-top: 18px;
-  }
-
-  .section-header {
-text-align: center;
-    margin-bottom: 10px;
-   
-       
-    h2 {
-      font-size: 42px;
-      font-family: "Lobster", sans-serif;
-      margin-bottom: 10px;
-      color: #333;
-    }
-    .mapspan {
-      color: #d97706;
-    }
-
-    p {
-      color: #3a3838;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-  }
-
-  .map-container {
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    margin-bottom: 40px;
-
-    iframe {
-      width: 100%;
-      height: 450px;
-      display: block;
-    }
-  }
-
-  .map-info {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 30px;
-    margin-bottom: 30px;
-
-    .info-card {
-      background: #f9fafb;
-      padding: 20px;
-      border-radius: 12px;
-      border-left: 4px solid #d97706;
-
-      h3 {
-        font-size: 18px;
-        margin-bottom: 8px;
-        color: #333;
-      }
-
-      p {
-        color: #666;
-        margin-bottom: 8px;
-      }
-
-      small {
-        color: #d97706;
-        font-size: 13px;
-      }
-    }
-  }
-
-  .map-note {
-    text-align: center;
-    color: #999;
-    margin-top: 20px;
-  }
+.map-section__lede {
+  font-family: var(--font-body);
+  font-size: clamp(0.95rem, 1.2vw, 1.15rem);
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin: 0 auto;
+  max-width: 58ch;
 }

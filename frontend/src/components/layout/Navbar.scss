@@ -1,134 +1,185 @@
+@use '../../styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// NAVBAR — "Navigation on ink" (Colour Alignment, section 02).
+//
+// Ink ground, cream links (14.8:1). Hover and active take a light
+// orange underline, and hover turns the text light orange, which
+// is 4.97:1 on ink. Focus is a 2px cream outline. The ground is
+// solid so the links never pick up the hero photo underneath.
+//
+// Interactions:
+//   · links      — orange underline wipes in from the left
+//   · logo       — fades slightly
+//   · mobile     — panel slides down, links stagger in
+// ─────────────────────────────────────────────────────────────
+
 .navbar {
-  background: white;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   position: sticky;
   top: 0;
   z-index: 100;
+  background: var(--ink);
+  border-bottom: 1px solid var(--rule-on-dark);
 
   .container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 70px;
-    padding: 0 16px;
+    height: 82px;
+    // Same centred measure as the page sections, so the logo lines
+    // up with section content rather than sitting at the viewport
+    // edge.
+    max-width: none;
+    padding: 0 var(--page-pad);
 
-    @media (max-width: 480px) {
-      height: 60px;
-    }
+    @media (max-width: 768px) { height: 70px; }
+    @media (max-width: 480px) { height: 62px; }
   }
 
+  // ── Logo ───────────────────────────────────────────────────
+  // Cream wordmark asset. Height-driven so it scales with the bar.
   .logo {
-    font-size: 28px;
-    font-weight: bold;
-    font-family: "Lobster", sans-serif;
-    color: #1f2937;
+    display: inline-flex;
+    align-items: center;
     text-decoration: none;
+    line-height: 0;
+    @include focus-ring(var(--cream), 4px);
+  }
+
+  .logo__img {
+    height: clamp(30px, 3.4vw, 42px);
+    width: auto;
+    display: block;
+    transition: opacity 0.3s var(--ease-out);
+
+    &:hover { opacity: 0.82; }
 
     @media (max-width: 480px) {
-      font-size: 22px;
-    }
-
-    span {
-      color: #d97706;
+      height: 26px;
     }
   }
 
+  // ── Mobile toggle ──────────────────────────────────────────
   .mobile-menu-btn {
     display: none;
     background: none;
-    border: none;
+    border: 1px solid var(--rule-on-dark);
+    border-radius: 2px;
     cursor: pointer;
     padding: 8px;
-    color: #1f2937;
+    color: var(--cream);
+    line-height: 0;
+    transition: border-color 0.25s var(--ease-out), color 0.25s var(--ease-out);
 
-    @media (max-width: 768px) {
-      display: block;
+    &:hover {
+      border-color: var(--orange);
+      color: var(--orange);
     }
+    @include focus-ring(var(--cream));
+
+    @media (max-width: 768px) { display: block; }
   }
 
+  // ── Links ──────────────────────────────────────────────────
   .nav-links {
     display: flex;
-    gap: 30px;
+    align-items: center;
+    gap: clamp(22px, 2.6vw, 40px);
     list-style: none;
 
-    a {
-      text-decoration: none;
-      color: #666;
-      font-size: 15px;
-      transition: color 0.3s;
-
-      &:hover {
-        color: #d97706;
-      }
+    a,
+    .nav-logout {
+      @include nav-link-on-ink;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
     }
 
+    // ── Mobile panel ──
     @media (max-width: 768px) {
       display: none;
       position: absolute;
       top: 70px;
       left: 0;
       right: 0;
-      background: white;
+      background: var(--ink);
+      border-bottom: 1px solid var(--rule-on-dark);
       flex-direction: column;
-      padding: 20px;
-      text-align: center;
-      gap: 15px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      align-items: flex-start;
+      padding: 26px clamp(20px, 5vw, 40px) 32px;
+      gap: 20px;
 
       &.active {
         display: flex;
+        animation: navPanelIn 0.45s var(--ease) both;
+      }
+
+      // Stagger the links in behind the panel.
+      &.active li {
+        animation: navItemIn 0.5s var(--ease) both;
+      }
+      &.active li:nth-child(1) { animation-delay: 0.06s; }
+      &.active li:nth-child(2) { animation-delay: 0.12s; }
+      &.active li:nth-child(3) { animation-delay: 0.18s; }
+      &.active li:nth-child(4) { animation-delay: 0.24s; }
+      &.active li:nth-child(5) { animation-delay: 0.30s; }
+
+      a {
+        font-size: 15px;
+        display: block;
+        padding: 6px 0;
       }
     }
 
     @media (max-width: 480px) {
-      top: 60px;
-      padding: 16px;
-      gap: 12px;
-
-      a {
-        font-size: 16px; // slightly larger tap target
-        padding: 4px 0;
-        display: block;
-      }
+      top: 62px;
+      padding: 20px;
+      gap: 16px;
     }
   }
 
+  // ── Auth cluster ───────────────────────────────────────────
   .nav-auth {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 14px;
   }
 
   .nav-user {
-    color: #666;
-    font-size: 14px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--on-dark-muted);
   }
 
   .nav-logout {
     background: none;
     border: none;
     cursor: pointer;
-    color: #666;
-    font-size: 15px;
-    font-family: inherit;
-    padding: 0;
-
-    &:hover {
-      color: #d97706;
-    }
   }
+}
 
-  .nav-actions {
-    .search-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 8px;
-      color: #666;
+@keyframes navPanelIn {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
-      &:hover {
-        color: #d97706;
-      }
-    }
+@keyframes navItemIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// Respect a reduced-motion preference — kill transforms, keep state.
+@media (prefers-reduced-motion: reduce) {
+  .navbar {
+    .logo__img,
+    .nav-links a,
+    .nav-links a::after,
+    .mobile-menu-btn { transition: none; }
+
+    .nav-links.active,
+    .nav-links.active li { animation: none; }
   }
 }

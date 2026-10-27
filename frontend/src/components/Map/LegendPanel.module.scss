@@ -2,16 +2,19 @@
 //  LegendPanel.module.scss
 // ─────────────────────────────────────────────────────────────
 
-$radius:    12px;
-$shadow:    0 8px 30px rgba(0,0,0,0.20), 0 2px 8px rgba(0,0,0,0.10);
-$font:      'Inter', 'Segoe UI', system-ui, sans-serif;
-$c-border:  #e2e8f0;
-$c-bg:      #ffffff;
-$c-hover:   #f8fafc;
+$radius:    2px;
+// Brand roles: cream panel, sand header and hover tint, ink text,
+// terracotta for the active tab and switched-on toggles.
+$shadow:    0 8px 30px rgba(36,27,18,0.18), 0 2px 8px rgba(36,27,18,0.10);
+$font:      var(--font-body);
+$c-border:  var(--rule);
+$c-bg:      var(--cream);
+$c-hover:   var(--sand);
 $c-island:  #1a6bbd;
 $c-mainland:#b45309;
-$c-text:    #0f172a;
-$c-muted:   #64748b;
+$c-text:    var(--ink);
+$c-muted:   var(--text-muted);
+$c-active:  var(--terracotta);
 
 // ── Panel shell ───────────────────────────────────────────────
 .panel {
@@ -72,7 +75,7 @@ $c-muted:   #64748b;
   justify-content: space-between;
   padding:         12px 14px;
   border-bottom:   1px solid $c-border;
-  background:      #f8fafc;
+  background:      var(--sand);
   flex-shrink:     0;
   gap:             8px;
 
@@ -111,7 +114,8 @@ $c-muted:   #64748b;
   transition:    background 0.15s;
   flex-shrink:   0;
 
-  &:hover { background: $c-border; }
+  &:hover { background: $c-hover; color: $c-text; }
+  &:focus-visible { outline: 2px solid $c-active; outline-offset: 0; }
 
   @media (max-width: 768px) {
     padding:   6px 8px;
@@ -140,13 +144,14 @@ $c-muted:   #64748b;
   transition:    all 0.15s ease;
   border-bottom: 2px solid transparent;
 
-  &:hover { background: $c-hover; color: $c-text; }
+  &:hover { background: $c-hover; color: $c-text; border-bottom-color: var(--orange); }
+  &:focus-visible { outline: 2px solid $c-active; outline-offset: -2px; }
 }
 
 .tabActive {
   color:              $c-text;
   font-weight:        700;
-  border-bottom-color: $c-island;
+  border-bottom-color: $c-active;
 }
 
 // ── Layers list ───────────────────────────────────────────────
@@ -194,14 +199,14 @@ $c-muted:   #64748b;
   width:         36px;
   height:        20px;
   border-radius: 10px;
-  background:    #cbd5e1;
+  background:    var(--sand-dark);
   position:      relative;
   cursor:        pointer;
   flex-shrink:   0;
   transition:    background 0.2s ease;
   outline:       none;
 
-  &:focus-visible { box-shadow: 0 0 0 2px $c-island; }
+  &:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
   &::after {
     content:       '';
@@ -211,14 +216,14 @@ $c-muted:   #64748b;
     width:         14px;
     height:        14px;
     border-radius: 50%;
-    background:    white;
+    background:    var(--cream);
     transition:    transform 0.2s ease;
-    box-shadow:    0 1px 3px rgba(0,0,0,0.2);
+    box-shadow:    0 1px 3px rgba(36,27,18,0.25);
   }
 }
 
 .toggleOn {
-  background: $c-island;
+  background: $c-active;
 
   &::after { transform: translateX(16px); }
 }
@@ -227,15 +232,15 @@ $c-muted:   #64748b;
 .zoomGuide {
   margin:        8px 14px;
   padding:       10px 12px;
-  background:    #f0f9ff;
-  border-radius: 8px;
-  border:        1px solid #bae6fd;
+  background:    var(--sand);
+  border-radius: 2px;
+  border:        1px solid $c-border;
 }
 
 .zoomGuideTitle {
   font-size:      10px;
   font-weight:    700;
-  color:          #0284c7;
+  color:          $c-text;
   margin:         0 0 6px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -246,15 +251,15 @@ $c-muted:   #64748b;
   align-items:   center;
   gap:           8px;
   font-size:     11px;
-  color:         #0369a1;
+  color:         $c-text;
   margin-bottom: 3px;
 
   &:last-child { margin-bottom: 0; }
 }
 
 .zoomLevel {
-  background:    #0284c7;
-  color:         white;
+  background:    var(--ink);
+  color:         var(--cream);
   width:         24px;
   height:        16px;
   border-radius: 4px;
@@ -290,7 +295,7 @@ $c-muted:   #64748b;
 .galleryThumb {
   width:         40px;
   height:        40px;
-  border-radius: 8px;
+  border-radius: 2px;
   object-fit:    cover;
   flex-shrink:   0;
   border:        1px solid $c-border;
@@ -309,7 +314,7 @@ $c-muted:   #64748b;
 .galleryRegion       { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; display: inline-block; width: fit-content; }
 .galleryRegionIsland   { color: $c-island;   }
 .galleryRegionMainland { color: $c-mainland; }
-.galleryRating       { font-size: 11px; font-weight: 600; color: #f59e0b; flex-shrink: 0; }
+.galleryRating       { font-size: 11px; font-weight: 600; color: $c-text; flex-shrink: 0; }
 
 // ── Areas list ────────────────────────────────────────────────
 .areasList { overflow-y: auto; flex: 1; padding: 8px 0; }

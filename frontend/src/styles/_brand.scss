@@ -1,0 +1,237 @@
+// ─────────────────────────────────────────────────────────────
+// BRAND — one palette, one role per colour.
+//
+// Source of truth: "Art Explore Colour Alignment.pdf", sections
+// 01 (roles), 02/03 (interactive states) and 05 (text pairings).
+// The colour tokens live on :root in App.scss; this partial turns
+// the state table into mixins so every section shares one set of
+// hover, press and focus states instead of re-inventing them.
+//
+// Use with:  @use '../../styles/brand' as *;
+//
+// State table (PDF section 03):
+//   Element            Default              Hover                 Pressed          Focus ring
+//   Primary button     terracotta / cream   orange / ink          #8A3216 / cream  2px ink, 2px offset
+//   Secondary button   ink outline          ink fill / cream      #3A2D20 fill     2px terracotta, 2px offset
+//   Link               terracotta           #8A3216               #8A3216          2px ink outline
+//   Nav item           cream on ink         orange + underline    orange           2px cream outline
+//   Card               sand                 cream + orange top    sand             2px terracotta
+//   Input              sand                 ink border            terracotta bdr   terracotta border
+// ─────────────────────────────────────────────────────────────
+
+$ease:     cubic-bezier(0.16, 1, 0.3, 1);
+$ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+@mixin focus-ring($color, $offset: 2px) {
+  &:focus-visible {
+    outline: 2px solid $color;
+    outline-offset: $offset;
+  }
+}
+
+// Small uppercase label above a heading. Terracotta on cream is
+// 5.0:1; on sand it drops to 4.4:1, so pass ink there.
+@mixin eyebrow($color: var(--terracotta)) {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: $color;
+}
+
+// The short rule beside an eyebrow — an "underline mark", which is
+// one of light orange's roles.
+@mixin eyebrow-rule {
+  display: block;
+  width: clamp(28px, 5vw, 64px);
+  height: 2px;
+  background: var(--orange);
+}
+
+// ── Buttons ────────────────────────────────────────────────
+@mixin btn-shape {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 15px 30px;
+  border-radius: 2px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.25s $ease-out, color 0.25s $ease-out,
+              border-color 0.25s $ease-out;
+
+  &:disabled,
+  &[aria-disabled='true'] {
+    background: var(--sand-dark);
+    border-color: var(--sand-dark);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+  }
+}
+
+// The colour people click. $ring: ink on light grounds (per the
+// table); pass cream when the button sits on ink or a photograph.
+@mixin btn-primary($ring: var(--ink)) {
+  @include btn-shape;
+  background: var(--terracotta);
+  border: 1px solid var(--terracotta);
+  color: var(--cream);
+
+  &:hover:not(:disabled) {
+    background: var(--orange);
+    border-color: var(--orange);
+    color: var(--ink);
+  }
+  &:active:not(:disabled) {
+    background: var(--terracotta-press);
+    border-color: var(--terracotta-press);
+    color: var(--cream);
+  }
+  @include focus-ring($ring);
+}
+
+@mixin btn-secondary {
+  @include btn-shape;
+  background: transparent;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+
+  &:hover:not(:disabled) {
+    background: var(--ink);
+    color: var(--cream);
+  }
+  &:active:not(:disabled) {
+    background: var(--ink-press);
+    border-color: var(--ink-press);
+    color: var(--cream);
+  }
+  @include focus-ring(var(--terracotta));
+}
+
+// Secondary button on an ink or photographic ground. The PDF only
+// defines the light-ground version; this is its mirror image —
+// cream outline, filling with cream and flipping to ink.
+@mixin btn-secondary-on-dark {
+  @include btn-shape;
+  background: transparent;
+  border: 1px solid var(--cream);
+  color: var(--cream);
+
+  &:hover:not(:disabled) {
+    background: var(--cream);
+    color: var(--ink);
+  }
+  &:active:not(:disabled) {
+    background: var(--sand);
+    border-color: var(--sand);
+    color: var(--ink);
+  }
+  @include focus-ring(var(--cream));
+}
+
+// Selected state for a toggle-style control (tab, chip, filter):
+// "active nav" is one of terracotta's roles. Cream on it is 5.0:1.
+@mixin selected {
+  background: var(--terracotta);
+  border-color: var(--terracotta);
+  color: var(--cream);
+}
+
+// ── Text link ──────────────────────────────────────────────
+@mixin text-link {
+  color: var(--terracotta);
+  text-decoration: underline;
+  text-decoration-color: var(--orange);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color 0.2s $ease-out;
+
+  &:visited { color: var(--terracotta); }
+  &:hover,
+  &:active { color: var(--terracotta-press); }
+  @include focus-ring(var(--ink));
+}
+
+// ── Navigation on ink ──────────────────────────────────────
+// Cream text; hover and active take a light-orange underline and
+// hover turns the text light orange (4.97:1 on ink).
+@mixin nav-link-on-ink {
+  position: relative;
+  color: var(--cream);
+  text-decoration: none;
+  padding-bottom: 6px;
+  transition: color 0.25s $ease-out;
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 2px;
+    background: var(--orange);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.35s $ease;
+  }
+
+  &:hover,
+  &:active { color: var(--orange); }
+  &:hover::after,
+  &[aria-current='page']::after { transform: scaleX(1); }
+
+  @include focus-ring(var(--cream), 4px);
+}
+
+// ── Card ───────────────────────────────────────────────────
+// Sand card on a cream page. Hover lifts to cream with a light
+// orange top edge; drawn with an inset shadow so the layout does
+// not shift. Put a card on cream, never on a sand section.
+@mixin card {
+  background: var(--sand);
+  color: var(--ink);
+  border: 1px solid var(--sand);
+  box-shadow: inset 0 0 0 transparent;
+  transition: background 0.3s $ease-out, border-color 0.3s $ease-out,
+              box-shadow 0.3s $ease-out;
+
+  &:hover {
+    background: var(--cream);
+    border-color: var(--rule);
+    box-shadow: inset 0 3px 0 var(--orange);
+  }
+  &:active { background: var(--sand); }
+  @include focus-ring(var(--terracotta));
+}
+
+// ── Input ──────────────────────────────────────────────────
+// Sand fill. The resting border is ink at 50% rather than sand:
+// a sand border on a sand field on cream has no visible edge
+// (1.1:1), and a form control needs 3:1 to be findable.
+@mixin input-field {
+  background: var(--sand);
+  border: 1px solid var(--control-border);
+  border-radius: 2px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  transition: border-color 0.2s $ease-out;
+
+  &::placeholder { color: var(--text-muted); }
+  &:hover { border-color: var(--ink); }
+  &:focus,
+  &:focus-within {
+    outline: none;
+    border-color: var(--terracotta);
+    box-shadow: 0 0 0 1px var(--terracotta);
+  }
+}

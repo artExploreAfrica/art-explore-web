@@ -15,6 +15,7 @@ import {
 import { RemoveImageInput } from '../validators/institution.validator';
 import {
   MySubmissionsQuery,
+  PublicSubmissionInput,
   SubmitInstitutionInput,
   UpdateSubmissionInput,
 } from '../validators/submission.validator';
@@ -24,6 +25,21 @@ export const submit = asyncHandler(async (req: Request, res: Response) => {
   const body = req.body as SubmitInstitutionInput;
   const institution = await institutionService.submit(req.user!.id, body);
   return successResponse(res, institution, 'Submission received and pending review', 201);
+});
+
+/**
+ * POST /api/v1/submissions/public — a signed-out visitor suggests a venue.
+ *
+ * Responds with only an acknowledgement, never the stored row: the caller is
+ * anonymous and the row holds internal notes. A filled honeypot gets the same
+ * 201 without saving, so a bot learns nothing from the response.
+ */
+export const submitPublic = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body as PublicSubmissionInput;
+  if (!body.company) {
+    await institutionService.submitPublic(body);
+  }
+  return successResponse(res, null, 'Thanks — your suggestion is pending review', 201);
 });
 
 /** GET /api/v1/submissions/mine — the USER's own submissions. */
