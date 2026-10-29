@@ -35,10 +35,12 @@ $c-active:  var(--terracotta);
   flex-direction: column;
 
   @media (max-width: 768px) {
-    // On mobile: sits in the top-right of the map, compact by default
-    top:         70px; // below the region bar
-    right:       12px;
-    bottom:      auto;
+    // On mobile: bottom-left of the map, compact by default. At the top
+    // it sat under the sticky filter bar once the visitor scrolled.
+    top:         auto;
+    bottom:      12px;
+    left:        12px;
+    right:       auto;
     width:       auto;
     max-height:  60vh;
     // Slightly smaller shadow on mobile

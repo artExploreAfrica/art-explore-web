@@ -27,7 +27,11 @@ const LAYER_DEFAULTS = {
 const ZOOM = { overview: 11, district: 12, street: 14, detail: 16 };
 
 const FIT_PADDING        = { top: 100, bottom: 60,  left: 60,  right: 280 };
-const FIT_PADDING_MOBILE = { top: 60,  bottom: 140, left: 24,  right: 24  };
+// Mobile: top clears the sticky filter bar, which overlaps the map once
+// scrolled to; bottom clears the layers toggle and zoom buttons. The old
+// 140px bottom reserved room for a bottom sheet that is closed whenever a
+// region is fitted, and squeezed Lagos into a strip.
+const FIT_PADDING_MOBILE = { top: 116, bottom: 72,  left: 24,  right: 24  };
 
 // Peek sheet occupies 20vh of screen height on mobile.
 // flyToGallery shifts the map centre upward so the marker lands
@@ -35,6 +39,28 @@ const FIT_PADDING_MOBILE = { top: 60,  bottom: 140, left: 24,  right: 24  };
 // We subtract ~48px for the region bar above the map container
 // so the offset is accurate to the actual visible map zone.
 // Calculated at runtime so it works across all phone sizes.
+// Bounds around a region's main cluster, for fitting on a phone. A few
+// venues sit far out (Badagry, Lekki–Ajah); fitting to them shrinks the
+// cluster where most venues are to a speck on a narrow screen. Points
+// outside the usual 1.5×IQR fences are left out of the fit — their pins
+// still render, the visitor just pans to them.
+const coreBounds = (points) => {
+  const fences = (values) => {
+    const s = [...values].sort((a, b) => a - b);
+    const q = (p) => s[Math.floor(p * (s.length - 1))];
+    const iqr = q(0.75) - q(0.25);
+    return [q(0.25) - 1.5 * iqr, q(0.75) + 1.5 * iqr];
+  };
+  const [lngLo, lngHi] = fences(points.map((p) => p.lng));
+  const [latLo, latHi] = fences(points.map((p) => p.lat));
+  const core = points.filter(
+    (p) => p.lng >= lngLo && p.lng <= lngHi && p.lat >= latLo && p.lat <= latHi,
+  );
+  const bounds = new maplibregl.LngLatBounds();
+  (core.length ? core : points).forEach((p) => bounds.extend([p.lng, p.lat]));
+  return bounds;
+};
+
 const getMobileOffset = () => {
   const regionBarPx  = 48; // approx height of the filter bar above the map
   const visibleMapPx = window.innerHeight * 0.80 - regionBarPx;
@@ -190,6 +216,10 @@ const MapView = () => {
 
       if (region === 'All') {
         map.fitBounds(ALL_BOUNDS, { padding, duration: 800 });
+      } else if (isMobileRef.current) {
+        if (filtered.length) {
+          map.fitBounds(coreBounds(filtered), { padding, maxZoom: 13, duration: 800 });
+        }
       } else {
         const bounds = new maplibregl.LngLatBounds();
         filtered.forEach((g) => bounds.extend([g.lng, g.lat]));
@@ -204,22 +234,37 @@ const MapView = () => {
     const isMobile = window.innerWidth <= 768;
     isMobileRef.current = isMobile;
 
+    // Mobile opens on the same Lagos overview as desktop. It used to start
+    // at street level (zoom 16) with a zoom-out floor of 14, so the region
+    // buttons' fitBounds could never zoom out far enough to show the pins.
     const map = new maplibregl.Map({
       container:          mapContainer.current,
       style:              `https://api.maptiler.com/maps/streets-v2-light/style.json?key=${MAPTILER_KEY}`,
-      center:             isMobile
-                            ? [galleriesRef.current[2]?.lng || 3.4004, galleriesRef.current[2]?.lat || 6.5083]
-                            : ALL_GALLERIES_CENTER,
-      zoom:               isMobile ? 16 : 10,
-      minZoom:            isMobile ? 14 : 9,
-      maxBounds:          isMobile ? null : [[2.9, 6.1], [3.9, 6.9]],
+      ...(isMobile
+        ? { bounds: ALL_BOUNDS, fitBoundsOptions: { padding: FIT_PADDING_MOBILE } }
+        : { center: ALL_GALLERIES_CENTER, zoom: 10 }),
+      minZoom:            9,
+      // Mobile reaches a little further west so Badagry (lng 2.889) can be
+      // panned to; desktop keeps its original box.
+      maxBounds:          isMobile ? [[2.7, 6.1], [3.95, 6.9]] : [[2.9, 6.1], [3.9, 6.9]],
       attributionControl: false,
     });
 
     mapRef.current = map;
 
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    // Mobile: zoom buttons at the bottom — the sticky filter bar covers
+    // the top of the map once the visitor scrolls to it.
+    map.addControl(
+      new maplibregl.NavigationControl({ showCompass: false }),
+      isMobile ? 'bottom-right' : 'top-right',
+    );
+
+    // The mobile container settles at its full height (100svh) after the
+    // map has measured it, which left the canvas short and threw fitBounds
+    // off-centre. Re-measure whenever the container changes size.
+    const resizeObserver = new ResizeObserver(() => map.resize());
+    resizeObserver.observe(mapContainer.current);
 
     // Fallback placeholder for any missing sprite icons
     map.on('styleimagemissing', (e) => {
@@ -403,10 +448,12 @@ const MapView = () => {
       map.addSource('galleries', { type: 'geojson', data: buildGalleriesGeoJSON(galleriesRef.current) });
       const pinLayout = {
         'icon-image':            'gallery-pin',
+        // Mobile pins stay compact at the overview zoom so dozens of
+        // venues don't pile into one blob, and grow as you zoom in.
         'icon-size':             ['interpolate', ['linear'], ['zoom'],
-                                   10, isMobile ? 0.8 : 1.0,
-                                   14, isMobile ? 1.1 : 1.2,
-                                   16, isMobile ? 1.4 : 1.5],
+                                   10, isMobile ? 0.9 : 1.0,
+                                   14, isMobile ? 1.15 : 1.2,
+                                   16, isMobile ? 1.35 : 1.5],
         'icon-anchor':           'bottom',
         'icon-allow-overlap':    true,
         'icon-ignore-placement': true,
@@ -497,7 +544,7 @@ const MapView = () => {
       setMapReady(true);
     });
 
-    return () => { map.remove(); setMapReady(false); };
+    return () => { resizeObserver.disconnect(); map.remove(); setMapReady(false); };
   }, []); // map is created once; live galleries are read via galleriesRef
 
   // ── Sync region filter and layer visibility with map ──────
