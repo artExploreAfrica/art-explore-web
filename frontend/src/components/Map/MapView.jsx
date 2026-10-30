@@ -67,6 +67,11 @@ const getMobileOffset = () => {
   return [0, -(visibleMapPx / 2)];
 };
 
+// Nomadic spaces and festivals can have no fixed coordinates; they stay in
+// the list but get no pin (MapLibre throws on a null LngLat).
+const withCoords = (list) =>
+  list.filter((g) => Number.isFinite(g.lat) && Number.isFinite(g.lng));
+
 // ── Build GeoJSON from the galleries array ────────────────────
 const buildGalleriesGeoJSON = (galleryList) => ({
   type: 'FeatureCollection',
@@ -114,14 +119,14 @@ const MapView = () => {
   const isMobileRef  = useRef(false);
   // Ref so the map-init effect (runs once) and MapLibre event closures
   // always read the latest fetched galleries instead of a stale snapshot.
-  const galleriesRef = useRef(galleries);
+  const galleriesRef = useRef(withCoords(galleries));
 
   const [activeRegion,    setActiveRegion]    = useState('All');
   const [activeLayers,    setActiveLayers]    = useState(LAYER_DEFAULTS);
   const [selectedGallery, setSelectedGallery] = useState(null);
   const [mapReady,        setMapReady]        = useState(false);
 
-  useEffect(() => { galleriesRef.current = galleries; }, [galleries]);
+  useEffect(() => { galleriesRef.current = withCoords(galleries); }, [galleries]);
 
   // ── Fly to a gallery and open the bottom sheet ────────────
   const flyToGallery = useCallback((gallery) => {
