@@ -118,12 +118,15 @@
   // A select set to a filter reads as "on": a terracotta border only.
   &:not(:has(option[value=""]:checked)) { border-color: var(--terracotta); }
 
+  // Mobile: sized to their text and side by side on one centred row,
+  // the same height as the region buttons, not stretched full width.
   @media (max-width: 768px) {
-    flex:      1 1 140px;
-    max-width: none;
-    height:    40px;
-    font-size: 10px;
-    letter-spacing: 0.08em;
+    flex:           0 1 auto;
+    max-width:      48%;
+    height:         42px;
+    padding:        0 28px 0 12px;
+    font-size:      10px;
+    letter-spacing: 0.1em;
   }
 }
 
