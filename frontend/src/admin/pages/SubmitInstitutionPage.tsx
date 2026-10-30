@@ -7,8 +7,11 @@ import {
   DayRow,
   emptyHours,
   hoursFromApi,
+  formatInstitutionType,
   hoursToApi,
+  INSTITUTION_SUBTYPES,
   INSTITUTION_TYPES,
+  InstitutionSubType,
   InstitutionType,
   MAX_IMAGE_BYTES,
   parseGeocode,
@@ -25,6 +28,7 @@ interface Institution {
   name: string;
   description?: string | null;
   type: InstitutionType;
+  subType?: InstitutionSubType | null;
   address: string;
   area: AreaEnum;
   subArea?: string | null;
@@ -48,6 +52,7 @@ const emptyForm = {
   name: "",
   description: "",
   type: "ART_GALLERY" as InstitutionType,
+  subType: "" as InstitutionSubType | "",
   address: "",
   area: "ISLAND" as AreaEnum,
   subArea: "",
@@ -80,6 +85,8 @@ function toApiPayload(
   const payload: Record<string, unknown> = {
     name: form.name.trim(),
     type: form.type,
+    // Always sent, so clearing the dropdown clears the stored sub-type.
+    subType: form.subType || null,
     address: form.address.trim(),
     area: form.area,
     lat: Number(form.lat),
@@ -255,6 +262,7 @@ export function SubmitInstitutionPage() {
       name: inst.name || "",
       description: inst.description || "",
       type: (inst.type as InstitutionType) || "ART_GALLERY",
+      subType: inst.subType || "",
       address: inst.address || "",
       area: (inst.area as AreaEnum) || "ISLAND",
       subArea: inst.subArea || "",
@@ -443,7 +451,21 @@ export function SubmitInstitutionPage() {
             >
               {INSTITUTION_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t.replace(/_/g, " ")}
+                  {formatInstitutionType(t)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="admin-form-row">
+            <label>Sub-type <span className="admin-optional">(optional)</span></label>
+            <select
+              value={form.subType}
+              onChange={(e) => setForm({ ...form, subType: e.target.value as InstitutionSubType | "" })}
+            >
+              <option value="">— None —</option>
+              {INSTITUTION_SUBTYPES.map((t) => (
+                <option key={t} value={t}>
+                  {formatInstitutionType(t)}
                 </option>
               ))}
             </select>

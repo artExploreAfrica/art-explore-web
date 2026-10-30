@@ -184,4 +184,55 @@ describe('PUT /api/v1/admin/institutions/:id', () => {
       action: 'UPDATE',
     });
   });
+
+  it('sets a subType, and null clears it', async () => {
+    mocks.prisma.institution.findFirst.mockResolvedValue(stored);
+    mocks.prisma.institution.update.mockResolvedValue(stored);
+
+    const set = await request(app)
+      .put('/api/v1/admin/institutions/inst_1')
+      .set(adminToken)
+      .send({ type: 'HUB_INSTITUTION', subType: 'STUDIO' });
+    const cleared = await request(app)
+      .put('/api/v1/admin/institutions/inst_1')
+      .set(adminToken)
+      .send({ subType: null });
+
+    expect(set.status).toBe(200);
+    expect(cleared.status).toBe(200);
+    expect(mocks.prisma.institution.update.mock.calls[0][0].data).toMatchObject({
+      type: 'HUB_INSTITUTION',
+      subType: 'STUDIO',
+    });
+    expect(mocks.prisma.institution.update.mock.calls[1][0].data.subType).toBeNull();
+  });
+
+  it('rejects an unknown subType', async () => {
+    mocks.prisma.institution.findFirst.mockResolvedValue(stored);
+
+    const res = await request(app)
+      .put('/api/v1/admin/institutions/inst_1')
+      .set(adminToken)
+      .send({ subType: 'GIFT_SHOP' });
+
+    expect(res.status).toBe(400);
+    expect(mocks.prisma.institution.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/v1/admin/institutions (subType)', () => {
+  it('stores a subType on create', async () => {
+    mocks.prisma.institution.create.mockResolvedValue(stored);
+
+    const res = await request(app)
+      .post('/api/v1/admin/institutions')
+      .set(adminToken)
+      .send({ ...validBody, type: 'HUB_INSTITUTION', subType: 'FOUNDATION' });
+
+    expect(res.status).toBe(201);
+    expect(mocks.prisma.institution.create.mock.calls[0][0].data).toMatchObject({
+      type: 'HUB_INSTITUTION',
+      subType: 'FOUNDATION',
+    });
+  });
 });

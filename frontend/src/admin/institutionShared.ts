@@ -11,7 +11,35 @@ export type InstitutionType =
   | "NOMADIC_SPACE"
   | "ART_FESTIVAL"
   | "RESIDENCY";
+export type InstitutionSubType =
+  | "ART_GALLERY"
+  | "MUSEUM"
+  | "INSTITUTE"
+  | "FOUNDATION"
+  | "STUDIO"
+  | "CULTURAL_SPACE"
+  | "ONLINE"
+  | "ART_FESTIVAL";
 export type AreaEnum = "ISLAND" | "MAINLAND" | "OTHER";
+
+/** InstitutionSubType from prisma/schema.prisma — a finer kind within the type. */
+export const INSTITUTION_SUBTYPES: InstitutionSubType[] = [
+  "ART_GALLERY",
+  "MUSEUM",
+  "INSTITUTE",
+  "FOUNDATION",
+  "STUDIO",
+  "CULTURAL_SPACE",
+  "ONLINE",
+  "ART_FESTIVAL",
+];
+
+/** "Art Hub/Institution · Studio" — the sub-type is left out when it just repeats the type. */
+export function formatTypeWithSubType(type?: string | null, subType?: string | null): string {
+  if (!type) return "—";
+  const main = formatInstitutionType(type);
+  return subType && subType !== type ? `${main} · ${formatInstitutionType(subType)}` : main;
+}
 
 export const INSTITUTION_TYPES: InstitutionType[] = [
   "ART_GALLERY",
