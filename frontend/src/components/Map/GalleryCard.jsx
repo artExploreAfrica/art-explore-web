@@ -8,7 +8,8 @@
 //                  Marker is fully visible above.
 //
 //  EXPANDED (~48vh) — user swipes up or taps chevron.
-//                     Shows full detail: address, stats, tags, button.
+//                     Shows the space's context: about, address, hours,
+//                     links, tags and directions.
 //
 //  Swipe down from EXPANDED → PEEK
 //  Swipe down from PEEK     → closes (calls onClose)
@@ -17,25 +18,32 @@
 
 import { useState, useRef, useCallback } from 'react';
 import styles from './GalleryCard.module.scss';
+import { placeOf } from '../../lib/adapters';
+import { formatInstitutionType, formatOpeningHours } from '../../admin/institutionShared';
 
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=600&q=70';
 
 const SWIPE_THRESHOLD = 40; // px — minimum drag to trigger state change
 
-const isOpenNow = (hours) => {
-  if (!hours?.length) return false;
-  const today = hours[new Date().getDay()];
-  if (!today) return false;
-  const [oh, om] = today.open.split(':').map(Number);
-  const [ch, cm] = today.close.split(':').map(Number);
-  const cur = new Date().getHours() * 60 + new Date().getMinutes();
-  return cur >= oh * 60 + om && cur <= ch * 60 + cm;
+// Sub-types that just restate the type ("Art Gallery · Art Gallery") aren't shown.
+const subTypeLabel = (g) =>
+  g.subType && g.subType !== g.type ? formatInstitutionType(g.subType) : null;
+
+const withScheme = (url) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
+
+// Stored as "@handle", a bare handle, or occasionally a full URL.
+const instagramUrl = (value) => {
+  const v = value.trim().replace(/^@/, '');
+  return /^https?:\/\//i.test(v) ? v : `https://www.instagram.com/${v.replace(/\/$/, '')}`;
 };
 
 const GalleryCard = ({ gallery, onClose }) => {
-  const open        = isOpenNow(gallery.hours);
-  const todayHours  = gallery.hours?.[new Date().getDay()];
+  const kicker = [gallery.typeLabel, subTypeLabel(gallery)].filter(Boolean).join(' · ');
+  const hours = formatOpeningHours(gallery.openingHours);
+  // The venue's own Google Maps link beats a raw coordinate search.
+  const directions =
+    gallery.mapUrl || `https://www.google.com/maps/search/?api=1&query=${gallery.lat},${gallery.lng}`;
 
   // Mobile sheet state: 'peek' | 'expanded'
   const [sheetState, setSheetState] = useState('peek');
@@ -125,9 +133,6 @@ const GalleryCard = ({ gallery, onClose }) => {
             onError={(e) => { e.target.src = FALLBACK_IMAGE; }}
           />
           <div className={styles.imageOverlay}>
-            <span className={`${styles.openBadge} ${open ? styles.openBadgeOpen : styles.openBadgeClosed}`}>
-              {open ? '● Open now' : '● Closed'}
-            </span>
             <span className={`${styles.regionBadge} ${gallery.region === 'Island' ? styles.regionIsland : styles.regionMainland}`}>
               {gallery.region}
             </span>
@@ -139,45 +144,59 @@ const GalleryCard = ({ gallery, onClose }) => {
 
           {/* Badges — always visible on mobile */}
           <div className={styles.mobileBadges}>
-            <span className={`${styles.openBadge} ${open ? styles.openBadgeOpen : styles.openBadgeClosed}`}>
-              {open ? '● Open now' : '● Closed'}
-            </span>
             <span className={`${styles.regionBadge} ${gallery.region === 'Island' ? styles.regionIsland : styles.regionMainland}`}>
               {gallery.region}
             </span>
           </div>
 
-          {/* Name + neighbourhood — always visible */}
+          {/* Type, name + neighbourhood — always visible */}
+          <p className={styles.kicker}>{kicker}</p>
           <h3 className={styles.name}>{gallery.name}</h3>
-          <p className={styles.neighbourhood}>{gallery.neighborhood}</p>
+          <p className={styles.neighbourhood}>{placeOf(gallery)}</p>
 
           {/* ── Expanded-only content ──────────────────────── */}
           <div className={`${styles.expandedContent} ${isExpanded ? styles.expandedContentVisible : ''}`}>
-            <p className={styles.address}>{gallery.address}</p>
+            {gallery.description && <p className={styles.description}>{gallery.description}</p>}
 
-            <div className={styles.stats}>
-              <div className={styles.stat}>
-                <span className={styles.statValue}>★ {gallery.rating}</span>
-                <span className={styles.statLabel}>Rating</span>
-              </div>
-              <div className={styles.statDivider} />
-              <div className={styles.stat}>
-                <span className={styles.statValue}>
-                  {todayHours ? `${todayHours.open}–${todayHours.close}` : '—'}
-                </span>
-                <span className={styles.statLabel}>Today</span>
-              </div>
-            </div>
+            {gallery.address && <p className={styles.address}>{gallery.address}</p>}
 
-            <div className={styles.tags}>
-              {(gallery.artTypes || []).map((type) => (
-                <span key={type} className={styles.tag}>{type}</span>
-              ))}
-            </div>
+            {hours.length > 0 && (
+              <dl className={styles.hours}>
+                {hours.map((row) => (
+                  <div key={row.label} className={styles.hoursRow}>
+                    <dt>{row.label}</dt>
+                    <dd>{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+
+            {(gallery.website || gallery.instagram || gallery.phone) && (
+              <div className={styles.links}>
+                {gallery.website && (
+                  <a href={withScheme(gallery.website)} target="_blank" rel="noopener noreferrer">
+                    Website ↗
+                  </a>
+                )}
+                {gallery.instagram && (
+                  <a href={instagramUrl(gallery.instagram)} target="_blank" rel="noopener noreferrer">
+                    Instagram ↗
+                  </a>
+                )}
+                {gallery.phone && <a href={`tel:${gallery.phone.replace(/[^\d+]/g, '')}`}>{gallery.phone}</a>}
+              </div>
+            )}
+
+            {(gallery.hasExhibition || gallery.hasResidency) && (
+              <div className={styles.tags}>
+                {gallery.hasExhibition && <span className={styles.tag}>Exhibition on view</span>}
+                {gallery.hasResidency && <span className={styles.tag}>Artist residency</span>}
+              </div>
+            )}
 
             <a
               className={styles.directionsBtn}
-              href={`https://www.google.com/maps/search/?api=1&query=${gallery.lat},${gallery.lng}`}
+              href={directions}
               target="_blank"
               rel="noopener noreferrer"
             >

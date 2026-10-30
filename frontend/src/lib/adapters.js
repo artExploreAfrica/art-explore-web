@@ -10,30 +10,19 @@
 //   address      address
 //   lat / lng    lat / lng
 //   area         -> region   ("ISLAND" -> "Island", etc.)
-//   type         -> artTypes ([base type] + "exhibition" when hasExhibition)
+//   type         -> type + typeLabel ("HUB_INSTITUTION" -> "Art Hub/Institution")
 //   images[]     -> image    (first image, or null -> card shows initials)
 //   address      -> neighborhood (derived; backend has no neighborhood field)
 //   rating       -> rating       (aggregate; null until a review is approved)
 //   reviewCount  -> reviewCount  (0 until a review is approved)
 //   openingHours -> hours    (GAP: shapes incompatible — left null for now)
 
+import { formatInstitutionType } from '../admin/institutionShared';
+
 const AREA_TO_REGION = {
   ISLAND: 'Island',
   MAINLAND: 'Mainland',
   OTHER: 'Other',
-};
-
-// Each backend type maps to ONE base artType keyword the UI tabs filter on.
-// Tabs match: galleries=["gallery"], exhibitions=["exhibition"],
-//             artists=["artist","studio"], events=["event","performance","fair"].
-// Adjust these freely — they are pure UI categorization, not backend truth.
-const TYPE_TO_ARTTYPE = {
-  ART_GALLERY: 'gallery',
-  MUSEUM: 'gallery',
-  INSTITUTE: 'gallery',
-  FOUNDATION: 'gallery',
-  STUDIO: 'studio',
-  CULTURAL_SPACE: 'events',
 };
 
 /** Best-effort neighborhood from an address like "12 X Rd, Lekki Phase I, Lagos". */
@@ -49,9 +38,6 @@ function deriveNeighborhood(address, region) {
 export function adaptInstitution(inst) {
   const region = AREA_TO_REGION[inst.area] ?? 'Other';
 
-  const artTypes = [TYPE_TO_ARTTYPE[inst.type] ?? 'gallery'];
-  if (inst.hasExhibition) artTypes.push('exhibition');
-
   return {
     id: inst.id,
     name: inst.name,
@@ -60,7 +46,8 @@ export function adaptInstitution(inst) {
     lng: inst.lng,
     region,
     neighborhood: deriveNeighborhood(inst.address, region),
-    artTypes: [...new Set(artTypes)],
+    typeLabel: formatInstitutionType(inst.type),
+    hasExhibition: Boolean(inst.hasExhibition),
     image: inst.images?.[0] ?? null,
     // The backend does expose an aggregate rating and a review
     // count on the institution row; both are null/0 until a
@@ -73,12 +60,35 @@ export function adaptInstitution(inst) {
     subArea: inst.subArea ?? null,
     description: inst.description ?? null,
     website: inst.website ?? null,
+    instagram: inst.instagram ?? null,
     phone: inst.phone ?? null,
     email: inst.email ?? null,
+    mapUrl: inst.mapUrl ?? null,
+    hasResidency: Boolean(inst.hasResidency),
     tags: inst.tags ?? [],
     type: inst.type,
+    subType: inst.subType ?? null,
     openingHours: inst.openingHours ?? null,
   };
+}
+
+// A neighbourhood is only worth showing if it narrows things down: the
+// sheet's sub_area sometimes just restates the area ("Mainland"), and the
+// address-derived one can be a postcode line ("Lagos 106104") or a note.
+const isVaguePlace = (s) =>
+  !s ||
+  /\d|\(|nigeria|not available|confirmed/i.test(s) ||
+  ['island', 'mainland', 'other', 'lagos'].includes(s.toLowerCase());
+
+/**
+ * The most specific place name for a venue: sub_area from the sheet, else the
+ * neighbourhood from its address (postcode dropped), else the region.
+ */
+export function placeOf(g) {
+  if (!isVaguePlace(g.subArea)) return g.subArea;
+  const fromAddress = g.neighborhood?.replace(/\s+\d{5,6}$/, '');
+  if (!isVaguePlace(fromAddress)) return fromAddress;
+  return g.subArea || g.region;
 }
 
 /** Map a list of institutions. */
