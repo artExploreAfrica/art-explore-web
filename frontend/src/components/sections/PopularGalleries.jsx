@@ -22,14 +22,11 @@ import "./PopularGalleries.scss";
 
 const KINDS = [
   { key: "ART_GALLERY", label: "Galleries", blurb: "Commercial rooms. Walk in, look, leave." },
-  { key: "HUB_INSTITUTION", label: "Hubs & cultural spaces", blurb: "Talks, screenings and residencies under one roof." },
+  { key: "HUB_INSTITUTION", label: "Art Hub/Institution", blurb: "Foundations, studios, institutes and cultural spaces." },
   { key: "MUSEUM", label: "Museums", blurb: "Permanent collections and the national archive." },
-  { key: "FOUNDATION", label: "Foundations", blurb: "Programme-led, often by appointment." },
-  { key: "INSTITUTE", label: "Institutes", blurb: "Teaching and research spaces that also exhibit." },
-  { key: "STUDIO", label: "Studios", blurb: "Where the work is made." },
-  { key: "CULTURAL_SPACE", label: "Cultural spaces", blurb: "Music, performance and craft alongside art." },
   { key: "NOMADIC_SPACE", label: "Nomadic spaces", blurb: "No fixed address; they appear for a show." },
   { key: "ART_FESTIVAL", label: "Festivals", blurb: "Dated, city-wide and temporary." },
+  { key: "RESIDENCY", label: "Residencies", blurb: "Time and space for artists to make new work." },
 ];
 
 // Running order inside a kind: the best-known names first. This only

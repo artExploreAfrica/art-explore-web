@@ -211,12 +211,12 @@ async function main(): Promise<void> {
   const sub1 = await call('Submissions: submit #1', 'POST', '/submissions', {
     token: userToken2,
     expected: 201,
-    body: { name: 'SMOKE Submitted A', type: 'STUDIO', address: '2 Sub St', area: 'MAINLAND', lat: 6.5, lng: 3.3 },
+    body: { name: 'SMOKE Submitted A', type: 'HUB_INSTITUTION', address: '2 Sub St', area: 'MAINLAND', lat: 6.5, lng: 3.3 },
   });
   const sub2 = await call('Submissions: submit #2', 'POST', '/submissions', {
     token: userToken2,
     expected: 201,
-    body: { name: 'SMOKE Submitted B', type: 'STUDIO', address: '3 Sub St', area: 'MAINLAND', lat: 6.5, lng: 3.3 },
+    body: { name: 'SMOKE Submitted B', type: 'HUB_INSTITUTION', address: '3 Sub St', area: 'MAINLAND', lat: 6.5, lng: 3.3 },
   });
   await call('Submissions: mine', 'GET', '/submissions/mine', { token: userToken2 });
 

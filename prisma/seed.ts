@@ -120,6 +120,7 @@ function mapInstitutionType(rawType: string, _name: string): InstitutionType | n
   if (label === 'museums' || label === 'museum') return InstitutionType.MUSEUM;
   if (label === 'art festivals' || label.includes('festival')) return InstitutionType.ART_FESTIVAL;
   if (label === 'nomadic spaces' || label.includes('nomadic')) return InstitutionType.NOMADIC_SPACE;
+  if (label === 'residencies' || label.includes('residenc')) return InstitutionType.RESIDENCY;
   if (label === 'art hubs/institutions' || label === 'art hubs' || label.includes('hub')) {
     return InstitutionType.HUB_INSTITUTION;
   }
@@ -411,10 +412,10 @@ async function seedSubCategories(): Promise<void> {
     { name: 'Contemporary', type: InstitutionType.ART_GALLERY },
     { name: 'Photography', type: InstitutionType.ART_GALLERY },
     { name: 'Modern', type: InstitutionType.ART_GALLERY },
-    { name: 'Painting Studio', type: InstitutionType.STUDIO },
-    { name: 'Sculpture Studio', type: InstitutionType.STUDIO },
-    { name: 'Museum', type: InstitutionType.CULTURAL_SPACE },
-    { name: 'Heritage Site', type: InstitutionType.CULTURAL_SPACE },
+    { name: 'Painting Studio', type: InstitutionType.HUB_INSTITUTION },
+    { name: 'Sculpture Studio', type: InstitutionType.HUB_INSTITUTION },
+    { name: 'Museum', type: InstitutionType.HUB_INSTITUTION },
+    { name: 'Heritage Site', type: InstitutionType.HUB_INSTITUTION },
   ];
 
   for (const sc of subCategories) {

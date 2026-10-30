@@ -7,31 +7,32 @@
 export type InstitutionType =
   | "ART_GALLERY"
   | "MUSEUM"
-  | "INSTITUTE"
-  | "FOUNDATION"
-  | "STUDIO"
-  | "CULTURAL_SPACE"
   | "HUB_INSTITUTION"
   | "NOMADIC_SPACE"
-  | "ART_FESTIVAL";
+  | "ART_FESTIVAL"
+  | "RESIDENCY";
 export type AreaEnum = "ISLAND" | "MAINLAND" | "OTHER";
 
 export const INSTITUTION_TYPES: InstitutionType[] = [
   "ART_GALLERY",
   "MUSEUM",
-  "INSTITUTE",
-  "FOUNDATION",
-  "STUDIO",
-  "CULTURAL_SPACE",
   "HUB_INSTITUTION",
   "NOMADIC_SPACE",
   "ART_FESTIVAL",
+  "RESIDENCY",
 ];
 export const AREAS: AreaEnum[] = ["ISLAND", "MAINLAND", "OTHER"];
+
+/** Types whose display name isn't just the title-cased enum. */
+const INSTITUTION_TYPE_LABELS: Partial<Record<InstitutionType, string>> = {
+  HUB_INSTITUTION: "Art Hub/Institution",
+};
 
 /** Human-readable label for a type — used anywhere a badge or list shows it,
  * instead of every call site re-deriving it from the raw enum string. */
 export function formatInstitutionType(type: string): string {
+  const label = INSTITUTION_TYPE_LABELS[type as InstitutionType];
+  if (label) return label;
   return type
     .toLowerCase()
     .split("_")

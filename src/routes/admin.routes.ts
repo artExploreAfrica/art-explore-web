@@ -1064,7 +1064,7 @@ router.delete(
  *     parameters:
  *       - in: query
  *         name: type
- *         schema: { type: string, enum: [ART_GALLERY, MUSEUM, INSTITUTE, FOUNDATION, STUDIO, CULTURAL_SPACE] }
+ *         schema: { type: string, enum: [ART_GALLERY, MUSEUM, HUB_INSTITUTION, NOMADIC_SPACE, ART_FESTIVAL, RESIDENCY] }
  *     responses:
  *       200: { description: Sub-categories }
  *   post:

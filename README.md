@@ -300,7 +300,7 @@ const { data, pagination } = await (await fetch(`${BASE}/institutions?${qs}`)).j
 ```
 
 - `area`: `ISLAND` · `MAINLAND` · `OTHER`
-- `type`: `ART_GALLERY` · `MUSEUM` · `INSTITUTE` · `FOUNDATION` · `STUDIO` · `CULTURAL_SPACE`
+- `type`: `ART_GALLERY` · `MUSEUM` · `HUB_INSTITUTION` · `NOMADIC_SPACE` · `ART_FESTIVAL` · `RESIDENCY`
 - `subCategoryId`: an id from `GET /subcategories`
 - `tag`: a tag id **or** slug (`name`) from `GET /tags`
 - `search`: free text over name, description, tags

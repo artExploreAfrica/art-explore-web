@@ -30,8 +30,11 @@ const AREA_TO_REGION = {
 const TYPE_TO_ARTTYPE = {
   ART_GALLERY: 'gallery',
   MUSEUM: 'gallery',
-  INSTITUTE: 'gallery',
-  FOUNDATION: 'gallery',
+};
+
+// Studios and cultural spaces are now HUB_INSTITUTION sub-types, so the
+// sub-type decides their keyword ahead of the top-level type.
+const SUBTYPE_TO_ARTTYPE = {
   STUDIO: 'studio',
   CULTURAL_SPACE: 'events',
 };
@@ -49,7 +52,7 @@ function deriveNeighborhood(address, region) {
 export function adaptInstitution(inst) {
   const region = AREA_TO_REGION[inst.area] ?? 'Other';
 
-  const artTypes = [TYPE_TO_ARTTYPE[inst.type] ?? 'gallery'];
+  const artTypes = [SUBTYPE_TO_ARTTYPE[inst.subType] ?? TYPE_TO_ARTTYPE[inst.type] ?? 'gallery'];
   if (inst.hasExhibition) artTypes.push('exhibition');
 
   return {
