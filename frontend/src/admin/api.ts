@@ -177,6 +177,20 @@ export const adminApi = {
   institutionExhibitions: (institutionId: string) =>
     apiRequest(`/api/v1/admin/institutions/${institutionId}/exhibitions?scope=all`),
 
+  // enquiries — contact-form messages ("Reach out" / "Learn more")
+  enquiries: (status: "NEW" | "HANDLED", page = 1) =>
+    apiRequest(`/api/v1/admin/enquiries?status=${status}&page=${page}`),
+  updateEnquiry: (id: string, status: "NEW" | "HANDLED") =>
+    apiRequest(`/api/v1/admin/enquiries/${id}`, { method: 'PATCH', body: { status } }),
+
+  // exhibition submissions (contributors and the public form)
+  exhibitionSubmissions: (page = 1) =>
+    apiRequest(`/api/v1/admin/submissions/exhibitions?page=${page}`),
+  approveExhibition: (id: string) =>
+    apiRequest(`/api/v1/admin/exhibitions/${id}/approve`, { method: 'POST' }),
+  rejectExhibition: (id: string, reviewNote: string) =>
+    apiRequest(`/api/v1/admin/exhibitions/${id}/reject`, { method: 'POST', body: { reviewNote } }),
+
   // submissions
   submissionsQueue: (page = 1) => apiRequest(`/api/v1/admin/submissions?page=${page}`),
   approveSubmission: (id: string) =>

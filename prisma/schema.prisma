@@ -97,6 +97,18 @@ enum TargetModel {
   TAG
   EXHIBITION
   REVIEW
+  ENQUIRY
+}
+
+// Why a visitor wrote in through the home-page contact form.
+enum EnquiryIntent {
+  REACH_OUT  // wants to get in touch
+  LEARN_MORE // wants to know more about Art Explore
+}
+
+enum EnquiryStatus {
+  NEW
+  HANDLED
 }
 
 model User {
@@ -114,6 +126,7 @@ model User {
   approvedExhibitions   Exhibition[]  @relation("ExhibitionApprover")
   reviews               Review[]      @relation("ReviewAuthor")
   moderatedReviews      Review[]      @relation("ReviewModerator")
+  handledEnquiries      Enquiry[]     @relation("EnquiryHandler")
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 }
@@ -251,6 +264,9 @@ model Exhibition {
   // Reviewer's reason when rejected; cleared on approval. The rejecting admin's
   // identity lives in the audit log — approvedById only ever means "approved by".
   reviewNote     String?
+  // Internal reviewer notes, e.g. a signed-out submitter's contact details.
+  // Never returned by the public API.
+  notes          String?
 
   isActive       Boolean        @default(false)
   createdAt      DateTime       @default(now())
@@ -306,4 +322,24 @@ model AuditLog {
   @@index([actorId])
   @@index([targetModel, targetId])
   @@index([timestamp])
+}
+
+// A message from the home-page contact form (no account needed). Reviewed in
+// the admin panel; nothing here is ever shown publicly.
+model Enquiry {
+  id           String        @id @default(cuid())
+  intent       EnquiryIntent
+  name         String
+  email        String
+  // Who they're writing on behalf of, if anyone (gallery, studio, brand…).
+  organisation String?
+  message      String
+  status       EnquiryStatus @default(NEW)
+  handledById  String?
+  handledBy    User?         @relation("EnquiryHandler", fields: [handledById], references: [id])
+  handledAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([status, createdAt])
 }

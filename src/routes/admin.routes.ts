@@ -6,6 +6,7 @@ import * as adminSubCategoryController from '../controllers/adminSubCategory.con
 import * as adminTagController from '../controllers/adminTag.controller';
 import * as auditController from '../controllers/audit.controller';
 import * as dashboardController from '../controllers/dashboard.controller';
+import * as enquiryController from '../controllers/enquiry.controller';
 import * as reviewController from '../controllers/review.controller';
 import * as userController from '../controllers/user.controller';
 import { authenticate } from '../middleware/authenticate';
@@ -40,6 +41,7 @@ import {
   submitInstitutionSchema,
 } from '../validators/submission.validator';
 import { auditLogQuerySchema } from '../validators/audit.validator';
+import { listEnquiriesQuerySchema, updateEnquirySchema } from '../validators/enquiry.validator';
 import { listReviewSubmissionsQuerySchema } from '../validators/review.validator';
 import { createUserSchema, listUsersQuerySchema } from '../validators/user.validator';
 
@@ -63,6 +65,8 @@ router.use(authenticate);
  *     description: Audit trail (SUPER_ADMIN only)
  *   - name: Admin - Dashboard
  *     description: Aggregate counts
+ *   - name: Admin - Enquiries
+ *     description: Contact-form messages from the home page
  */
 
 // ---------------------------------------------------------------------------
@@ -1209,6 +1213,66 @@ router.put(
   adminTagController.update,
 );
 router.delete('/tags/:id', isAdmin, validate({ params: idParamSchema }), adminTagController.remove);
+
+// ---------------------------------------------------------------------------
+// Enquiries — contact-form messages (ADMIN or SUPER_ADMIN)
+// ---------------------------------------------------------------------------
+
+/**
+ * @swagger
+ * /api/v1/admin/enquiries:
+ *   get:
+ *     summary: List contact-form enquiries (defaults to status NEW)
+ *     tags: [Admin - Enquiries]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [NEW, HANDLED] }
+ *       - in: query
+ *         name: intent
+ *         schema: { type: string, enum: [REACH_OUT, LEARN_MORE] }
+ *     responses:
+ *       200: { description: Enquiries }
+ */
+router.get(
+  '/enquiries',
+  isAdmin,
+  validate({ query: listEnquiriesQuerySchema }),
+  enquiryController.list,
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/enquiries/{id}:
+ *   patch:
+ *     summary: Mark an enquiry handled, or reopen it
+ *     tags: [Admin - Enquiries]
+ *     security: [{ BearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status: { type: string, enum: [NEW, HANDLED] }
+ *     responses:
+ *       200: { description: Updated }
+ *       404: { description: Not found }
+ */
+router.patch(
+  '/enquiries/:id',
+  isAdmin,
+  validate({ params: idParamSchema, body: updateEnquirySchema }),
+  enquiryController.updateStatus,
+);
 
 // ---------------------------------------------------------------------------
 // User management (SUPER_ADMIN only)
