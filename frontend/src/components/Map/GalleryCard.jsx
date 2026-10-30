@@ -170,9 +170,8 @@ const GalleryCard = ({ gallery, onClose }) => {
             </div>
 
             <div className={styles.tags}>
-              {(gallery.artTypes || []).map((type) => (
-                <span key={type} className={styles.tag}>{type}</span>
-              ))}
+              <span className={styles.tag}>{gallery.typeLabel}</span>
+              {gallery.hasExhibition && <span className={styles.tag}>Exhibition</span>}
             </div>
 
             <a

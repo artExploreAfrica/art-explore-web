@@ -80,7 +80,7 @@ const buildGalleriesGeoJSON = (galleryList) => ({
       region:       g.region,
       rating:       g.rating,
       image:        g.image,
-      artTypes:     JSON.stringify(g.artTypes || []),
+      typeLabel:    g.typeLabel,
     },
     geometry: { type: 'Point', coordinates: [g.lng, g.lat] },
   })),
@@ -106,7 +106,7 @@ const createPinImage = ({ body, dot }) =>
 
 // ── Component ─────────────────────────────────────────────────
 const MapView = () => {
-  const { galleries } = useGalleries();
+  const { galleries, loading } = useGalleries();
 
   const mapContainer = useRef(null);
   const mapRef       = useRef(null);
@@ -524,7 +524,7 @@ const MapView = () => {
                   <p>${gallery.address}</p>
                   <div class="popup-footer">
                     <span class="popup-rating">★ ${gallery.rating}</span>
-                    <span class="popup-tags">${(gallery.artTypes || []).join(' · ')}</span>
+                    <span class="popup-tags">${[gallery.typeLabel, gallery.hasExhibition && 'Exhibition'].filter(Boolean).join(' · ')}</span>
                   </div>
                 </div>
               </div>`)
@@ -574,7 +574,16 @@ const MapView = () => {
         </button>
       </div>
 
-      <div ref={mapContainer} className={styles.mapContainer} />
+      <div className={styles.mapStage}>
+        <div ref={mapContainer} className={styles.mapContainer} />
+        {/* Basemap is usable straight away; this only says the pins are on their way. */}
+        {loading && (
+          <div className={styles.loading} role="status">
+            <span className={styles.loadingDot} aria-hidden="true" />
+            Loading galleries…
+          </div>
+        )}
+      </div>
 
       <LegendPanel
         activeLayers={activeLayers}

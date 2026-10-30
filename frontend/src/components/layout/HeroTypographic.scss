@@ -192,7 +192,16 @@ $ticker-h: 64px;
   gap: clamp(28px, 4vw, 60px);
   width: max-content;
   padding-left: clamp(20px, 4vw, 56px);
-  animation: htScroll 34s linear infinite;
+  animation: htScroll var(--ticker-duration, 34s) linear infinite;
+
+  &--loading { animation: none; }
+}
+
+// Placeholder bars while the venue list loads.
+.ht__ticker-sk {
+  @include skeleton(var(--ink-press), var(--rule-on-dark));
+  flex: 0 0 auto;
+  height: 10px;
 }
 
 .ht__ticker-item {

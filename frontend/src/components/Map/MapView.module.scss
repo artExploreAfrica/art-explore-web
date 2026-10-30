@@ -148,6 +148,71 @@
   }
 }
 
+// Holds the map and its loading overlay; takes the map's place in
+// the wrapper's flex column.
+.mapStage {
+  position:       relative;
+  flex:           1;
+  min-height:     0;
+  display:        flex;
+  flex-direction: column;
+}
+
+// Sweep across the map plus a status pill while the venue list loads.
+// Pointer events pass through so the basemap can be panned meanwhile.
+.loading {
+  position:        absolute;
+  inset:           0;
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             10px;
+  pointer-events:  none;
+  font-size:       11px;
+  letter-spacing:  0.2em;
+  text-transform:  uppercase;
+  color:           var(--ink);
+
+  &::before {
+    @include skeleton(transparent, rgba(246, 239, 226, 0.55));
+    content:  '';
+    position: absolute;
+    inset:    0;
+    z-index:  -2; // under the pill (-1) and the label
+  }
+}
+
+.loading,
+.loadingDot { z-index: 1; }
+
+.loading::after {
+  // The pill behind the label.
+  content:       '';
+  position:      absolute;
+  width:         210px;
+  height:        40px;
+  border-radius: 20px;
+  background:    var(--cream);
+  border:        1px solid var(--rule);
+  z-index:       -1;
+}
+
+.loadingDot {
+  position:      relative;
+  width:         8px;
+  height:        8px;
+  border-radius: 50%;
+  background:    var(--terracotta);
+  animation:     loadingPulse 1.2s $ease-out infinite;
+
+  @media (prefers-reduced-motion: reduce) { animation: none; }
+}
+
+@keyframes loadingPulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+
 // ── MapLibre global overrides ─────────────────────────────────
 :global {
 
