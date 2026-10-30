@@ -20,13 +20,10 @@ enum Role {
 enum InstitutionType {
   ART_GALLERY
   MUSEUM
-  INSTITUTE
-  FOUNDATION
-  STUDIO
-  CULTURAL_SPACE
   HUB_INSTITUTION
   NOMADIC_SPACE
   ART_FESTIVAL
+  RESIDENCY
 }
 
 enum InstitutionSubType {

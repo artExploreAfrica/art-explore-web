@@ -116,11 +116,14 @@ fields. `src/lib/adapters.js` does the translation. Here's exactly what it does:
 | `description`, `website`, `phone`, `email`, `tags`, `openingHours` | passed through | available for a detail page later |
 
 ### Backend `type` enum
-`ART_GALLERY · MUSEUM · INSTITUTE · FOUNDATION · STUDIO · CULTURAL_SPACE`
+`ART_GALLERY · MUSEUM · HUB_INSTITUTION · NOMADIC_SPACE · ART_FESTIVAL · RESIDENCY`
+(`HUB_INSTITUTION` displays as "Art Hub/Institution").
 
-The current type→category mapping (edit in `adapters.js` → `TYPE_TO_ARTTYPE`):
-`ART_GALLERY/MUSEUM/INSTITUTE/FOUNDATION → "gallery"`, `STUDIO → "studio"`,
-`CULTURAL_SPACE → "events"`.
+`subType` (optional): `ART_GALLERY · MUSEUM · INSTITUTE · FOUNDATION · STUDIO · CULTURAL_SPACE · ONLINE · ART_FESTIVAL`
+
+The current category mapping (edit in `adapters.js`): `subType` is checked first
+(`SUBTYPE_TO_ARTTYPE`: `STUDIO → "studio"`, `CULTURAL_SPACE → "events"`), then `type`
+(`TYPE_TO_ARTTYPE`: `ART_GALLERY/MUSEUM → "gallery"`); anything else → `"gallery"`.
 
 ---
 

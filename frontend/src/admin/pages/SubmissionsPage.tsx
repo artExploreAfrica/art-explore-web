@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { adminApi, Pagination } from "../api";
-import { formatOpeningHours, Tag } from "../institutionShared";
+import { formatInstitutionType, formatOpeningHours, Tag } from "../institutionShared";
 
 interface Submission {
   id: string;
@@ -304,7 +304,7 @@ export function SubmissionsPage() {
                         </div>
                         <div className="admin-form-row">
                           <label>Type</label>
-                          {item.type ? item.type.replace(/_/g, " ") : "—"}
+                          {item.type ? formatInstitutionType(item.type) : "—"}
                         </div>
                         <div className="admin-form-row">
                           <label>Address</label>

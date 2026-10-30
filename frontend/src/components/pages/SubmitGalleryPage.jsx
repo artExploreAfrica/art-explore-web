@@ -7,6 +7,7 @@ import {
   AREAS,
   DAYS,
   emptyHours,
+  formatInstitutionType,
   formatOpeningHours,
   hoursFromApi,
   hoursToApi,
@@ -286,7 +287,7 @@ export default function SubmitGalleryPage() {
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} required>
               {INSTITUTION_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t.replace(/_/g, " ")}
+                  {formatInstitutionType(t)}
                 </option>
               ))}
             </select>
@@ -544,7 +545,7 @@ export default function SubmitGalleryPage() {
                           <dt>Description</dt>
                           <dd>{item.description || "—"}</dd>
                           <dt>Type</dt>
-                          <dd>{item.type ? item.type.replace(/_/g, " ") : "—"}</dd>
+                          <dd>{item.type ? formatInstitutionType(item.type) : "—"}</dd>
                           <dt>Address</dt>
                           <dd>{[item.address, item.subArea, item.area].filter(Boolean).join(", ") || "—"}</dd>
                           <dt>Coordinates</dt>

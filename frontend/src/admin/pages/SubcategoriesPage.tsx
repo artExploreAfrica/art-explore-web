@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { adminApi, Pagination } from "../api";
+import { formatInstitutionType, INSTITUTION_TYPES } from "../institutionShared";
 
 interface Subcategory {
   id: string;
@@ -93,10 +94,11 @@ export function SubcategoriesPage() {
           <div className="admin-form-row">
             <label>Type</label>
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              <option value="ART_GALLERY">Art gallery</option>
-              <option value="STUDIO">Studio</option>
-              <option value="CULTURAL_SPACE">Cultural space</option>
-              <option value="MUSEUM">Museum</option>
+              {INSTITUTION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {formatInstitutionType(t)}
+                </option>
+              ))}
             </select>
           </div>
           <button className="admin-btn admin-btn-primary" type="submit" disabled={saving}>
@@ -124,7 +126,7 @@ export function SubcategoriesPage() {
             {items.map((item) => (
               <tr key={item.id}>
                 <td>{item.name}</td>
-                <td>{item.type}</td>
+                <td>{formatInstitutionType(item.type)}</td>
                 <td>
                   <button className="admin-btn" onClick={() => startEdit(item)}>
                     Edit

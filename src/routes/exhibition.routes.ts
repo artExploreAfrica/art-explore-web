@@ -33,7 +33,7 @@ const router = Router();
  *         name: type
  *         schema:
  *           type: string
- *           enum: [ART_GALLERY, MUSEUM, INSTITUTE, FOUNDATION, STUDIO, CULTURAL_SPACE]
+ *           enum: [ART_GALLERY, MUSEUM, HUB_INSTITUTION, NOMADIC_SPACE, ART_FESTIVAL, RESIDENCY]
  *       - in: query
  *         name: institutionId
  *         schema: { type: string }

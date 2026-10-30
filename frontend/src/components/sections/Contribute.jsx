@@ -14,13 +14,10 @@ import "./Contribute.scss";
 const KINDS = [
   { value: "ART_GALLERY", label: "Gallery" },
   { value: "MUSEUM", label: "Museum" },
-  { value: "HUB_INSTITUTION", label: "Hub / cultural centre" },
-  { value: "CULTURAL_SPACE", label: "Cultural space" },
-  { value: "FOUNDATION", label: "Foundation" },
-  { value: "INSTITUTE", label: "Institute" },
-  { value: "STUDIO", label: "Studio" },
+  { value: "HUB_INSTITUTION", label: "Art Hub/Institution" },
   { value: "NOMADIC_SPACE", label: "Nomadic space" },
   { value: "ART_FESTIVAL", label: "Festival" },
+  { value: "RESIDENCY", label: "Residency" },
 ];
 
 const AREAS = [
