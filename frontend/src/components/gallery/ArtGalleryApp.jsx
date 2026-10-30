@@ -1,21 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import "./ArtGalleryApp.scss";
 import { useGalleries } from "../../hooks/useGalleries"; // ← live data from the API
+import { formatInstitutionType, INSTITUTION_TYPES } from "../../admin/institutionShared";
 
+// "All" plus one tab per InstitutionType, labelled as everywhere else.
 const TABS = [
-  { id: "all", label: "All", matchTypes: null },
-  { id: "galleries", label: "Galleries", matchTypes: ["gallery"] },
-  {
-    id: "exhibitions",
-    label: "Exhibitions",
-    matchTypes: ["exhibition", "exhibit"],
-  },
-  { id: "artists", label: "Artists", matchTypes: ["artist", "studio"] },
-  {
-    id: "events",
-    label: "Events",
-    matchTypes: ["event", "performance", "fair"],
-  },
+  { id: "all", label: "All", type: null },
+  ...INSTITUTION_TYPES.map((type) => ({ id: type, label: formatInstitutionType(type), type })),
 ];
 
 const SORT_OPTIONS = [
@@ -60,10 +51,8 @@ function getDistanceKm(lat1, lng1, lat2, lng2) {
 }
 
 function countForTab(tab, data) {
-  if (!tab.matchTypes) return data.length;
-  return data.filter((g) =>
-    g.artTypes.some((t) => tab.matchTypes.includes(t.toLowerCase())),
-  ).length;
+  if (!tab.type) return data.length;
+  return data.filter((g) => g.type === tab.type).length;
 }
 
 function placeholderColor(name) {
@@ -139,11 +128,7 @@ function useGalleryFilters(data) {
     }
 
     const tab = TABS.find((t) => t.id === activeTab);
-    if (tab?.matchTypes) {
-      result = result.filter((g) =>
-        g.artTypes.some((t) => tab.matchTypes.includes(t.toLowerCase())),
-      );
-    }
+    if (tab?.type) result = result.filter((g) => g.type === tab.type);
 
     if (openNow) result = result.filter((g) => isOpenNow(g.hours));
     if (topRated) result = result.filter((g) => g.rating >= 4.0);
@@ -263,7 +248,10 @@ function SearchBox({ searchQuery, setSearchQuery }) {
 function CategoryTabs({ activeTab, setActiveTab, rawData }) {
   return (
     <div className="tabs" role="tablist">
-      {TABS.map((tab) => (
+      {/* A type with no venues yet gets no tab (unless it is the one selected). */}
+      {TABS.filter(
+        (tab) => !tab.type || tab.id === activeTab || countForTab(tab, rawData) > 0,
+      ).map((tab) => (
         <button
           key={tab.id}
           role="tab"
@@ -385,11 +373,8 @@ function GalleryCard({ gallery }) {
         {/* Show address from merged data */}
         {gallery.address && <p className="card__address">{gallery.address}</p>}
         <div className="card__tags">
-          {gallery.artTypes.map((t) => (
-            <span key={t} className="card__tag">
-              {t}
-            </span>
-          ))}
+          <span className="card__tag">{gallery.typeLabel}</span>
+          {gallery.hasExhibition && <span className="card__tag">Exhibition</span>}
         </div>
         {gallery.rating != null && (
           <div className="card__rating">

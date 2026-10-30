@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useGalleries } from "../../hooks/useGalleries";
+import { placeOf } from "../../lib/adapters";
 import "./HeroTypographic.scss";
 
 // ── SETUP NOTE ────────────────────────────────────────────────
@@ -25,16 +27,37 @@ const SLIDES = [
 ];
 const SLIDE_MS = 6000;
 
-const TICKER_ITEMS = [
-  { title: "Studio", place: "Yaba" },
-  { title: "Exhibition", place: "Ikoyi" },
-  { title: "Art Fair", place: "Lekki" },
-  { title: "Gallery", place: "Victoria Island" },
-  { title: "Museum", place: "Lagos Island" },
-  { title: "Workshop", place: "Surulere" },
-];
+// Ticker: real venues from the live list, "Name · Neighbourhood".
+const TICKER_MAX = 24;
+const TICKER_S_PER_ITEM = 5; // keeps the scroll speed steady however many there are
+// Venues without a fixed address have no neighbourhood to pair with.
+const NO_FIXED_PLACE = new Set(["NOMADIC_SPACE", "ART_FESTIVAL"]);
 
-const TICKER_DOUBLED = [...TICKER_ITEMS, ...TICKER_ITEMS];
+/**
+ * Venues for the ticker. Only ones with a specific neighbourhood (not just
+ * "Island"/"Mainland"), best-documented first, then dealt out one
+ * neighbourhood at a time so the strip moves around the city instead of
+ * listing six Ikoyi galleries in a row.
+ */
+function tickerItems(galleries) {
+  const byPlace = new Map();
+  galleries
+    .filter((g) => !NO_FIXED_PLACE.has(g.type))
+    .map((g) => ({ g, place: placeOf(g) }))
+    .filter(({ place }) => place && place !== "Island" && place !== "Mainland" && place !== "Other")
+    .sort((a, b) => Number(!!b.g.image) - Number(!!a.g.image) || a.g.name.localeCompare(b.g.name))
+    .forEach(({ g, place }) => {
+      if (!byPlace.has(place)) byPlace.set(place, []);
+      byPlace.get(place).push({ id: g.id, title: g.name, place });
+    });
+
+  const queues = [...byPlace.values()];
+  const out = [];
+  while (out.length < TICKER_MAX && queues.some((q) => q.length)) {
+    for (const q of queues) if (q.length && out.length < TICKER_MAX) out.push(q.shift());
+  }
+  return out;
+}
 
 // ── Icons ─────────────────────────────────────────────────────
 const ArrowIcon = () => (
@@ -52,6 +75,8 @@ const ArrowIcon = () => (
 // ── Component ─────────────────────────────────────────────────
 export default function HeroTypographic() {
   const [slide, setSlide] = useState(0);
+  const { galleries, loading } = useGalleries();
+  const ticker = useMemo(() => tickerItems(galleries), [galleries]);
 
   // Autoplay. Never runs for visitors who ask for reduced motion, and
   // skips ticks while the tab is hidden so it is not cycling unseen.
@@ -132,15 +157,30 @@ export default function HeroTypographic() {
           Fixed height, always on screen.
       ══════════════════════════════════════════════════════ */}
       <div className="ht__ticker" aria-hidden="true">
-        <div className="ht__ticker-track">
-          {TICKER_DOUBLED.map(({ title, place }, i) => (
-            <div key={i} className="ht__ticker-item">
-              <strong>{title}</strong>
-              <span className="ht__ticker-dot" aria-hidden="true" />
-              {place}
+        {loading ? (
+          // Still placeholders until the venues arrive; nothing scrolls yet.
+          <div className="ht__ticker-track ht__ticker-track--loading">
+            {[180, 120, 210, 150, 190, 130].map((w, i) => (
+              <span key={i} className="ht__ticker-sk" style={{ width: w }} />
+            ))}
+          </div>
+        ) : (
+          ticker.length > 0 && (
+            <div
+              className="ht__ticker-track"
+              style={{ "--ticker-duration": `${ticker.length * TICKER_S_PER_ITEM}s` }}
+            >
+              {/* Two copies: the track scrolls by half its width and loops. */}
+              {[...ticker, ...ticker].map(({ id, title, place }, i) => (
+                <div key={`${id}-${i}`} className="ht__ticker-item">
+                  <strong>{title}</strong>
+                  <span className="ht__ticker-dot" aria-hidden="true" />
+                  {place}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )
+        )}
       </div>
     </section>
   );

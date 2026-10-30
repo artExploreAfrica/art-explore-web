@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import styles from './LegendPanel.module.scss';
+import { placeOf } from '../../lib/adapters';
 
 const LAYER_CONFIG = [
   { key: 'galleries',      label: 'Galleries',       icon: '📍', description: 'Art galleries & exhibition spaces', color: '#1a6bbd' },
@@ -29,10 +30,9 @@ const NEIGHBOURHOOD_HUBS = [
 const LegendPanel = ({
   activeLayers,
   onToggle,
-  galleries,
+  spaces,       // art & cultural spaces after the map's top-bar filters
   onGalleryClick,
   onNeighbourhoodClick,
-  activeRegion,
   galleryOpen,  // NEW: true when GalleryCard is visible on mobile
 }) => {
   // On mobile, default to collapsed so it doesn't clutter the map.
@@ -45,10 +45,6 @@ const LegendPanel = ({
       setCollapsed(true);
     }
   }, []);
-
-  const visibleGalleries = galleries.filter(
-    (g) => activeRegion === 'All' || g.region === activeRegion,
-  );
 
   return (
     <div
@@ -87,7 +83,7 @@ const LegendPanel = ({
                 onClick={() => setActiveTab(tab)}
               >
                 {tab === 'layers'    && 'Layers'}
-                {tab === 'galleries' && `Galleries (${visibleGalleries.length})`}
+                {tab === 'galleries' && `Art & Cultural Spaces (${spaces.length})`}
                 {tab === 'areas'     && 'Areas'}
               </button>
             ))}
@@ -128,10 +124,10 @@ const LegendPanel = ({
           {/* Galleries tab */}
           {activeTab === 'galleries' && (
             <div className={styles.galleryList}>
-              {visibleGalleries.length === 0 ? (
-                <p className={styles.empty}>No galleries in this region.</p>
+              {spaces.length === 0 ? (
+                <p className={styles.empty}>No spaces match these filters.</p>
               ) : (
-                visibleGalleries.map((g) => (
+                spaces.map((g) => (
                   <button key={g.id} className={styles.galleryItem} onClick={() => onGalleryClick(g)}>
                     <img
                       src={g.image}
@@ -141,10 +137,9 @@ const LegendPanel = ({
                     />
                     <div className={styles.galleryMeta}>
                       <span className={styles.galleryName}>{g.name}</span>
-                      <span className={styles.galleryNeighbourhood}>{g.neighborhood}</span>
+                      <span className={styles.galleryNeighbourhood}>{placeOf(g)}</span>
                       <span className={`${styles.galleryRegion} ${styles[`galleryRegion${g.region}`]}`}>{g.region}</span>
                     </div>
-                    <span className={styles.galleryRating}>★ {g.rating}</span>
                   </button>
                 ))
               )}
