@@ -95,6 +95,38 @@
 .regionBtnIsland::after   { background: #1a6bbd; }
 .regionBtnMainland::after { background: #b45309; }
 
+// Neighbourhood and type dropdowns: same height and type as the
+// region buttons, with the shared input states.
+.filterSelect {
+  @include input-field;
+  height:         42px;
+  padding:        0 34px 0 14px;
+  font-size:      11px;
+  font-weight:    600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color:          var(--ink);
+  cursor:         pointer;
+  max-width:      220px;
+  // Same single 1px outline as the region buttons — no extra ring.
+  border:         1px solid var(--control-border);
+
+  &:focus,
+  &:focus-within { box-shadow: none; }
+  @include focus-ring(var(--terracotta));
+
+  // A select set to a filter reads as "on": a terracotta border only.
+  &:not(:has(option[value=""]:checked)) { border-color: var(--terracotta); }
+
+  @media (max-width: 768px) {
+    flex:      1 1 140px;
+    max-width: none;
+    height:    40px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+}
+
 .regionBtnActive,
 .regionBtnActive:hover:not(:disabled) {
   @include selected;

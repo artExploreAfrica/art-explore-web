@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import styles from './MapView.module.scss';
 import { useGalleries } from '../../hooks/useGalleries'; // ← live data from the API
+import { placeOf } from '../../lib/adapters';
 import { neighbourhoodsGeoJSON, landmarksGeoJSON } from '../../data/lagosGeo';
 import LegendPanel from './LegendPanel';
 import GalleryCard from './GalleryCard';
@@ -25,6 +26,25 @@ const LAYER_DEFAULTS = {
 };
 
 const ZOOM = { overview: 11, district: 12, street: 14, detail: 16 };
+
+// Type filter in the top bar. Festivals and nomadic spaces have no fixed
+// address, so they aren't offered — and aren't counted as places on the map.
+const TYPE_FILTERS = [
+  { value: 'ART_GALLERY',     label: 'Art Galleries' },
+  { value: 'MUSEUM',          label: 'Museums' },
+  { value: 'HUB_INSTITUTION', label: 'Art Hub/Institutions' },
+];
+const NOT_A_FIXED_SPACE = new Set(['ART_FESTIVAL', 'NOMADIC_SPACE']);
+
+const NO_FILTERS = { region: 'All', neighbourhood: '', type: '' };
+
+/** Does a venue pass the top-bar filters? */
+const matchesFilters = (g, { region, neighbourhood, type }) =>
+  (region === 'All' || g.region === region) &&
+  (!neighbourhood || placeOf(g) === neighbourhood) &&
+  (!type || g.type === type);
+
+const isUnfiltered = (f) => f.region === 'All' && !f.neighbourhood && !f.type;
 
 const FIT_PADDING        = { top: 100, bottom: 60,  left: 60,  right: 280 };
 // Mobile: top clears the sticky filter bar, which overlaps the map once
@@ -116,12 +136,46 @@ const MapView = () => {
   // always read the latest fetched galleries instead of a stale snapshot.
   const galleriesRef = useRef(galleries);
 
-  const [activeRegion,    setActiveRegion]    = useState('All');
+  const [filters,         setFilters]         = useState(NO_FILTERS);
+  const activeRegion = filters.region;
   const [activeLayers,    setActiveLayers]    = useState(LAYER_DEFAULTS);
   const [selectedGallery, setSelectedGallery] = useState(null);
   const [mapReady,        setMapReady]        = useState(false);
 
   useEffect(() => { galleriesRef.current = galleries; }, [galleries]);
+
+  // Neighbourhoods that actually have venues, within the selected region,
+  // with how many each has. Vague places ("Island", "Mainland") aren't
+  // neighbourhoods, so they're left out.
+  const neighbourhoodOptions = useMemo(() => {
+    const counts = new Map();
+    galleries
+      .filter((g) => !NOT_A_FIXED_SPACE.has(g.type))
+      .filter((g) => activeRegion === 'All' || g.region === activeRegion)
+      .forEach((g) => {
+        const place = placeOf(g);
+        if (!place || ['Island', 'Mainland', 'Other'].includes(place)) return;
+        counts.set(place, (counts.get(place) ?? 0) + 1);
+      });
+    return [...counts].sort(([a], [b]) => a.localeCompare(b));
+  }, [galleries, activeRegion]);
+
+  // Switching region drops a neighbourhood that isn't in it.
+  const setRegion = (region) =>
+    setFilters((f) => {
+      const stillThere =
+        !f.neighbourhood ||
+        galleries.some(
+          (g) => placeOf(g) === f.neighbourhood && (region === 'All' || g.region === region),
+        );
+      return { ...f, region, neighbourhood: stillThere ? f.neighbourhood : '' };
+    });
+
+  // The panel lists fixed art & cultural spaces only; its count is "N".
+  const panelSpaces = useMemo(
+    () => galleries.filter((g) => !NOT_A_FIXED_SPACE.has(g.type) && matchesFilters(g, filters)),
+    [galleries, filters],
+  );
 
   // ── Fly to a gallery and open the bottom sheet ────────────
   const flyToGallery = useCallback((gallery) => {
@@ -201,25 +255,24 @@ const MapView = () => {
     [applyLayerVisibility],
   );
 
-  // ── Filter pins + refit bounds when region changes ────────
+  // ── Filter pins + refit bounds when the top-bar filters change ──
   const updateGalleryFilter = useCallback(
-    (region) => {
+    (activeFilters) => {
       const map = mapRef.current;
       if (!map || !mapReady || !map.getSource('galleries')) return;
 
       const all = galleriesRef.current;
-      const filtered =
-        region === 'All' ? all : all.filter((g) => g.region === region);
+      const filtered = all.filter((g) => matchesFilters(g, activeFilters));
       map.getSource('galleries').setData(buildGalleriesGeoJSON(filtered));
 
       const padding = isMobileRef.current ? FIT_PADDING_MOBILE : FIT_PADDING;
 
-      if (region === 'All') {
+      if (isUnfiltered(activeFilters)) {
         map.fitBounds(ALL_BOUNDS, { padding, duration: 800 });
+      } else if (!filtered.length) {
+        // Nothing matches: leave the view where it is.
       } else if (isMobileRef.current) {
-        if (filtered.length) {
-          map.fitBounds(coreBounds(filtered), { padding, maxZoom: 13, duration: 800 });
-        }
+        map.fitBounds(coreBounds(filtered), { padding, maxZoom: 13, duration: 800 });
       } else {
         const bounds = new maplibregl.LngLatBounds();
         filtered.forEach((g) => bounds.extend([g.lng, g.lat]));
@@ -547,14 +600,14 @@ const MapView = () => {
     return () => { resizeObserver.disconnect(); map.remove(); setMapReady(false); };
   }, []); // map is created once; live galleries are read via galleriesRef
 
-  // ── Sync region filter and layer visibility with map ──────
+  // ── Sync filters and layer visibility with map ────────────
   // Also re-runs when `galleries` changes (API fetch resolves) so the
   // pins that were seeded empty at mount get populated once data arrives.
   useEffect(() => {
     if (!mapReady) return;
-    updateGalleryFilter(activeRegion);
+    updateGalleryFilter(filters);
     applyLayerVisibility(activeLayers);
-  }, [activeRegion, mapReady, galleries, updateGalleryFilter, applyLayerVisibility]);
+  }, [filters, mapReady, galleries, updateGalleryFilter, applyLayerVisibility]);
 
   // ── Render ────────────────────────────────────────────────
   return (
@@ -564,11 +617,37 @@ const MapView = () => {
           <button
             key={r}
             className={`${styles.regionBtn} ${activeRegion === r ? styles.regionBtnActive : ''} ${styles[`regionBtn${r}`]}`}
-            onClick={() => setActiveRegion(r)}
+            onClick={() => setRegion(r)}
           >
             {r === 'All' ? 'All Lagos' : r}
           </button>
         ))}
+        <select
+          className={styles.filterSelect}
+          aria-label="Neighbourhood"
+          value={filters.neighbourhood}
+          onChange={(e) => setFilters((f) => ({ ...f, neighbourhood: e.target.value }))}
+        >
+          <option value="">All neighbourhoods</option>
+          {neighbourhoodOptions.map(([name, count]) => (
+            <option key={name} value={name}>
+              {name} ({count})
+            </option>
+          ))}
+        </select>
+        <select
+          className={styles.filterSelect}
+          aria-label="Type of space"
+          value={filters.type}
+          onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
+        >
+          <option value="">All types</option>
+          {TYPE_FILTERS.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
         <button className={styles.resetBtn} onClick={resetView} title="Reset view">
           ⤢ Overview
         </button>
@@ -588,10 +667,9 @@ const MapView = () => {
       <LegendPanel
         activeLayers={activeLayers}
         onToggle={toggleLayer}
-        galleries={galleries}
+        spaces={panelSpaces}
         onGalleryClick={flyToGallery}
         onNeighbourhoodClick={flyToNeighbourhood}
-        activeRegion={activeRegion}
         galleryOpen={!!selectedGallery}
       />
 
