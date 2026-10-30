@@ -32,11 +32,20 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${detail ? ` — ${detail}` : ''}`);
 };
 
+/** The API's `{ success, message, data }` envelope; `data` varies by endpoint. */
+interface ApiBody {
+  data?: unknown;
+}
+
+/** Does a list response contain the row with this id? */
+const listHas = (body: ApiBody | null, id: string | undefined): boolean =>
+  Array.isArray(body?.data) && body.data.some((row: { id?: string }) => row.id === id);
+
 async function api(
   method: string,
   path: string,
   opts: { token?: string; body?: unknown } = {},
-): Promise<{ status: number; json: any }> {
+): Promise<{ status: number; json: ApiBody | null }> {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
@@ -45,7 +54,8 @@ async function api(
     },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
-  return { status: res.status, json: await res.json().catch(() => null) };
+  const json = (await res.json().catch(() => null)) as ApiBody | null;
+  return { status: res.status, json };
 }
 
 async function cleanup(): Promise<void> {
@@ -71,7 +81,7 @@ async function main(): Promise<void> {
     },
   });
   const login = await api('POST', '/auth/login', { body: { email: ADMIN_EMAIL, password: ADMIN_PW } });
-  const token: string | undefined = login.json?.data?.accessToken;
+  const token = (login.json?.data as { accessToken?: string } | undefined)?.accessToken;
   check('admin login', login.status === 200 && !!token, `status ${login.status}`);
   if (!token) return;
 
@@ -89,7 +99,7 @@ async function main(): Promise<void> {
     const inbox = await api('GET', '/admin/enquiries?status=NEW&limit=100', { token });
     check(
       `${intent}: appears in admin Enquiries`,
-      inbox.json?.data?.some((e: { id: string }) => e.id === row?.id),
+      listHas(inbox.json, row?.id),
     );
   }
 
@@ -124,13 +134,13 @@ async function main(): Promise<void> {
     const queue = await api('GET', '/admin/submissions/exhibitions?limit=100', { token });
     check(
       'exhibition: appears in admin Submissions',
-      queue.json?.data?.some((e: { id: string }) => e.id === row?.id),
+      listHas(queue.json, row?.id),
     );
 
     const pub = await api('GET', `/institutions/${venue.id}/exhibitions?scope=all`);
     check(
       'exhibition: not public before approval',
-      !pub.json?.data?.some((e: { id: string }) => e.id === row?.id),
+      !listHas(pub.json, row?.id),
     );
   }
 
@@ -181,7 +191,7 @@ async function main(): Promise<void> {
   const subs = await api('GET', '/admin/submissions?limit=100', { token });
   check(
     'space: appears in admin Submissions',
-    subs.json?.data?.some((i: { id: string }) => i.id === space?.id),
+    listHas(subs.json, space?.id),
   );
 
   // ── Spam guard ───────────────────────────────────────────
