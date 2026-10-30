@@ -108,7 +108,8 @@ fields. `src/lib/adapters.js` does the translation. Here's exactly what it does:
 | `address` | `address` | direct |
 | `lat` / `lng` | `lat` / `lng` | direct |
 | `region` | `area` | `ISLAND`→`"Island"`, `MAINLAND`→`"Mainland"`, `OTHER`→`"Other"` |
-| `artTypes` | `type` (+ `hasExhibition`) | enum → one keyword; adds `"exhibition"` if `hasExhibition`. **See note A.** |
+| `type` / `typeLabel` | `type` | enum passed through; `typeLabel` is its display name (`HUB_INSTITUTION` → "Art Hub/Institution"). **See note A.** |
+| `hasExhibition` | `hasExhibition` | boolean; cards add an "Exhibition" tag |
 | `image` | `images[0]` | first image, or `null` → card shows the initials placeholder |
 | `neighborhood` | derived from `address` | backend has no neighborhood field; we take the last address segment |
 | `rating` | `rating` (+ `reviewCount`) | Mean of approved reviews, 1 decimal; `null` until a venue has one. **See note B.** |
@@ -121,25 +122,19 @@ fields. `src/lib/adapters.js` does the translation. Here's exactly what it does:
 
 `subType` (optional): `ART_GALLERY · MUSEUM · INSTITUTE · FOUNDATION · STUDIO · CULTURAL_SPACE · ONLINE · ART_FESTIVAL`
 
-The current category mapping (edit in `adapters.js`): `subType` is checked first
-(`SUBTYPE_TO_ARTTYPE`: `STUDIO → "studio"`, `CULTURAL_SPACE → "events"`), then `type`
-(`TYPE_TO_ARTTYPE`: `ART_GALLERY/MUSEUM → "gallery"`); anything else → `"gallery"`.
+Directory tabs, home-page tabs and card tags all use `type` directly, labelled
+with `formatInstitutionType()` from `admin/institutionShared.ts`.
 
 ---
 
 ## 5. Known gaps
 
-Gaps **B** and **C** below are now **closed** — the backend grew the fields the UI
-was already asking for, so the "hide the control" advice no longer applies. Gap A
-is still a real product decision.
+All three gaps below are now **closed**.
 
-### A. `artTypes` — tabs are multi-value, backend `type` is single
-The UI tabs (Galleries / Exhibitions / Artists / Events) filter on an **array** of
-keywords. A backend institution has **one** `type` enum. Right now we map
-`type` → one keyword and append `"exhibition"` when `hasExhibition` is true.
-If you want richer tab behavior (e.g. an institution showing under both "Artists"
-and "Events"), drive it from `tags[]` — extend `adaptInstitution()` to push tag
-names into `artTypes`.
+### A. `artTypes` — RESOLVED, tabs follow `type`
+The old tabs (Galleries / Exhibitions / Artists / Events) filtered on guessed
+keywords (`artTypes`). They now follow the backend's `InstitutionType` one-to-one
+(All + one tab per type), and `artTypes` is gone from the adapter.
 
 ### B. `rating` — RESOLVED, backend now stores it
 `Institution.rating` is the mean of **approved** reviews (one decimal), with
@@ -225,12 +220,11 @@ const { data, pagination } = await apiGet("/institutions", {   // filtered list
 1. **`MapView.jsx`** still imports the static `data/galleries`. To switch it:
    replace `import { galleries } from '../../data/galleries'` with the hook, and
    render the map only once data has loaded. Because MapView builds GeoJSON
-   imperatively, the cleanest move is to lift `useGalleries()` into `App.jsx` and
-   pass `galleries` down as a prop to **both** `MapView` and `ArtGalleryApp` (so
-   there's one fetch, not two). The adapted shape already includes everything
-   `buildGalleriesGeoJSON` reads (`name`, `neighborhood`, `address`, `region`,
-   `rating`, `image`, `artTypes`).
-2. Decide gap **A** in §5 (`artTypes`). Gaps B and C are closed — instead of
+   imperatively. `useGalleries()` shares one request (all pages) between every
+   component that calls it, so there's one fetch however many sections use it.
+   The adapted shape already includes everything `buildGalleriesGeoJSON` reads
+   (`name`, `neighborhood`, `address`, `region`, `rating`, `image`, `typeLabel`).
+2. Gaps A, B and C are closed — instead of
    hiding the "Top Rated" and "Open Now" controls, point them at the server:
    `?minRating=`, `?sort=rating`, `?openNow=true`.
 3. Update the adapter for the two fields that now exist: pass `rating` /

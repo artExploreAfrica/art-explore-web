@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useGalleries } from "../../hooks/useGalleries";
+import { placeOf } from "../../lib/adapters";
+import { formatInstitutionType, INSTITUTION_TYPES } from "../../admin/institutionShared";
 import "./PopularGalleries.scss";
 
 /**
@@ -9,7 +11,7 @@ import "./PopularGalleries.scss";
  *
  * The earlier version was a slider of six hand-picked rooms, which
  * told a visitor nothing about what else is out there. This one is
- * organised by kind of space: pick Galleries, Museums, Hubs … and the
+ * organised by kind of space: pick Art Gallery, Museum, Art Hub … and the
  * panel below shows that kind's best-known venues — one large feature
  * and up to three companions. The tab row itself carries the range
  * (each kind and how many of it exist), and the cards carry the
@@ -20,14 +22,22 @@ import "./PopularGalleries.scss";
  * its own as the data grows and never shows an empty panel.
  */
 
-const KINDS = [
-  { key: "ART_GALLERY", label: "Galleries", blurb: "Commercial rooms. Walk in, look, leave." },
-  { key: "HUB_INSTITUTION", label: "Art Hub/Institution", blurb: "Foundations, studios, institutes and cultural spaces." },
-  { key: "MUSEUM", label: "Museums", blurb: "Permanent collections and the national archive." },
-  { key: "NOMADIC_SPACE", label: "Nomadic spaces", blurb: "No fixed address; they appear for a show." },
-  { key: "ART_FESTIVAL", label: "Festivals", blurb: "Dated, city-wide and temporary." },
-  { key: "RESIDENCY", label: "Residencies", blurb: "Time and space for artists to make new work." },
-];
+const BLURBS = {
+  ART_GALLERY: "Commercial rooms. Walk in, look, leave.",
+  MUSEUM: "Permanent collections and the national archive.",
+  HUB_INSTITUTION: "Foundations, studios, institutes and cultural spaces.",
+  NOMADIC_SPACE: "No fixed address; they appear for a show.",
+  ART_FESTIVAL: "Dated, city-wide and temporary.",
+  RESIDENCY: "Time and space for artists to make new work.",
+};
+
+// One tab per InstitutionType, in the schema's order, named the same way
+// as everywhere else on the site.
+const KINDS = INSTITUTION_TYPES.map((key) => ({
+  key,
+  label: formatInstitutionType(key),
+  blurb: BLURBS[key],
+}));
 
 // Running order inside a kind: the best-known names first. This only
 // ranks venues that exist in the data; it never adds one.
@@ -102,7 +112,33 @@ function Photo({ venue }) {
 }
 
 function Place({ venue }) {
-  return <>{venue.subArea || venue.neighborhood || venue.region}</>;
+  return <>{placeOf(venue)}</>;
+}
+
+// Same frame as the loaded section (header, tab row, feature + three
+// companions) so the page doesn't jump when the data arrives.
+function Skeleton() {
+  return (
+    <section className="pg" id="popular" aria-busy="true" aria-label="Popular galleries by kind of space">
+      <p className="pg__sr">Loading galleries…</p>
+      <header className="pg__head" aria-hidden="true">
+        <h2 className="pg__title">Popular galleries, and everything around them.</h2>
+        <span className="pg__sk pg__sk--lede" />
+      </header>
+      <div className="pg__tabs" aria-hidden="true">
+        {KINDS.slice(0, 5).map((k) => (
+          <span key={k.key} className="pg__sk pg__sk--tab" />
+        ))}
+      </div>
+      <span className="pg__sk pg__sk--blurb" aria-hidden="true" />
+      <div className="pg__grid" aria-hidden="true">
+        <span className="pg__sk pg__sk--feature" />
+        {[0, 1, 2].map((i) => (
+          <span key={i} className="pg__sk pg__sk--mini" />
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export default function PopularGalleries() {
@@ -122,13 +158,7 @@ export default function PopularGalleries() {
 
   const total = galleries.length;
 
-  if (loading) {
-    return (
-      <section className="pg" id="popular">
-        <p className="pg__state">Gathering galleries…</p>
-      </section>
-    );
-  }
+  if (loading) return <Skeleton />;
   if (error) {
     return (
       <section className="pg" id="popular">
@@ -219,7 +249,7 @@ export default function PopularGalleries() {
         </div>
 
         <Link className="pg__all" to="/galleries">
-          Browse all {active.total} {active.label.toLowerCase()} <Arrow />
+          Browse all {active.label} ({active.total}) <Arrow />
         </Link>
       </div>
     </section>
