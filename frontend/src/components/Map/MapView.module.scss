@@ -40,16 +40,24 @@
   flex-shrink:     0;
   z-index:         10;
 
+  // Mobile: stuck just under the sticky navbar — at top: 0 the navbar sat
+  // on top of it and hid the region buttons. The three region buttons are
+  // centred on one row; Overview drops to a short centred line beneath,
+  // since all four don't fit across a phone.
   @media (max-width: 768px) {
-    gap:             8px;
-    padding:         10px 12px;
+    gap:             6px;
+    padding:         10px 12px 4px;
     background:      rgba(246, 239, 226, 0.96);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     position:        sticky;
-    top:             0;
+    top:             var(--navbar-h, 62px);
     z-index:         20;
     border-bottom:   1px solid var(--rule);
+    flex-wrap:       wrap;
+    justify-content: center;
+
+    > button { flex: 0 0 auto; }
   }
 }
 
@@ -60,14 +68,16 @@
   border-color: var(--control-border);
 
   @media (max-width: 768px) {
-    padding:    11px 16px;
-    min-height: 42px;
+    padding:        10px 12px;
+    min-height:     42px;
+    gap:            7px;
+    letter-spacing: 0.1em;
   }
 
   @media (max-width: 380px) {
-    padding:   9px 12px;
+    padding:   9px 10px;
     font-size: 10px;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
   }
 }
 
@@ -108,13 +118,15 @@
   &:active { color: var(--terracotta-press); }
   @include focus-ring(var(--ink));
 
+  // Mobile: its own centred line under the region buttons. It's a text
+  // link, so a 32px row is enough of a target and keeps the bar short.
   @media (max-width: 768px) {
-    padding:    11px 14px;
-    min-height: 42px;
+    flex:       0 0 100%;
+    padding:    6px 14px;
+    min-height: 32px;
   }
 
   @media (max-width: 380px) {
-    padding:   9px 11px;
     font-size: 10px;
   }
 }
