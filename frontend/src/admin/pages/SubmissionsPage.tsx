@@ -45,6 +45,7 @@ const FIELD_LABELS: Record<string, string> = {
   name: "Name",
   description: "Description",
   type: "Type",
+  subType: "Sub-type",
   address: "Address",
   area: "Area",
   subArea: "Sub-area",
@@ -156,6 +157,7 @@ export function SubmissionsPage() {
     }
     if (field === "openingHours") return "(changed — see the institution's edit form for detail)";
     if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (field === "type" || field === "subType") return formatInstitutionType(String(value));
     return String(value);
   }
 

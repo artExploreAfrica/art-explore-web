@@ -30,9 +30,12 @@ import {
   DayRow,
   emptyHours,
   formatInstitutionType,
+  formatTypeWithSubType,
   hoursFromApi,
   hoursToApi,
+  INSTITUTION_SUBTYPES,
   INSTITUTION_TYPES,
+  InstitutionSubType,
   InstitutionType,
   MAX_IMAGE_BYTES,
   OpeningHours,
@@ -47,6 +50,7 @@ interface Institution {
   name: string;
   description?: string;
   type?: InstitutionType;
+  subType?: InstitutionSubType | null;
   address?: string;
   area?: AreaEnum;
   subArea?: string | null;
@@ -92,6 +96,7 @@ const emptyForm = {
   name: "",
   description: "",
   type: "ART_GALLERY" as InstitutionType,
+  subType: "" as InstitutionSubType | "",
   address: "",
   area: "ISLAND" as AreaEnum,
   subArea: "",
@@ -161,6 +166,8 @@ function toApiPayload(form: InstitutionForm, hours: Record<string, DayRow>): Rec
   const payload: Record<string, unknown> = {
     name: form.name.trim(),
     type: form.type,
+    // Always sent, so clearing the dropdown clears the stored sub-type.
+    subType: form.subType || null,
     address: form.address.trim(),
     area: form.area,
     lat: Number(form.lat),
@@ -428,6 +435,7 @@ export function InstitutionsPage() {
       name: inst.name || "",
       description: inst.description || "",
       type: (inst.type as InstitutionType) || "ART_GALLERY",
+      subType: inst.subType || "",
       address: inst.address || "",
       area: (inst.area as AreaEnum) || "ISLAND",
       subArea: inst.subArea || "",
@@ -722,6 +730,20 @@ export function InstitutionsPage() {
               required
             >
               {INSTITUTION_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {formatInstitutionType(t)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="admin-form-row">
+            <label>Sub-type <span className="admin-optional">(optional)</span></label>
+            <select
+              value={form.subType}
+              onChange={(e) => setForm({ ...form, subType: e.target.value as InstitutionSubType | "" })}
+            >
+              <option value="">— None —</option>
+              {INSTITUTION_SUBTYPES.map((t) => (
                 <option key={t} value={t}>
                   {formatInstitutionType(t)}
                 </option>
@@ -1277,12 +1299,17 @@ export function InstitutionsPage() {
                           <div>
                             <span className="admin-table-name">{item.name}</span>
                             {item.type && (
-                              <span className="admin-table-sub">{formatInstitutionType(item.type)}</span>
+                              <span className="admin-table-sub">{formatTypeWithSubType(item.type, item.subType)}</span>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td>{[item.area && (item.area.charAt(0) + item.area.slice(1).toLowerCase()), item.subArea].filter(Boolean).join(" · ") || "—"}</td>
+                      <td>
+                        {item.subArea || "—"}
+                        {item.area && (
+                          <span className="admin-table-sub">{item.area.charAt(0) + item.area.slice(1).toLowerCase()}</span>
+                        )}
+                      </td>
                       <td>
                         <span className={`admin-badge ${item.isPublished ? "admin-badge-success" : "admin-badge-neutral"}`}>
                           <span className="admin-badge-dot" />

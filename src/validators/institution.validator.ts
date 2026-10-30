@@ -1,4 +1,4 @@
-import { ApprovalStatus, Area, InstitutionType } from '@prisma/client';
+import { ApprovalStatus, Area, InstitutionSubType, InstitutionType } from '@prisma/client';
 import { z } from 'zod';
 
 /** Time on a 24-hour clock, e.g. "09:30". Zero-padded so it sorts lexically. */
@@ -53,6 +53,8 @@ export const institutionFieldsSchema = z.object({
   name: z.string().min(1, 'name is required'),
   description: z.string().optional(),
   type: z.nativeEnum(InstitutionType),
+  /** Finer kind within `type` (e.g. HUB_INSTITUTION → STUDIO). null clears it. */
+  subType: z.nativeEnum(InstitutionSubType).nullable().optional(),
   address: z.string().min(1, 'address is required'),
   area: z.nativeEnum(Area),
   /** Neighbourhood within `area` — free text, curated by hand. */

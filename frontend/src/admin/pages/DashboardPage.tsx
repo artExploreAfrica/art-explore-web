@@ -33,12 +33,13 @@ interface DashboardStats {
   admins: number;
   publicUsers: number;
   byType: { type: string; count: number }[];
-  byArea: { area: string; count: number }[];
+  bySubArea: { subArea: string | null; count: number }[];
   recent: {
     id: string;
     name: string;
     type: string;
     area: string | null;
+    subArea: string | null;
     isPublished: boolean;
     createdAt: string;
   }[];
@@ -180,10 +181,10 @@ export function DashboardPage() {
 
             <div className="admin-panel">
               <div className="admin-panel-head">
-                <h2 className="admin-section-title"><MapPin size={16} /> By location</h2>
+                <h2 className="admin-section-title"><MapPin size={16} /> By sub-area</h2>
               </div>
               <Bars
-                rows={stats.byArea.map((r) => ({ label: r.area.charAt(0) + r.area.slice(1).toLowerCase(), count: r.count }))}
+                rows={stats.bySubArea.map((r) => ({ label: r.subArea ?? "Not set", count: r.count }))}
                 total={stats.institutions.total}
                 altColor
               />
@@ -204,7 +205,11 @@ export function DashboardPage() {
                         <p className="admin-recent-name">{item.name}</p>
                         <p className="admin-recent-meta">
                           {formatInstitutionType(item.type)}
-                          {item.area ? ` · ${item.area.charAt(0) + item.area.slice(1).toLowerCase()}` : ""}
+                          {item.subArea
+                            ? ` · ${item.subArea}`
+                            : item.area
+                              ? ` · ${item.area.charAt(0) + item.area.slice(1).toLowerCase()}`
+                              : ""}
                         </p>
                       </div>
                       <span className={`admin-badge ${item.isPublished ? "admin-badge-success" : "admin-badge-neutral"}`}>
