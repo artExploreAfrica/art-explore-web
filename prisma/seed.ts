@@ -254,7 +254,13 @@ function loadGalleriesFromCsv(): GallerySeed[] {
 
     // Drop any row that fails the hard constraints — this also filters out
     // garbage produced if a description ever contained an embedded newline.
-    if (!row.name || !type || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    // Coordinates are only a hard constraint for fixed venues; without the
+    // coordsOptional guard this dropped every nomadic space and festival.
+    if (
+      !row.name ||
+      !type ||
+      (!coordsOptional && (!Number.isFinite(lat) || !Number.isFinite(lng)))
+    ) {
       skipped++;
       continue;
     }
