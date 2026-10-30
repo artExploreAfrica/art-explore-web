@@ -124,6 +124,27 @@ const createPinImage = ({ body, dot }) =>
     img.src = `data:image/svg+xml;base64,${btoa(svg)}`;
   });
 
+// Landmark marker: a small columned building, ink on cream in a round
+// badge — deliberately unlike the terracotta pin, so a landmark is never
+// mistaken for an art space. Also used in the landmark popup.
+const LANDMARK_SVG = `
+  <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" width="26" height="26">
+    <circle cx="13" cy="13" r="12" fill="#f6efe2" stroke="#241b12" stroke-width="1.5"/>
+    <path d="M13 6.2 19.6 9.8H6.4z" fill="#241b12"/>
+    <rect x="7.6"  y="10.8" width="1.5" height="5.8" fill="#241b12"/>
+    <rect x="10.8" y="10.8" width="1.5" height="5.8" fill="#241b12"/>
+    <rect x="13.7" y="10.8" width="1.5" height="5.8" fill="#241b12"/>
+    <rect x="16.9" y="10.8" width="1.5" height="5.8" fill="#241b12"/>
+    <rect x="6.4"  y="17.4" width="13.2" height="1.8" fill="#241b12"/>
+  </svg>`;
+
+const createLandmarkImage = () =>
+  new Promise((resolve) => {
+    const img = new Image(26, 26);
+    img.onload = () => resolve(img);
+    img.src = `data:image/svg+xml;base64,${btoa(LANDMARK_SVG)}`;
+  });
+
 // ── Component ─────────────────────────────────────────────────
 const MapView = () => {
   const { galleries, loading } = useGalleries();
@@ -209,9 +230,10 @@ const MapView = () => {
     });
   }, []);
 
-  // ── Reset to full Lagos overview ───────────────────────────
+  // ── Reset: clear the filters, back to the full Lagos overview ──
   const resetView = useCallback(() => {
     if (!mapRef.current) return;
+    setFilters(NO_FILTERS);
     mapRef.current.fitBounds(ALL_BOUNDS, {
       padding:  isMobileRef.current ? FIT_PADDING_MOBILE : FIT_PADDING,
       duration: 1000,
@@ -341,12 +363,14 @@ const MapView = () => {
       // Register the gallery pin image.
       // pixelRatio:2 renders it at double resolution — keep icon-size ≤ 1.4
       // on mobile or the pin becomes enormous and overflows the canvas.
-      const [pinImg, pinHoverImg] = await Promise.all([
+      const [pinImg, pinHoverImg, landmarkImg] = await Promise.all([
         createPinImage(PIN_DEFAULT),
         createPinImage(PIN_HOVER),
+        createLandmarkImage(),
       ]);
       map.addImage('gallery-pin', pinImg, { pixelRatio: 2 });
       map.addImage('gallery-pin-hover', pinHoverImg, { pixelRatio: 2 });
+      map.addImage('ae-landmark', landmarkImg, { pixelRatio: 2 });
 
       // 1 ── Neighbourhood fills ─────────────────────────────
       map.addSource('neighbourhoods', { type: 'geojson', data: neighbourhoodsGeoJSON });
@@ -431,11 +455,11 @@ const MapView = () => {
         id: 'landmark-icon', type: 'symbol', source: 'landmarks',
         minzoom: 11,
         layout: {
-          'text-field':         '●',
-          'text-size':          ['interpolate', ['linear'], ['zoom'], 11, 14, 14, 20],
-          'text-allow-overlap': false,
+          'icon-image':         'ae-landmark', // 'landmark' is taken by the base style's sprite
+          'icon-size':          ['interpolate', ['linear'], ['zoom'], 11, 0.75, 14, 1.05],
+          'icon-allow-overlap': false,
         },
-        paint: { 'text-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0, 11.5, 1] },
+        paint: { 'icon-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0, 11.5, 1] },
       });
       map.addLayer({
         id: 'landmark-label', type: 'symbol', source: 'landmarks',
@@ -461,7 +485,7 @@ const MapView = () => {
           .setLngLat(e.features[0].geometry.coordinates)
           .setHTML(`
             <div class="landmark-popup">
-              <span class="landmark-popup__icon">📍</span>
+              <span class="landmark-popup__icon" aria-hidden="true">${LANDMARK_SVG}</span>
               <div>
                 <strong>${p.name}</strong>
                 <p>${p.description || 'Landmark'}</p>
@@ -648,8 +672,8 @@ const MapView = () => {
             </option>
           ))}
         </select>
-        <button className={styles.resetBtn} onClick={resetView} title="Reset view">
-          ⤢ Overview
+        <button className={styles.resetBtn} onClick={resetView} title="Clear filters and show all of Lagos">
+          ↺ Reset
         </button>
       </div>
 

@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import styles from './LegendPanel.module.scss';
+import { placeOf } from '../../lib/adapters';
 
 const LAYER_CONFIG = [
   { key: 'galleries',      label: 'Galleries',       icon: '📍', description: 'Art galleries & exhibition spaces', color: '#1a6bbd' },
@@ -136,10 +137,9 @@ const LegendPanel = ({
                     />
                     <div className={styles.galleryMeta}>
                       <span className={styles.galleryName}>{g.name}</span>
-                      <span className={styles.galleryNeighbourhood}>{g.neighborhood}</span>
+                      <span className={styles.galleryNeighbourhood}>{placeOf(g)}</span>
                       <span className={`${styles.galleryRegion} ${styles[`galleryRegion${g.region}`]}`}>{g.region}</span>
                     </div>
-                    <span className={styles.galleryRating}>★ {g.rating}</span>
                   </button>
                 ))
               )}

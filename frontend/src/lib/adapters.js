@@ -60,10 +60,14 @@ export function adaptInstitution(inst) {
     subArea: inst.subArea ?? null,
     description: inst.description ?? null,
     website: inst.website ?? null,
+    instagram: inst.instagram ?? null,
     phone: inst.phone ?? null,
     email: inst.email ?? null,
+    mapUrl: inst.mapUrl ?? null,
+    hasResidency: Boolean(inst.hasResidency),
     tags: inst.tags ?? [],
     type: inst.type,
+    subType: inst.subType ?? null,
     openingHours: inst.openingHours ?? null,
   };
 }

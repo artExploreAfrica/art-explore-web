@@ -376,7 +376,12 @@
     padding:     12px;
     max-width:   220px;
 
-    .landmark-popup__icon { font-size: 22px; flex-shrink: 0; }
+    .landmark-popup__icon {
+      flex-shrink: 0;
+      line-height: 0;
+
+      svg { width: 24px; height: 24px; }
+    }
     strong {
       display: block;
       font-family: var(--font-display);
