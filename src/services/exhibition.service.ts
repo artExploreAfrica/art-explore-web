@@ -17,6 +17,7 @@ import {
   ExhibitionScope,
   ListExhibitionsQuery,
   ListPublicExhibitionsQuery,
+  PublicExhibitionInput,
   SubmitExhibitionInput,
   UpdateExhibitionInput,
   UpdateSubmittedExhibitionInput,
@@ -80,6 +81,16 @@ interface ExhibitionListResult {
   pagination: PaginationMeta;
 }
 
+/**
+ * Drops admin-only columns from exhibitions leaving on a public endpoint —
+ * the exhibition counterpart of stripInternalFields in institution.service.
+ * `notes` can hold a signed-out submitter's contact details.
+ */
+const stripInternal = <T extends { notes?: string | null }>(row: T): T => {
+  const { notes: _notes, ...rest } = row;
+  return rest as T;
+};
+
 const paginate = (page: number, limit: number, total: number): PaginationMeta => ({
   page,
   limit,
@@ -115,6 +126,8 @@ export const submit = async (userId: string, input: SubmitExhibitionInput): Prom
     data: {
       ...rest,
       institutionId,
+      // NOT NULL with no default; images are uploaded after creation.
+      images: [],
       approvalStatus: ApprovalStatus.PENDING,
       isActive: false,
       submittedById: userId,
@@ -127,6 +140,46 @@ export const submit = async (userId: string, input: SubmitExhibitionInput): Prom
   });
   // Not public yet — no cache invalidation needed.
   return exhibition;
+};
+
+/**
+ * A signed-out visitor proposes an exhibition from the home page. Same rules
+ * as `submit` (published venue, PENDING, inactive), with no user to attach:
+ * the visitor's optional contact details go into the internal `notes`.
+ * Not audit-logged — there is no actor id for an anonymous visitor.
+ */
+export const submitPublic = async (input: PublicExhibitionInput): Promise<Exhibition> => {
+  const { institutionId, submitterName, submitterEmail, company: _honeypot, ...rest } = input;
+
+  const institution = await prisma.institution.findFirst({
+    where: {
+      id: institutionId,
+      isPublished: true,
+      deletedAt: null,
+      approvalStatus: ApprovalStatus.APPROVED,
+    },
+    select: { id: true },
+  });
+  if (!institution) throw NotFoundError('Institution');
+
+  const contact = [submitterName, submitterEmail && `<${submitterEmail}>`].filter(Boolean).join(' ');
+  const notes = [
+    'Submitted via the public home-page form (no account).',
+    contact && `Submitted by: ${contact}`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  return prisma.exhibition.create({
+    data: {
+      ...rest,
+      institutionId,
+      notes,
+      images: [], // NOT NULL with no default
+      approvalStatus: ApprovalStatus.PENDING,
+      isActive: false,
+    },
+  });
 };
 
 /** A USER's own exhibition submissions, any status. */
@@ -291,9 +344,14 @@ export const listSubmissions = async (
   query: ListSubmissionsQuery,
 ): Promise<ExhibitionListResult> => {
   const { page, limit, status } = query;
+  // As in the institution queue: PENDING and REJECTED only come from review,
+  // so show them all — public-form exhibitions have no submitter account.
+  // APPROVED keeps rows with a submitter or an approver.
   const where: Prisma.ExhibitionWhereInput = {
     approvalStatus: status,
-    submittedById: { not: null },
+    ...(status === ApprovalStatus.APPROVED && {
+      OR: [{ submittedById: { not: null } }, { approvedById: { not: null } }],
+    }),
   };
 
   const [data, total] = await Promise.all([
@@ -445,7 +503,7 @@ export const listForInstitution = async (
     prisma.exhibition.count({ where }),
   ]);
 
-  return { data, pagination: paginate(page, limit, total) };
+  return { data: data.map(stripInternal), pagination: paginate(page, limit, total) };
 };
 
 /**
@@ -534,7 +592,7 @@ export const listPublic = async (
   ]);
 
   const result: ExhibitionListResult = {
-    data,
+    data: data.map(stripInternal),
     pagination: paginate(page, limit, total),
   };
 

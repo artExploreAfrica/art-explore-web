@@ -1,14 +1,15 @@
 @use '../../styles/brand' as *;
 
 // ─────────────────────────────────────────────────────────────
-// CONTRIBUTE — "Are we missing a gallery?"
+// CONTRIBUTE — "Help us map Lagos art."
 //
 // Sand band between the cream map section and the ink footer.
-// Ink type; "a gallery?" is the accent in Instrument Serif Italic,
+// Ink type; "Lagos art." is the accent in Instrument Serif Italic,
 // set in ink rather than terracotta because terracotta text on
 // sand is only 4.4:1. The one action is the primary button.
 //
-// The button drops a form open beneath it. The form sits on a
+// The button drops a panel open beneath it: first a choice of
+// intent (cream cards), then the form for it. Forms sit on a
 // cream panel (a sand field would vanish on the sand band) with
 // the PDF's input states: sand fill, ink border on hover,
 // terracotta border on focus.
@@ -164,6 +165,214 @@
   @media (max-width: 600px) { width: 100%; }
 }
 
+// ── Steps ──────────────────────────────────────────────────
+// Each step has a heading (focused on arrival) and, after the
+// first, a Back button that returns to the previous choice.
+.ct__step {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.1rem, 1.6vw, 1.3rem);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0 0 16px;
+
+  &:focus { outline: none; }
+  @include focus-ring(var(--terracotta));
+}
+
+.ct__step-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+
+  .ct__step { margin-bottom: 16px; }
+}
+
+// Ink, not the terracotta link colour: this sits on the sand band,
+// where terracotta text is only 4.4:1.
+.ct__back {
+  @include text-link;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  &, &:visited, &:hover, &:active { color: var(--ink); }
+}
+
+// ── Choice cards (intent, then exhibition vs new space) ────
+// Cream cards on the sand band, with the shared card hover: an
+// orange top edge drawn inset so nothing shifts.
+.ct__choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.ct__choice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 20px 44px;
+  text-align: left;
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  cursor: pointer;
+  box-shadow: inset 0 0 0 transparent;
+  transition: box-shadow 0.3s var(--ease-out), border-color 0.3s var(--ease-out);
+
+  &:hover {
+    border-color: var(--control-border);
+    box-shadow: inset 0 3px 0 var(--orange);
+  }
+  &:hover .ct__choice-go svg { transform: translateX(5px); }
+  @include focus-ring(var(--terracotta), 3px);
+}
+
+.ct__choice-letter {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--terracotta);  // on cream, 5.0:1
+}
+
+.ct__choice-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  line-height: 1.2;
+}
+
+.ct__choice-text {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.ct__choice-go {
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+
+  svg { transition: transform 0.35s var(--ease); }
+}
+
+// ── Form extras ────────────────────────────────────────────
+// Group headings split the long new-space form into what a
+// visitor can answer in one go.
+.ct__group {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--terracotta);
+  margin: 26px 0 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+
+  &:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+}
+
+.ct__field-hint {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.ct__check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  color: var(--ink);
+  cursor: pointer;
+
+  input { width: 18px; height: 18px; accent-color: var(--terracotta); }
+}
+
+.ct__notice {
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--sand);
+  border-left: 3px solid var(--terracotta);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+// Inside the sand notice, so ink for contrast (see .ct__back).
+.ct__link {
+  @include text-link;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  &, &:visited, &:hover, &:active { color: var(--ink); }
+}
+
+.ct__hours {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  legend {
+    padding: 0;
+    margin-bottom: 4px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  select,
+  input {
+    @include input-field;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+}
+
+.ct__hours-row {
+  display: grid;
+  grid-template-columns: 7.5rem 8rem 1fr;
+  align-items: center;
+  gap: 10px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 6rem 1fr;
+
+    .ct__hours-times { grid-column: 1 / -1; }
+  }
+}
+
+.ct__hours-day {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--ink);
+}
+
+.ct__hours-times {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
 // ── Sent ───────────────────────────────────────────────────
 .ct__done { text-align: center; }
 
@@ -190,6 +399,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .ct__btn,
-  .ct__btn svg { transition: none; }
+  .ct__btn svg,
+  .ct__choice,
+  .ct__choice-go svg { transition: none; }
   .ct__panel--open { animation: none; }
 }

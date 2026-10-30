@@ -539,11 +539,12 @@ export const submit = async (
  * A signed-out visitor suggests an institution from the home page. Same
  * outcome as `submit` — PENDING, unpublished, in the admin review queue —
  * but with no submitter account, so `submittedById` stays null and no audit
- * row is written (AuditLog needs an actor). The visitor's contact details,
- * if given, go into the internal `notes` for the reviewer.
+ * row is written (AuditLog needs an actor). The visitor's contact details and
+ * photo links, if given, go into the internal `notes` for the reviewer.
  */
 export const submitPublic = async (input: PublicSubmissionInput): Promise<Institution> => {
-  const { submitterName, submitterEmail, company: _honeypot, ...venue } = input;
+  const { submitterName, submitterEmail, photoLinks, company: _honeypot, openingHours, ...venue } =
+    input;
 
   const contact = [submitterName, submitterEmail && `<${submitterEmail}>`]
     .filter(Boolean)
@@ -551,7 +552,9 @@ export const submitPublic = async (input: PublicSubmissionInput): Promise<Instit
   const notes = [
     'Suggested via the public home-page form (no account).',
     contact && `Suggested by: ${contact}`,
-    'Needs a map pin (lat/lng) before publishing.',
+    photoLinks?.length &&
+      `Photo links (download and upload the good ones):\n${photoLinks.join('\n')}`,
+    venue.lat === undefined && 'Needs a map pin (lat/lng) before publishing.',
   ]
     .filter(Boolean)
     .join('\n');
@@ -560,7 +563,7 @@ export const submitPublic = async (input: PublicSubmissionInput): Promise<Instit
     data: {
       ...venue,
       notes,
-      openingHours: Prisma.JsonNull,
+      openingHours: (openingHours as Prisma.InputJsonValue | undefined) ?? Prisma.JsonNull,
       approvalStatus: ApprovalStatus.PENDING,
       isPublished: false,
     },
@@ -746,10 +749,17 @@ export const removeImageFromMine = async (
 /** Admin review queue — user-submitted venues only, filtered by approval status. */
 export const listSubmissions = async (query: ListSubmissionsQuery): Promise<ListResult> => {
   const { page, limit, status } = query;
+  // Only the review flow produces PENDING or REJECTED rows, so those views show
+  // all of them — including suggestions from the public form, which have no
+  // submitter account. APPROVED also covers venues an admin created directly
+  // (no submitter, never reviewed); those aren't submissions, so that view
+  // keeps only rows that came in from someone or went through review.
   const where: Prisma.InstitutionWhereInput = {
     approvalStatus: status,
     deletedAt: null,
-    submittedById: { not: null },
+    ...(status === ApprovalStatus.APPROVED && {
+      OR: [{ submittedById: { not: null } }, { reviewedById: { not: null } }],
+    }),
   };
 
   const [data, total] = await Promise.all([
