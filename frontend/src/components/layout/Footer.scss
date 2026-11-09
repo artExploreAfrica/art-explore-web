@@ -52,6 +52,38 @@
   margin: 0;
 }
 
+// Instagram / email icons under the strapline. Cream on ink, turning
+// light orange on hover like the footer links; 36px circles so they are
+// comfortable touch targets.
+.site-footer__social {
+  display: flex;
+  gap: 10px;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.site-footer__social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--rule-on-dark);
+  border-radius: 50%;
+  color: var(--cream);
+  font-size: 18px;
+  transition: color 0.25s $ease-out, border-color 0.25s $ease-out;
+
+  &:hover,
+  &:active {
+    color: var(--orange);
+    border-color: var(--orange);
+  }
+
+  @include focus-ring(var(--cream), 3px);
+}
+
 .site-footer__nav {
   display: flex;
   gap: clamp(32px, 6vw, 96px);

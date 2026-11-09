@@ -103,7 +103,6 @@ const buildGalleriesGeoJSON = (galleryList) => ({
       neighborhood: g.neighborhood,
       address:      g.address,
       region:       g.region,
-      rating:       g.rating,
       image:        g.image,
       typeLabel:    g.typeLabel,
     },
@@ -605,7 +604,6 @@ const MapView = () => {
                   <h4>${gallery.name}</h4>
                   <p>${gallery.address}</p>
                   <div class="popup-footer">
-                    <span class="popup-rating">★ ${gallery.rating}</span>
                     <span class="popup-tags">${[gallery.typeLabel, gallery.hasExhibition && 'Exhibition'].filter(Boolean).join(' · ')}</span>
                   </div>
                 </div>
