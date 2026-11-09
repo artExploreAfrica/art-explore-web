@@ -1,11 +1,11 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EnquiryForm, ExhibitionForm, SpaceForm } from "./ContributeForms";
 import "./Contribute.scss";
 
 /**
  * "Get involved" — the home page's one door for writing in.
  *
- * The button drops a panel open in place. A visitor first says why they're
+ * The choices are on show from the start. A visitor first says why they're
  * here, then gets the form for it:
  *   A  Reach out              → message to the team (admin › Enquiries)
  *   B  Learn more             → question to the team (admin › Enquiries)
@@ -91,17 +91,19 @@ function Choices({ options, onPick, label }) {
 }
 
 export default function Contribute() {
-  const [open, setOpen] = useState(false);
   const [step, setStep] = useState("intent");
   const stepHeading = useRef(null);
-  const id = useId();
-  const panelId = `${id}-panel`;
+  const shownStep = useRef(step);
 
   // Each step change moves focus to its heading, so keyboard and screen
   // reader users land on the new content rather than a vanished button.
+  // The section is on screen from the start, so the first render must not
+  // take focus: that would scroll the page down to it on every load.
   useEffect(() => {
-    if (open) stepHeading.current?.focus();
-  }, [open, step]);
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    stepHeading.current?.focus();
+  }, [step]);
 
   const meta = STEPS[step];
 
@@ -115,18 +117,7 @@ export default function Contribute() {
         exhibition to the guide.
       </p>
 
-      <button
-        type="button"
-        className={`ct__btn${open ? " ct__btn--open" : ""}`}
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((o) => !o)}
-      >
-        Get involved <Arrow />
-      </button>
-      {!open && <p className="ct__note">No account needed. It takes a minute.</p>}
-
-      <div className={`ct__panel${open ? " ct__panel--open" : ""}`} id={panelId} hidden={!open}>
+      <div className="ct__panel">
         {step === "intent" ? (
           <>
             <h3 className="ct__step" ref={stepHeading} tabIndex={-1}>

@@ -6,9 +6,9 @@
 // Sand band between the cream map section and the ink footer.
 // Ink type; "Lagos art." is the accent in Instrument Serif Italic,
 // set in ink rather than terracotta because terracotta text on
-// sand is only 4.4:1. The one action is the primary button.
+// sand is only 4.4:1.
 //
-// The button drops a panel open beneath it: first a choice of
+// The panel sits under the lede from the start: first a choice of
 // intent (cream cards), then the form for it. Forms sit on a
 // cream panel (a sand field would vanish on the sand band) with
 // the PDF's input states: sand fill, ink border on hover,
@@ -51,32 +51,12 @@
   max-width: 48ch;
 }
 
-.ct__btn {
-  @include btn-primary;
-
-  // The arrow turns to point down while the form is open.
-  svg { transition: transform 0.35s var(--ease); }
-  &:hover svg { transform: translateX(5px); }
-  &--open svg,
-  &--open:hover svg { transform: rotate(90deg); }
-}
-
-.ct__note {
-  font-family: var(--font-body);
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  margin: 14px 0 0;
-}
-
-// ── Drop-down panel ────────────────────────────────────────
+// ── Panel ──────────────────────────────────────────────────
+// The lede's bottom margin already sets the gap above it.
 .ct__panel {
   width: 100%;
   max-width: 760px;
-  margin-top: clamp(20px, 3vh, 32px);
   text-align: left;
-
-  &--open { animation: ctDrop 0.45s var(--ease) both; }
-  &[hidden] { display: none; }
 }
 
 .ct__form,
@@ -392,15 +372,7 @@
 
 .ct__again { @include btn-secondary; }
 
-@keyframes ctDrop {
-  from { opacity: 0; transform: translateY(-10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .ct__btn,
-  .ct__btn svg,
   .ct__choice,
   .ct__choice-go svg { transition: none; }
-  .ct__panel--open { animation: none; }
 }
