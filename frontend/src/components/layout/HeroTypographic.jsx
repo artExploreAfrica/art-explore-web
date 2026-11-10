@@ -13,7 +13,7 @@ import "./HeroTypographic.scss";
 // Headline is split into lines so each can be mask-revealed
 // independently on load. Keep lines short — they are set at a
 // display scale and need to survive narrow viewports.
-const HEADLINE = ["Discover", "Art Galleries", "in Lagos"];
+const HEADLINE = ["Discover", "Art & Cultural Spaces", "in Lagos"];
 
 // Background slides. These are real photographs of Lagos venues
 // already in the repo (public/uploads/institutions), copied to
@@ -90,7 +90,7 @@ export default function HeroTypographic() {
   }, []);
 
   return (
-    <section className="ht" id="home" aria-label="Discover art galleries in Lagos">
+    <section className="ht" id="home" aria-label="Discover art and cultural spaces in Lagos">
       {/* BACKGROUND — image carousel under an Ink scrim.
           Decorative: the headline carries the meaning, so the
           images are aria-hidden with empty alt text. */}
