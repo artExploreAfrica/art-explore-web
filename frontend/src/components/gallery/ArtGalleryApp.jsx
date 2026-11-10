@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import "./ArtGalleryApp.scss";
 import { useGalleries } from "../../hooks/useGalleries"; // ← live data from the API
+import { getInitials, placeholderColor } from "../../lib/placeholder";
 import { formatInstitutionType, INSTITUTION_TYPES } from "../../admin/institutionShared";
 
 // "All" plus one tab per InstitutionType, labelled as everywhere else, then a
@@ -72,29 +73,6 @@ function tagOptionsOf(data) {
     }
   }
   return [...byName.values()].sort((a, b) => a.label.localeCompare(b.label));
-}
-
-function placeholderColor(name) {
-  // Brand colours only, each dark enough for cream initials.
-  const palette = [
-    "#241b12", // ink
-    "#3a2d20", // ink, pressed shade
-    "#b0431c", // terracotta
-    "#8a3216", // terracotta, pressed shade
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++)
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return palette[Math.abs(hash) % palette.length];
-}
-
-function getInitials(name) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
 }
 
 function useGalleryFilters(data, { tagName = null, initialTab = "all" } = {}) {
@@ -404,7 +382,7 @@ function GalleryCard({ gallery }) {
   // ones that carry a researched tag stand out.
   const tags = [...(gallery.tags ?? [])].sort((a, b) => a.label.localeCompare(b.label));
   return (
-    <div className="gallery-card">
+    <Link to={`/galleries/${gallery.id}`} className="gallery-card">
       <div
         className="card__thumb"
         style={{ backgroundColor: placeholderColor(gallery.name) }}
@@ -453,7 +431,7 @@ function GalleryCard({ gallery }) {
           </div>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
 

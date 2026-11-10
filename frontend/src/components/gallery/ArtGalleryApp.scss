@@ -341,10 +341,13 @@
 }
 
 // ─── Gallery card ────────────────────────────────────────────────
+// A card is a link to the space's own page, so it reads as a block, not text.
 .galleries .gallery-card {
   @include card;
-  border-radius: 2px;
-  overflow:      hidden;
+  display:         block;
+  text-decoration: none;
+  border-radius:   2px;
+  overflow:        hidden;
 }
 
 .card__thumb {
