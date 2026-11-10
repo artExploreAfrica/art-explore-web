@@ -5,13 +5,11 @@ import { useGalleries } from "../../hooks/useGalleries"; // ← live data from t
 import { getInitials, placeholderColor } from "../../lib/placeholder";
 import { formatInstitutionType, INSTITUTION_TYPES } from "../../admin/institutionShared";
 
-// "All" plus one tab per InstitutionType, labelled as everywhere else, then a
-// "Tags" header tab. Its sub-tags (Women Owned, Classics, ...) open underneath it.
-const TAGS_TAB = "tags";
+// "All" plus one tab per InstitutionType, labelled as everywhere else. The tag
+// chips (Women Owned, Classics, ...) sit in their own row beneath the tabs.
 const TABS = [
   { id: "all", label: "All", type: null },
   ...INSTITUTION_TYPES.map((type) => ({ id: type, label: formatInstitutionType(type), type })),
-  { id: TAGS_TAB, label: "Tags", type: null },
 ];
 
 const SORT_OPTIONS = [
@@ -56,8 +54,6 @@ function getDistanceKm(lat1, lng1, lat2, lng2) {
 }
 
 function countForTab(tab, data) {
-  // The Tags tab counts the spaces that carry at least one real tag.
-  if (tab.id === TAGS_TAB) return data.filter((g) => g.tags?.length > 0).length;
   if (!tab.type) return data.length;
   return data.filter((g) => g.type === tab.type).length;
 }
@@ -126,12 +122,8 @@ function useGalleryFilters(data, { tagName = null, initialTab = "all" } = {}) {
 
     const tab = TABS.find((t) => t.id === activeTab);
     if (tab?.type) result = result.filter((g) => g.type === tab.type);
-    // Tags tab: every space with a real tag, or just the picked sub-tag.
-    if (activeTab === TAGS_TAB) {
-      result = result.filter((g) =>
-        tagName ? g.tags?.some((t) => t.name === tagName) : g.tags?.length > 0,
-      );
-    }
+    // A picked tag narrows the list across every kind of space.
+    if (tagName) result = result.filter((g) => g.tags?.some((t) => t.name === tagName));
 
     if (openNow) result = result.filter((g) => isOpenNow(g.hours));
     if (topRated) result = result.filter((g) => g.rating >= 4.0);
@@ -159,6 +151,7 @@ function useGalleryFilters(data, { tagName = null, initialTab = "all" } = {}) {
   const hasActiveFilters =
     searchQuery ||
     activeTab !== "all" ||
+    tagName ||
     nearMe ||
     openNow ||
     topRated ||
@@ -250,11 +243,10 @@ function SearchBox({ searchQuery, setSearchQuery }) {
 }
 
 function CategoryTabs({ activeTab, setActiveTab, rawData, tagOptions, activeTag, setActiveTag }) {
-  const tagsOpen = activeTab === TAGS_TAB;
   return (
     <>
       <div className="tabs" role="tablist">
-        {/* A type (or Tags) with no spaces yet gets no tab, unless it is the one selected. */}
+        {/* A type with no spaces yet gets no tab, unless it is the one selected. */}
         {TABS.filter(
           (tab) => tab.id === "all" || tab.id === activeTab || countForTab(tab, rawData) > 0,
         ).map((tab) => (
@@ -262,21 +254,15 @@ function CategoryTabs({ activeTab, setActiveTab, rawData, tagOptions, activeTag,
             key={tab.id}
             role="tab"
             aria-selected={tab.id === activeTab}
-            {...(tab.id === TAGS_TAB ? { "aria-expanded": tagsOpen, "aria-controls": "sub-tags" } : {})}
             className={`tabs__tab ${tab.id === activeTab ? "tabs__tab--active" : ""}`}
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label} ({countForTab(tab, rawData)})
-            {tab.id === TAGS_TAB && (
-              <span className="tabs__caret" aria-hidden="true">
-                ▾
-              </span>
-            )}
           </button>
         ))}
       </div>
-      {tagsOpen && (
-        <div className="subtabs" id="sub-tags" role="group" aria-label="Filter by tag">
+      {tagOptions.length > 0 && (
+        <div className="subtabs" role="group" aria-label="Filter by tag">
           {tagOptions.map((tag) => (
             <button
               key={tag.name}
@@ -461,17 +447,11 @@ export default function ArtGalleryApp() {
   const { galleries, loading, error, reload } = useGalleries();
 
   // /galleries?tag=WOMEN_OWNED — arrived from a homepage tag card, or picked from the
-  // sub-tags under the "Tags" tab. The URL keeps the pick, so the link can be shared.
+  // tag chips. The URL keeps the pick, so the link can be shared.
   const [params, setParams] = useSearchParams();
   const tagName = params.get("tag");
-  const F = useGalleryFilters(galleries, {
-    tagName,
-    initialTab: tagName ? TAGS_TAB : "all",
-  });
+  const F = useGalleryFilters(galleries, { tagName });
   const { setActiveTab } = F;
-  useEffect(() => {
-    if (tagName) setActiveTab(TAGS_TAB);
-  }, [tagName, setActiveTab]);
 
   const setTag = (name) =>
     setParams(
@@ -483,10 +463,15 @@ export default function ArtGalleryApp() {
       },
       { replace: true },
     );
-  // Any tab other than Tags drops the tag pick.
+  // A kind-of-space tab or a tag, one at a time: picking either drops the other.
+  // A tag narrows the whole directory, so it also sets the tab back to All.
   const chooseTab = (id) => {
     setActiveTab(id);
-    if (id !== TAGS_TAB) setTag(null);
+    setTag(null);
+  };
+  const chooseTag = (name) => {
+    setTag(name);
+    setActiveTab("all");
   };
   const resetAll = () => {
     F.resetAllFilters();
@@ -515,12 +500,12 @@ export default function ArtGalleryApp() {
         setSearchQuery={F.setSearchQuery}
       />
       <CategoryTabs
-        activeTab={F.activeTab}
+        activeTab={tagName ? null : F.activeTab}
         setActiveTab={chooseTab}
         rawData={F.rawData}
         tagOptions={tagOptions}
         activeTag={tagName}
-        setActiveTag={setTag}
+        setActiveTag={chooseTag}
       />
       <FilterRow
         nearMe={F.nearMe}
