@@ -93,9 +93,43 @@ interface GallerySeed {
   openingHours?: Prisma.InputJsonValue;
   tags?: string[];
   isPublished?: boolean;
+  /**
+   * From the sheet's `residency_institution` column: the name of the parent
+   * gallery that runs this residency. The parent gets `hasResidency = true`.
+   */
+  residencyParent?: string;
+}
+
+/**
+ * Catalogue renames between CSV baselines. The seed matches institutions by
+ * name, so without this a renamed venue would be created a second time (losing
+ * its curated images and tags) instead of updated. Each entry is applied only
+ * when no live record already carries the new name, so re-running is a no-op.
+ */
+const LEGACY_NAME_RENAMES: ReadonlyArray<readonly [from: string, to: string]> = [
+  // Final-Art-Explore-DBList.csv baseline (Nov 2026).
+  ['Randle Center', 'John Randle Centre'],
+  ['Art Pantheon', 'The Art Pantheon'],
+];
+
+async function applyLegacyRenames(): Promise<void> {
+  for (const [from, to] of LEGACY_NAME_RENAMES) {
+    const target = await prisma.institution.findFirst({
+      where: { name: { equals: to, mode: 'insensitive' }, deletedAt: null },
+      select: { id: true },
+    });
+    if (target) continue; // already renamed (or created under the new name)
+
+    const { count } = await prisma.institution.updateMany({
+      where: { name: { equals: from, mode: 'insensitive' }, deletedAt: null },
+      data: { name: to },
+    });
+    if (count > 0) console.log(`✏️  Renamed "${from}" → "${to}"`);
+  }
 }
 
 const CSV_CANDIDATES = [
+  'Final-Art-Explore-DBList.csv',
   'ArtandCulturalSpacesDBlatest5.csv',
   'ArtandCulturalSpacesDB-latest-4.csv',
   'ArtandCulturalSpacesDB-latest.csv',
@@ -298,6 +332,7 @@ function loadGalleriesFromCsv(): GallerySeed[] {
       phone: cleanPhone(row.phone),
       email: row.email || undefined,
       openingHours,
+      residencyParent: row.residency_institution || undefined,
     });
   }
 
@@ -314,6 +349,8 @@ async function seedGalleries(): Promise<void> {
     console.warn('⚠️  No galleries to import — skipping.');
     return;
   }
+
+  await applyLegacyRenames();
 
   let created = 0;
   let updated = 0;
@@ -411,6 +448,18 @@ async function seedGalleries(): Promise<void> {
   }
 
   console.log(`✅ Imported ${galleries.length} galleries (${created} created, ${updated} updated)`);
+
+  // Flag parent galleries that run a residency listed in the sheet. Only ever
+  // sets true, so a flag curated in the admin UI is never cleared by a re-seed.
+  const parents = [...new Set(galleries.map((g) => g.residencyParent).filter(Boolean))] as string[];
+  for (const parent of parents) {
+    const { count } = await prisma.institution.updateMany({
+      where: { name: { equals: parent, mode: 'insensitive' }, deletedAt: null },
+      data: { hasResidency: true },
+    });
+    if (count === 0) console.warn(`⚠️  Residency parent "${parent}" not found in the catalogue.`);
+  }
+  if (parents.length > 0) console.log(`✅ Flagged ${parents.length} residency parent(s)`);
 }
 
 /** A small starter set of admin-managed sub-categories, idempotent by (type, name). */
