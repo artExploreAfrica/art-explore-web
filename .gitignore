@@ -29,3 +29,6 @@ Thumbs.db
 coverage/
 *.tsbuildinfo
 *.pem*
+
+# Full pg_dump backups contain user data and password hashes — never commit
+backups/*.dump
