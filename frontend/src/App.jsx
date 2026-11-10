@@ -5,6 +5,7 @@ import SignupPage from './components/pages/SignupPage';
 import SubmitGalleryPage from './components/pages/SubmitGalleryPage';
 import GalleriesPage from './components/pages/GalleriesPage';
 import GalleryDetailPage from './components/pages/GalleryDetailPage';
+import AboutPage from './components/pages/AboutPage';
 import { AdminRoutes } from './admin/routes';
 import { AuthProvider as PublicAuthProvider } from './lib/AuthContext';
 
@@ -26,6 +27,7 @@ function App() {
     <PublicAuthProvider>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/galleries" element={<GalleriesPage />} />
         <Route path="/galleries/:id" element={<GalleryDetailPage />} />
         <Route path="/login" element={<LoginPage />} />

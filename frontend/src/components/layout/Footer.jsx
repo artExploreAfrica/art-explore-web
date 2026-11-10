@@ -14,6 +14,7 @@ const COLUMNS = [
   {
     title: "Explore",
     links: [
+      { label: "About", to: "/about" },
       { label: "The map", to: { pathname: "/", hash: "#map" } },
       { label: "All galleries", to: "/galleries" },
       { label: "Add a gallery", to: { pathname: "/", hash: "#contribute" } },

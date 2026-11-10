@@ -33,7 +33,7 @@ export default function Navbar() {
     // /login, /submit), navigate home first rather than silently doing
     // nothing — the section will simply not be there to scroll to.
     if (!onHomePage) {
-      navigate("/");
+      navigate({ pathname: "/", hash: `#${sectionId}` });
       setIsMenuOpen(false);
       return;
     }
@@ -85,17 +85,9 @@ export default function Navbar() {
 
         {/* Navigation Links - UPDATED with onClick handlers */}
         <ul className={`nav-links ${isMenuOpen ? "active" : ""}`}>
-          {/* About link - scrolls to Hero section */}
+          {/* About - its own route */}
           <li>
-            <a
-              href="#home"
-              onClick={(e) => {
-                e.preventDefault();     
-                scrollToSection("home");
-              }}
-            >
-              About
-            </a>
+            <Link to="/about" onClick={() => setIsMenuOpen(false)}>About</Link>
           </li>
           
           {/* Map link - scrolls to MapView component */}
