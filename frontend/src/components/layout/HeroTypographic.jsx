@@ -146,7 +146,7 @@ export default function HeroTypographic() {
               Open Map
             </a>
             <Link className="ht__btn ht__btn--ghost" to="/galleries">
-              Browse Galleries <ArrowIcon />
+              Browse Spaces <ArrowIcon />
             </Link>
           </div>
         </div>

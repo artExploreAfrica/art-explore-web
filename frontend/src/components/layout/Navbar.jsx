@@ -103,10 +103,10 @@ export default function Navbar() {
             </a>
           </li>
           
-          {/* Galleries - its own route, not a scroll target */}
+          {/* Spaces (the directory) - its own route, not a scroll target */}
           <li>
             <Link to="/galleries" onClick={() => setIsMenuOpen(false)}>
-              Galleries
+              Spaces
             </Link>
           </li>
 
