@@ -236,3 +236,91 @@ describe('POST /api/v1/admin/institutions (subType)', () => {
     });
   });
 });
+
+describe('Location is optional only for types with no fixed venue', () => {
+  const noVenue = {
+    name: 'Untainted Arts',
+    type: 'NOMADIC_SPACE',
+    area: 'OTHER',
+    address: null,
+    lat: null,
+    lng: null,
+  };
+
+  it('creates a nomadic space with no address or coordinates', async () => {
+    mocks.prisma.institution.create.mockResolvedValue({ ...stored, ...noVenue });
+
+    const res = await request(app)
+      .post('/api/v1/admin/institutions')
+      .set(adminToken)
+      .send(noVenue);
+
+    expect(res.status).toBe(201);
+    expect(mocks.prisma.institution.create.mock.calls[0][0].data).toMatchObject({
+      address: null,
+      lat: null,
+      lng: null,
+    });
+  });
+
+  it('creates an art festival when the location fields are left out entirely', async () => {
+    mocks.prisma.institution.create.mockResolvedValue(stored);
+    const { address: _a, lat: _la, lng: _ln, ...rest } = noVenue;
+
+    const res = await request(app)
+      .post('/api/v1/admin/institutions')
+      .set(adminToken)
+      .send({ ...rest, type: 'ART_FESTIVAL' });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('still requires address and coordinates for a gallery', async () => {
+    const res = await request(app)
+      .post('/api/v1/admin/institutions')
+      .set(adminToken)
+      .send({ ...noVenue, type: 'ART_GALLERY' });
+
+    expect(res.status).toBe(400);
+    expect(mocks.prisma.institution.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a latitude without a longitude', async () => {
+    const res = await request(app)
+      .post('/api/v1/admin/institutions')
+      .set(adminToken)
+      .send({ ...noVenue, lat: 6.5 });
+
+    expect(res.status).toBe(400);
+    expect(mocks.prisma.institution.create).not.toHaveBeenCalled();
+  });
+
+  it('lets an edit of a no-venue place keep its location blank', async () => {
+    mocks.prisma.institution.findFirst.mockResolvedValue({ ...stored, ...noVenue });
+    mocks.prisma.institution.update.mockResolvedValue({ ...stored, ...noVenue });
+
+    const res = await request(app)
+      .put('/api/v1/admin/institutions/inst_1')
+      .set(adminToken)
+      .send({ ...noVenue, website: 'https://substack.com/@untaintedarts' });
+
+    expect(res.status).toBe(200);
+    expect(mocks.prisma.institution.update.mock.calls[0][0].data).toMatchObject({
+      address: null,
+      lat: null,
+      lng: null,
+    });
+  });
+
+  it('refuses to clear the location of a gallery', async () => {
+    mocks.prisma.institution.findFirst.mockResolvedValue(stored);
+
+    const res = await request(app)
+      .put('/api/v1/admin/institutions/inst_1')
+      .set(adminToken)
+      .send({ type: 'ART_GALLERY', address: null, lat: null, lng: null });
+
+    expect(res.status).toBe(400);
+    expect(mocks.prisma.institution.update).not.toHaveBeenCalled();
+  });
+});

@@ -86,14 +86,78 @@ export const institutionFieldsSchema = z.object({
  * a caller trying to smuggle `approvalStatus` is still ignored rather than
  * refused (see submission.validator).
  */
-export const createInstitutionSchema = institutionFieldsSchema.strict();
+/**
+ * Types with no fixed venue: a nomadic space moves between borrowed rooms and a
+ * festival is an event, so neither has one address or map pin. For these the
+ * admin may leave address/lat/lng blank (sent as null); every other type must
+ * still give all three. Places without coordinates are simply left off the map.
+ */
+export const NO_FIXED_VENUE_TYPES: ReadonlySet<InstitutionType> = new Set([
+  InstitutionType.NOMADIC_SPACE,
+  InstitutionType.ART_FESTIVAL,
+]);
+
+/** Admin shape: location fields accept null so a no-venue place can be saved or cleared. */
+const adminInstitutionFieldsSchema = institutionFieldsSchema.extend({
+  address: z.string().min(1, 'address is required').nullable().optional(),
+  lat: z.number().min(-90).max(90).nullable().optional(),
+  lng: z.number().min(-180).max(180).nullable().optional(),
+});
+
+/** lat and lng mean nothing alone: both or neither. */
+const checkCoordinatePair = (
+  data: { lat?: number | null; lng?: number | null },
+  ctx: z.RefinementCtx,
+): void => {
+  const hasLat = data.lat !== undefined && data.lat !== null;
+  const hasLng = data.lng !== undefined && data.lng !== null;
+  if (hasLat !== hasLng) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [hasLat ? 'lng' : 'lat'],
+      message: 'lat and lng must be given together',
+    });
+  }
+};
+
+export const createInstitutionSchema = adminInstitutionFieldsSchema
+  .strict()
+  .superRefine((data, ctx) => {
+    checkCoordinatePair(data, ctx);
+    if (NO_FIXED_VENUE_TYPES.has(data.type)) return;
+    for (const field of ['address', 'lat', 'lng'] as const) {
+      if (data[field] === undefined || data[field] === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [field],
+          message: `${field} is required for this type`,
+        });
+      }
+    }
+  });
 
 /** Update: all fields optional, but at least one must be present. */
-export const updateInstitutionSchema = institutionFieldsSchema
+export const updateInstitutionSchema = adminInstitutionFieldsSchema
   .partial()
   .strict()
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided to update',
+  })
+  .superRefine((data, ctx) => {
+    checkCoordinatePair(data, ctx);
+    // A request that sends a venue type may not clear the location. The admin
+    // form always sends `type` with the location fields, so this covers it.
+    if (data.type && !NO_FIXED_VENUE_TYPES.has(data.type)) {
+      for (const field of ['address', 'lat', 'lng'] as const) {
+        if (data[field] === null) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [field],
+            message: `${field} is required for this type`,
+          });
+        }
+      }
+    }
   });
 
 /** Query params for the public list endpoint. */

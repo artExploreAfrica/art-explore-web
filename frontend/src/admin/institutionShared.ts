@@ -51,6 +51,18 @@ export const INSTITUTION_TYPES: InstitutionType[] = [
 ];
 export const AREAS: AreaEnum[] = ["ISLAND", "MAINLAND", "OTHER"];
 
+/**
+ * Types with no fixed venue (mirrors NO_FIXED_VENUE_TYPES in the backend
+ * validator). For these, address and coordinates may be left blank; the place
+ * is then simply left off the map.
+ */
+export const NO_FIXED_VENUE_TYPES: ReadonlySet<InstitutionType> = new Set<InstitutionType>([
+  "NOMADIC_SPACE",
+  "ART_FESTIVAL",
+]);
+
+export const needsLocation = (type: InstitutionType): boolean => !NO_FIXED_VENUE_TYPES.has(type);
+
 /** Types whose display name isn't just the title-cased enum. */
 const INSTITUTION_TYPE_LABELS: Partial<Record<InstitutionType, string>> = {
   HUB_INSTITUTION: "Art Hub/Institution",

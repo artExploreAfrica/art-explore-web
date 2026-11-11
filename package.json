@@ -30,6 +30,8 @@
     "seed": "prisma db seed",
     "sync:s3-images": "ts-node scripts/sync-s3-images-to-db.ts",
     "sync:s3-images:dry": "ts-node scripts/sync-s3-images-to-db.ts --dry-run",
+    "sync:images:live": "ts-node scripts/sync-images-from-live.ts",
+    "sync:images:live:dry": "ts-node scripts/sync-images-from-live.ts --dry-run",
     "recompute:exhibitions": "ts-node scripts/recompute-has-exhibition.ts",
     "recompute:exhibitions:dry": "ts-node scripts/recompute-has-exhibition.ts --dry-run",
     "test:coverage": "vitest run --coverage"

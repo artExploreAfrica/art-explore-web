@@ -39,6 +39,7 @@ import {
   InstitutionSubType,
   InstitutionType,
   MAX_IMAGE_BYTES,
+  needsLocation,
   OpeningHours,
   parseGeocode,
   Tag,
@@ -170,10 +171,13 @@ function toApiPayload(form: InstitutionForm, hours: Record<string, DayRow>): Rec
     type: form.type,
     // Always sent, so clearing the dropdown clears the stored sub-type.
     subType: form.subType || null,
-    address: form.address.trim(),
+    // Blank location fields go as null, never "" or Number("") === 0: a 0,0
+    // pin would land in the Gulf of Guinea. The API requires them for every
+    // type except those with no fixed venue (NO_FIXED_VENUE_TYPES).
+    address: form.address.trim() || null,
     area: form.area,
-    lat: Number(form.lat),
-    lng: Number(form.lng),
+    lat: String(form.lat).trim() === "" ? null : Number(form.lat),
+    lng: String(form.lng).trim() === "" ? null : Number(form.lng),
     hasResidency: form.hasResidency,
     hasSocial: form.hasSocial,
     // Always sent, so unticking every tag removes them all (update replaces the set).
@@ -699,6 +703,9 @@ export function InstitutionsPage() {
     }
   }
 
+  // Address and coordinates are optional only for types with no fixed venue.
+  const locationRequired = needsLocation(form.type);
+
   const formCard = !showForm ? null : (
     <form className="admin-form-card" onSubmit={handleSubmit}>
       <div className="admin-form-section">
@@ -762,8 +769,16 @@ export function InstitutionsPage() {
           </div>
         </div>
         <div className="admin-form-row">
-          <label className="admin-required">Address</label>
-          <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
+          {locationRequired ? (
+            <label className="admin-required">Address</label>
+          ) : (
+            <label>Address <span className="admin-optional">(optional — no fixed venue)</span></label>
+          )}
+          <input
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+            required={locationRequired}
+          />
         </div>
         <div className="admin-form-row">
           <label>Sub-area <span className="admin-optional">(optional)</span></label>
@@ -780,7 +795,11 @@ export function InstitutionsPage() {
           <MapPin size={16} />
           <div>
             <h3>Location</h3>
-            <p>Coordinates that place it on the map.</p>
+            <p>
+              {locationRequired
+                ? "Coordinates that place it on the map."
+                : "Optional for this type. Leave blank and it won't appear on the map."}
+            </p>
           </div>
         </div>
 
@@ -812,7 +831,7 @@ export function InstitutionsPage() {
 
         <div className="admin-form-grid">
           <div className="admin-form-row">
-            <label className="admin-required">Latitude</label>
+            <label className={locationRequired ? "admin-required" : undefined}>Latitude</label>
             <input
               type="number"
               step="any"
@@ -820,11 +839,11 @@ export function InstitutionsPage() {
               max={90}
               value={form.lat}
               onChange={(e) => setForm({ ...form, lat: e.target.value })}
-              required
+              required={locationRequired || String(form.lng).trim() !== ""}
             />
           </div>
           <div className="admin-form-row">
-            <label className="admin-required">Longitude</label>
+            <label className={locationRequired ? "admin-required" : undefined}>Longitude</label>
             <input
               type="number"
               step="any"
@@ -832,7 +851,7 @@ export function InstitutionsPage() {
               max={180}
               value={form.lng}
               onChange={(e) => setForm({ ...form, lng: e.target.value })}
-              required
+              required={locationRequired || String(form.lat).trim() !== ""}
             />
           </div>
         </div>
