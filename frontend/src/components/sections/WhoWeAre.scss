@@ -132,6 +132,43 @@
   text-wrap: pretty;
 }
 
+// ── Total ──────────────────────────────────────────────────
+// One line, "Total = 116 spaces", on a sand chip that hugs its words and sits
+// centred under the cards. Same sand and ink as the cards; not a link, so no
+// hover state.
+.ww__total {
+  width: fit-content;
+  max-width: 100%;
+  margin: clamp(10px, 1.4vw, 20px) auto 0;
+  padding: clamp(12px, 1.4vw, 18px) clamp(20px, 2.4vw, 32px);
+  background: var(--sand);
+  border-radius: 2px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.05rem, 1.5vw, 1.35rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  white-space: nowrap;
+  text-align: center;
+
+  @media (max-width: 860px) { margin-top: 12px; }
+}
+
+.ww__total-num {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+
+  // Same footprint as a three-digit count, so nothing jumps on load.
+  &--loading {
+    @include skeleton;
+    display: inline-block;
+    width: 1.8em;
+    height: 0.9em;
+    vertical-align: -0.1em;
+  }
+}
+
 // ── Button ─────────────────────────────────────────────────
 .ww__more {
   display: flex;

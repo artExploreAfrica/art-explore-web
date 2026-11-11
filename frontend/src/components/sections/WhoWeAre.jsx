@@ -100,6 +100,22 @@ export default function WhoWeAre() {
         ))}
       </ul>
 
+      {/* Every published space, whatever its type, so this stays the true total
+          even if a type that has no card of its own is added. */}
+      <p className="ww__total" aria-live="polite">
+        Total ={" "}
+        {loading ? (
+          <span className="ww__total-num ww__total-num--loading" aria-label="Loading count" />
+        ) : error ? (
+          <strong className="ww__total-num" aria-label="Count unavailable">
+            —
+          </strong>
+        ) : (
+          <strong className="ww__total-num">{galleries.length.toLocaleString()}</strong>
+        )}{" "}
+        {galleries.length === 1 && !loading && !error ? "space" : "spaces"}
+      </p>
+
       <div className="ww__more">
         <Link className="ww__btn" to={{ pathname: "/about", hash: "#vision" }}>
           See our vision <Arrow />
