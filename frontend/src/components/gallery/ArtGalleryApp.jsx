@@ -116,7 +116,8 @@ function useGalleryFilters(data, { tagName = null, initialTab = "all" } = {}) {
       result = result.filter(
         (g) =>
           g.name.toLowerCase().includes(q) ||
-          g.neighborhood.toLowerCase().includes(q),
+          g.neighborhood.toLowerCase().includes(q) ||
+          g.subArea?.toLowerCase().includes(q),
       );
     }
 
@@ -367,6 +368,9 @@ function GalleryCard({ gallery }) {
   // Real tags only, A to Z. A space with none shows no tag chip at all, so the
   // ones that carry a researched tag stand out.
   const tags = [...(gallery.tags ?? [])].sort((a, b) => a.label.localeCompare(b.label));
+  // The sub-area stored for the space. One with none (a festival or nomadic space
+  // with no fixed place) shows no line, rather than a guess made from its address.
+  const subArea = gallery.subArea?.trim();
   return (
     <Link to={`/galleries/${gallery.id}`} className="gallery-card">
       <div
@@ -386,7 +390,7 @@ function GalleryCard({ gallery }) {
       </div>
       <div className="card__body">
         <h3 className="card__name">{gallery.name}</h3>
-        <p className="card__neighborhood">{gallery.neighborhood}</p>
+        {subArea && <p className="card__neighborhood">{subArea}</p>}
         {/* Show address from merged data */}
         {gallery.address && <p className="card__address">{gallery.address}</p>}
         {(tags.length > 0 || gallery.hasExhibition) && (
