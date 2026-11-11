@@ -20,13 +20,6 @@ const COLUMNS = [
       { label: "Add a gallery", to: { pathname: "/", hash: "#contribute" } },
     ],
   },
-  {
-    title: "Account",
-    links: [
-      { label: "Log in", to: "/login" },
-      { label: "Create an account", to: "/signup" },
-    ],
-  },
 ];
 
 // Site-level contact details come from the environment rather than being

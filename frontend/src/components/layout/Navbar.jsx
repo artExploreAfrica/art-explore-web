@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X, MapPin, Calendar, Search } from "lucide-react";
-import { useAuth } from "../../lib/AuthContext.jsx";
 import "./Navbar.scss";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navRef = useRef(null);
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const onHomePage = location.pathname === "/";
@@ -30,7 +28,7 @@ export default function Navbar() {
 
   const scrollToSection = (sectionId) => {
     // These sections only exist on the home page. From anywhere else (e.g.
-    // /login, /submit), navigate home first rather than silently doing
+    // /about, /galleries), navigate home first rather than silently doing
     // nothing — the section will simply not be there to scroll to.
     if (!onHomePage) {
       navigate({ pathname: "/", hash: `#${sectionId}` });
@@ -109,28 +107,6 @@ export default function Navbar() {
               Spaces
             </Link>
           </li>
-
-          {user ? (
-            <li className="nav-auth">
-              <span className="nav-user">{user.fullName}</span>
-              <button
-                className="nav-logout"
-                onClick={() => {
-                  logout();
-                  setIsMenuOpen(false);
-                  navigate("/");
-                }}
-              >
-                Log out
-              </button>
-            </li>
-          ) : (
-            <li>
-              <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                Log in
-              </Link>
-            </li>
-          )}
         </ul>
       </div>
     </nav>

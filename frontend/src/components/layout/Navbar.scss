@@ -87,8 +87,7 @@
     gap: clamp(22px, 2.6vw, 40px);
     list-style: none;
 
-    a,
-    .nav-logout {
+    a {
       @include nav-link-on-ink;
       font-family: var(--font-body);
       font-size: 13px;
@@ -140,25 +139,6 @@
     }
   }
 
-  // ── Auth cluster ───────────────────────────────────────────
-  .nav-auth {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .nav-user {
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--on-dark-muted);
-  }
-
-  .nav-logout {
-    background: none;
-    border: none;
-    cursor: pointer;
-  }
 }
 
 @keyframes navPanelIn {
