@@ -166,6 +166,61 @@
   }
 }
 
+// ── Map row (horizontal: gallery panel + map + right col) ─────
+.mapRow {
+  flex:      1;
+  display:   flex;
+  min-height: 0;
+}
+
+// Left sidebar: gallery detail card — desktop only
+.galleryPanel {
+  width:          300px;
+  flex-shrink:    0;
+  display:        flex;
+  flex-direction: column;
+  border-right:   1px solid var(--rule);
+  overflow:       hidden;
+  background:     var(--cream);
+
+  @media (max-width: 768px) { display: none; }
+}
+
+// Right sidebar: map guide (LegendPanel) + search input
+.rightCol {
+  width:          280px;
+  flex-shrink:    0;
+  display:        flex;
+  flex-direction: column;
+  border-left:    1px solid var(--rule);
+  background:     var(--cream);
+  overflow:       hidden;
+
+  @media (max-width: 768px) { display: none; }
+}
+
+// Search bar under the map guide
+.searchWrap {
+  flex-shrink:  0;
+  padding:      12px;
+  border-top:   1px solid var(--rule);
+  background:   var(--sand);
+}
+
+.searchInput {
+  @include input-field;
+  width:          100%;
+  height:         36px;
+  padding:        0 12px;
+  font-size:      12px;
+  font-weight:    500;
+  letter-spacing: 0.04em;
+  color:          var(--ink);
+  box-sizing:     border-box;
+
+  &:focus { outline-offset: -2px; }
+}
+
 // ── Map frame ─────────────────────────────────────────────────
 .mapContainer {
   flex:          1;
