@@ -4,6 +4,7 @@ import SubmitGalleryPage from './components/pages/SubmitGalleryPage';
 import GalleriesPage from './components/pages/GalleriesPage';
 import GalleryDetailPage from './components/pages/GalleryDetailPage';
 import AboutPage from './components/pages/AboutPage';
+import PartnerPage from './components/pages/PartnerPage';
 import { AdminRoutes } from './admin/routes';
 import { AuthProvider as PublicAuthProvider } from './lib/AuthContext';
 
@@ -32,6 +33,7 @@ function App() {
             kept, unrouted). Old links and bookmarks land on the home page. */}
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/signup" element={<Navigate to="/" replace />} />
+        <Route path="/partner" element={<PartnerPage />} />
         <Route path="/submit" element={<SubmitGalleryPage />} />
         <Route path="/admin/*" element={<AdminRoutes />} />
       </Routes>

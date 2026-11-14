@@ -6,7 +6,7 @@ import WhoWeAre from '../sections/WhoWeAre.jsx';
 import TagShowcase from '../sections/TagShowcase.jsx';
 import Mapheader from '../Map/LagosMap.jsx';
 import MapView from '../Map/MapView.jsx';
-import Contribute from '../sections/Contribute.jsx';
+import PartnerBand from '../sections/PartnerBand.jsx';
 import Footer from '../layout/Footer.jsx';
 import '../../App.jsx';
 
@@ -39,7 +39,7 @@ function App() {
       <TagShowcase />
       <Mapheader />
       <MapView />
-      <Contribute />
+      <PartnerBand />
 
       <Footer />
     </div>
