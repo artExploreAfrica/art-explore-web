@@ -45,7 +45,8 @@ function pickCover(spaces, preferred = []) {
     const hit = withPhoto.find((g) => g.name === name);
     if (hit) return hit;
   }
-  return withPhoto[0] ?? null;
+  // Fall back to any space — Photo already renders initials when there's no image.
+  return withPhoto[0] ?? spaces[0] ?? null;
 }
 
 const initials = (name) =>
