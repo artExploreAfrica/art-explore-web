@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import adminRoutes from './admin.routes';
 import authRoutes from './auth.routes';
+import enquiryRoutes from './enquiry.routes';
 import exhibitionRoutes from './exhibition.routes';
 import institutionRoutes from './institution.routes';
 import reviewRoutes from './review.routes';
@@ -17,6 +18,7 @@ router.use('/subcategories', subCategoryRoutes);
 router.use('/tags', tagRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/submissions', submissionRoutes);
+router.use('/enquiries', enquiryRoutes);
 router.use('/admin', adminRoutes);
 
 export default router;

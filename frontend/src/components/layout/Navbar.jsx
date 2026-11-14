@@ -1,19 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Menu, X, MapPin, Calendar, Search } from "lucide-react";
-import { useAuth } from "../../lib/AuthContext.jsx";
+import { Menu, X, ChevronDown } from "lucide-react";
 import "./Navbar.scss";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null); // 'about' | 'spaces' | null
   const navRef = useRef(null);
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const onHomePage = location.pathname === "/";
 
-  // Publish the navbar's real rendered height so the hero (and anything
-  // else) can do `calc(100dvh - var(--navbar-h))` instead of guessing.
+  // Publish the navbar's real rendered height as a CSS custom property.
   useEffect(() => {
     const setNavHeight = () => {
       if (navRef.current) {
@@ -28,117 +26,131 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", setNavHeight);
   }, []);
 
+  // Close dropdown when clicking outside the navbar.
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (!navRef.current?.contains(e.target)) setOpenDropdown(null);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  // Escape closes any open dropdown.
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === "Escape") setOpenDropdown(null); };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, []);
+
+  // Close everything on route change.
+  useEffect(() => {
+    setOpenDropdown(null);
+    setIsMenuOpen(false);
+  }, [location.pathname, location.hash]);
+
   const scrollToSection = (sectionId) => {
-    // These sections only exist on the home page. From anywhere else (e.g.
-    // /login, /submit), navigate home first rather than silently doing
-    // nothing — the section will simply not be there to scroll to.
     if (!onHomePage) {
-      navigate("/");
+      navigate({ pathname: "/", hash: `#${sectionId}` });
       setIsMenuOpen(false);
+      setOpenDropdown(null);
       return;
     }
-
     const section = document.getElementById(sectionId);
-
     if (section) {
-      const navbarHeight = navRef.current ? navRef.current.offsetHeight : 70;
-
-      const sectionPosition = section.offsetTop - navbarHeight;
-      window.scrollTo({
-        top: sectionPosition,
-        behavior: 'smooth'
-      });
-
+      const navH = navRef.current ? navRef.current.offsetHeight : 70;
+      window.scrollTo({ top: section.offsetTop - navH, behavior: "smooth" });
       setIsMenuOpen(false);
+      setOpenDropdown(null);
     }
   };
+
+  const toggleDropdown = (name) =>
+    setOpenDropdown((prev) => (prev === name ? null : name));
+
+  const closeAll = () => { setIsMenuOpen(false); setOpenDropdown(null); };
 
   return (
     <nav className="navbar" ref={navRef}>
       <div className="container">
-        {/* Logo - scrolls to home when clicked */}
-        <a 
-          href="#home" 
+
+        {/* ── Logo: rust icon + "Art Explore" text ── */}
+        <a
+          href="#home"
           className="logo"
           aria-label="Art Explore — home"
-          onClick={(e) => {
-            e.preventDefault();  
-            scrollToSection("home");  
-          }}
+          onClick={(e) => { e.preventDefault(); scrollToSection("home"); }}
         >
           <img
-            src="/brand/wordmark-cream.png"
-            alt="Art Explore"
-            className="logo__img"
-            width="842"
-            height="216"
+            src="/brand/favicon-red.png"
+            alt=""
+            className="logo__icon"
+            aria-hidden="true"
+            width="512"
+            height="512"
           />
+          <span className="logo__text">Art Explore</span>
         </a>
 
-        {/* Mobile menu button - unchanged */}
+        {/* ── Mobile toggle ── */}
         <button
           className="mobile-menu-btn"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-expanded={isMenuOpen}
+          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
         >
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
 
-        {/* Navigation Links - UPDATED with onClick handlers */}
+        {/* ── Nav links ── */}
         <ul className={`nav-links ${isMenuOpen ? "active" : ""}`}>
-          {/* About link - scrolls to Hero section */}
-          <li>
-            <a
-              href="#home"
-              onClick={(e) => {
-                e.preventDefault();     
-                scrollToSection("home");
-              }}
+
+          {/* About dropdown */}
+          <li className={`nav-item--has-dropdown${openDropdown === "about" ? " is-open" : ""}`}>
+            <button
+              className="nav-dropdown-trigger"
+              onClick={() => toggleDropdown("about")}
+              aria-expanded={openDropdown === "about"}
+              aria-haspopup="true"
             >
               About
-            </a>
+              <ChevronDown size={11} className="nav-chevron" aria-hidden="true" />
+            </button>
+            <ul className="nav-dropdown" aria-label="About pages">
+              <li><Link to="/about" onClick={closeAll}>Who We Are</Link></li>
+              <li><Link to="/about#vision" onClick={closeAll}>Vision</Link></li>
+              <li><Link to="/partner" onClick={closeAll}>Partner With Us</Link></li>
+            </ul>
           </li>
-          
-          {/* Map link - scrolls to MapView component */}
+
+          {/* Map — scroll target on the home page */}
           <li>
             <a
               href="#map"
-              onClick={(e) => {
-                e.preventDefault();    
-                scrollToSection("map");   
-              }}
+              onClick={(e) => { e.preventDefault(); scrollToSection("map"); }}
             >
               Map
             </a>
           </li>
-          
-          {/* Galleries - its own route, not a scroll target */}
-          <li>
-            <Link to="/galleries" onClick={() => setIsMenuOpen(false)}>
-              Galleries
-            </Link>
+
+          {/* Spaces dropdown */}
+          <li className={`nav-item--has-dropdown${openDropdown === "spaces" ? " is-open" : ""}`}>
+            <button
+              className="nav-dropdown-trigger"
+              onClick={() => toggleDropdown("spaces")}
+              aria-expanded={openDropdown === "spaces"}
+              aria-haspopup="true"
+            >
+              Spaces
+              <ChevronDown size={11} className="nav-chevron" aria-hidden="true" />
+            </button>
+            <ul className="nav-dropdown" aria-label="Spaces pages">
+              {/* Routes to be refined when Featured / Exhibitions pages are built */}
+              <li><Link to="/galleries" onClick={closeAll}>Featured Space</Link></li>
+              <li><Link to="/galleries" onClick={closeAll}>Exhibitions</Link></li>
+              <li><Link to="/galleries" onClick={closeAll}>All Spaces</Link></li>
+            </ul>
           </li>
 
-          {user ? (
-            <li className="nav-auth">
-              <span className="nav-user">{user.fullName}</span>
-              <button
-                className="nav-logout"
-                onClick={() => {
-                  logout();
-                  setIsMenuOpen(false);
-                  navigate("/");
-                }}
-              >
-                Log out
-              </button>
-            </li>
-          ) : (
-            <li>
-              <Link to="/login" onClick={() => setIsMenuOpen(false)}>
-                Log in
-              </Link>
-            </li>
-          )}
         </ul>
       </div>
     </nav>

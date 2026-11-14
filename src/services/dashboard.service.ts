@@ -10,6 +10,7 @@ export interface RecentInstitution {
   name: string;
   type: string;
   area: string | null;
+  subArea: string | null;
   isPublished: boolean;
   createdAt: Date;
 }
@@ -25,11 +26,11 @@ export interface DashboardCounts {
   pendingReviews: number;
   admins: number;
   publicUsers: number;
-  // Breakdowns for the dashboard's distribution panels. Zero-count types/areas
+  // Breakdowns for the dashboard's distribution panels. Zero-count types/sub-areas
   // are omitted (groupBy only returns rows that exist) — the UI treats an
   // absent entry as 0 rather than requiring a padded fixed-length array here.
   byType: { type: string; count: number }[];
-  byArea: { area: string; count: number }[];
+  bySubArea: { subArea: string | null; count: number }[];
   recent: RecentInstitution[];
 }
 
@@ -44,25 +45,18 @@ export const getCounts = async (): Promise<DashboardCounts> => {
     admins,
     publicUsers,
     byTypeRaw,
-    byAreaRaw,
+    bySubAreaRaw,
     recent,
   ] = await Promise.all([
     prisma.institution.count({ where: { deletedAt: null } }),
     prisma.institution.count({ where: { isPublished: true, deletedAt: null } }),
+    // Every PENDING row is waiting on review — including suggestions from the
+    // public form, which have no submitter account (only review produces PENDING).
     prisma.institution.count({
-      where: {
-        approvalStatus: ApprovalStatus.PENDING,
-        deletedAt: null,
-        submittedById: { not: null },
-      },
+      where: { approvalStatus: ApprovalStatus.PENDING, deletedAt: null },
     }),
     // Contributor queues, so the dashboard shows every kind of work waiting.
-    prisma.exhibition.count({
-      where: {
-        approvalStatus: ApprovalStatus.PENDING,
-        submittedById: { not: null },
-      },
-    }),
+    prisma.exhibition.count({ where: { approvalStatus: ApprovalStatus.PENDING } }),
     prisma.review.count({ where: { approvalStatus: ApprovalStatus.PENDING } }),
     prisma.user.count({ where: { role: { in: STAFF_ROLES } } }),
     prisma.user.count({ where: { role: Role.USER } }),
@@ -72,7 +66,7 @@ export const getCounts = async (): Promise<DashboardCounts> => {
       _count: { _all: true },
     }),
     prisma.institution.groupBy({
-      by: ['area'],
+      by: ['subArea'],
       where: { deletedAt: null },
       _count: { _all: true },
     }),
@@ -80,7 +74,15 @@ export const getCounts = async (): Promise<DashboardCounts> => {
       where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
       take: 8,
-      select: { id: true, name: true, type: true, area: true, isPublished: true, createdAt: true },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        area: true,
+        subArea: true,
+        isPublished: true,
+        createdAt: true,
+      },
     }),
   ]);
 
@@ -98,21 +100,22 @@ export const getCounts = async (): Promise<DashboardCounts> => {
     byType: byTypeRaw
       .map((row) => ({ type: row.type, count: row._count._all }))
       .sort((a, b) => b.count - a.count),
-    // Institutions with no area recorded fall under "OTHER" rather than a
-    // separate null bucket — the public filter already treats them the same
-    // way. groupBy can return both a real 'OTHER' group and a null group, so
-    // merge by label instead of assuming one row per label.
-    byArea: Array.from(
-      byAreaRaw
+    // Grouped by neighbourhood (sub-area) rather than Island/Mainland, which
+    // was too coarse to be useful. Spellings are free text, so they're merged
+    // case- and space-insensitively; rows with none recorded land in a
+    // `null` bucket that the panel shows as "Not set".
+    bySubArea: Array.from(
+      bySubAreaRaw
         .reduce((acc, row) => {
-          const label = row.area ?? 'OTHER';
-          acc.set(label, (acc.get(label) ?? 0) + row._count._all);
+          const name = row.subArea?.trim() || null;
+          const key = name?.toLowerCase() ?? '';
+          const entry = acc.get(key) ?? { subArea: name, count: 0 };
+          entry.count += row._count._all;
+          acc.set(key, entry);
           return acc;
-        }, new Map<string, number>())
-        .entries(),
-    )
-      .map(([area, count]) => ({ area, count }))
-      .sort((a, b) => b.count - a.count),
+        }, new Map<string, { subArea: string | null; count: number }>())
+        .values(),
+    ).sort((a, b) => b.count - a.count),
     recent,
   };
 };

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { FiInstagram, FiMail } from "react-icons/fi";
 import "./Footer.scss";
 
 /**
@@ -13,19 +14,20 @@ const COLUMNS = [
   {
     title: "Explore",
     links: [
+      { label: "About", to: "/about" },
       { label: "The map", to: { pathname: "/", hash: "#map" } },
       { label: "All galleries", to: "/galleries" },
       { label: "Add a gallery", to: { pathname: "/", hash: "#contribute" } },
     ],
   },
-  {
-    title: "Account",
-    links: [
-      { label: "Log in", to: "/login" },
-      { label: "Create an account", to: "/signup" },
-    ],
-  },
 ];
+
+// Site-level contact details come from the environment rather than being
+// hard-coded; each icon renders only when its value is set.
+//   VITE_INSTAGRAM_URL  e.g. https://www.instagram.com/<handle>
+//   VITE_CONTACT_EMAIL  e.g. an address for visitors to write to
+const INSTAGRAM_URL = import.meta.env.VITE_INSTAGRAM_URL;
+const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL;
 
 export default function Footer() {
   const year = new Date().getFullYear();
@@ -34,12 +36,48 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="site-footer__top">
         <div className="site-footer__brand">
-          <p className="site-footer__mark">
-            Art<span>Explore</span>
-          </p>
+          <div className="site-footer__mark">
+            <img
+              src="/brand/favicon-red.png"
+              alt=""
+              className="site-footer__mark-icon"
+              aria-hidden="true"
+              width="512"
+              height="512"
+            />
+            <span className="site-footer__mark-text">Art Explore</span>
+          </div>
           <p className="site-footer__line">
             Galleries, museums and cultural spaces across Lagos — mapped.
           </p>
+          {(INSTAGRAM_URL || CONTACT_EMAIL) && (
+            <ul className="site-footer__social">
+              {INSTAGRAM_URL && (
+                <li>
+                  <a
+                    className="site-footer__social-link"
+                    href={INSTAGRAM_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Art Explore on Instagram"
+                  >
+                    <FiInstagram aria-hidden="true" />
+                  </a>
+                </li>
+              )}
+              {CONTACT_EMAIL && (
+                <li>
+                  <a
+                    className="site-footer__social-link"
+                    href={`mailto:${CONTACT_EMAIL}`}
+                    aria-label="Email Art Explore"
+                  >
+                    <FiMail aria-hidden="true" />
+                  </a>
+                </li>
+              )}
+            </ul>
+          )}
         </div>
 
         <nav className="site-footer__nav" aria-label="Footer">

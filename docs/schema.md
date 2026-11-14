@@ -65,7 +65,7 @@ A discoverable art venue (gallery, studio, or cultural space).
 | `id` | String (cuid) | Primary key |
 | `name` | String | Venue name |
 | `description` | String? | Optional long text |
-| `type` | `InstitutionType` | `ART_GALLERY` / `MUSEUM` / `INSTITUTE` / `FOUNDATION` / `STUDIO` / `CULTURAL_SPACE` |
+| `type` | `InstitutionType` | `ART_GALLERY` / `MUSEUM` / `HUB_INSTITUTION` / `NOMADIC_SPACE` / `ART_FESTIVAL` / `RESIDENCY` |
 | `address` | String | Street address |
 | `area` | `Area` | `ISLAND` / `MAINLAND` / `OTHER` |
 | `lat` | Float | Latitude (map pin) |
@@ -211,7 +211,9 @@ Indexed on `actorId`, `(targetModel, targetId)`, and `timestamp`.
 
 **Role** — `SUPER_ADMIN` (manage admins + all content), `ADMIN` (manage institution content only), `USER` (public account; submits institutions for review).
 
-**InstitutionType** — `ART_GALLERY`, `MUSEUM`, `INSTITUTE`, `FOUNDATION`, `STUDIO`, `CULTURAL_SPACE`.
+**InstitutionType** — `ART_GALLERY`, `MUSEUM`, `HUB_INSTITUTION` (shown as "Art Hub/Institution"), `NOMADIC_SPACE`, `ART_FESTIVAL`, `RESIDENCY`.
+
+**InstitutionSubType** — `ART_GALLERY`, `MUSEUM`, `INSTITUTE`, `FOUNDATION`, `STUDIO`, `CULTURAL_SPACE`, `ONLINE`, `ART_FESTIVAL`. Optional on Institution; foundations, studios, institutes and cultural spaces are `HUB_INSTITUTION` with the matching sub-type.
 
 **Area** — `ISLAND` (Lagos Island), `MAINLAND` (Lagos Mainland), `OTHER`.
 

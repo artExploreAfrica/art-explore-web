@@ -7,7 +7,7 @@
 //   · the photographs sit under an Ink scrim, so all type is cream
 //     on ink — the approved 14.8:1 pairing, not cream on a photo
 //   · "Open map" is the primary button (terracotta, the colour
-//     people click); "Browse galleries" is the secondary, mirrored
+//     people click); "Browse spaces" is the secondary, mirrored
 //     for a dark ground
 //   · light orange appears only as marks: the eyebrow rule and the
 //     ticker dots
@@ -112,12 +112,28 @@ $ticker-h: 64px;
   margin: 0;
 }
 
+// Desktop: "Art & Cultural Spaces" runs about 12.7em wide, so at the scale
+// above it wraps and pushes the buttons and ticker off the first screen.
+// Here the type is sized to keep that line on one row; the vh term stops it
+// outgrowing short laptop screens.
+@media (min-width: 761px) {
+  .ht__headline { font-size: clamp(2.9rem, min(6.5vw, 14vh), 8rem); }
+}
+
 // Each line clips its own inner span so the text can rise from
 // beneath its baseline instead of simply fading in.
 .ht__line {
   display: block;
   overflow: hidden;
   padding-bottom: 0.06em;   // room for descenders inside the mask
+}
+
+// The last line ("in Lagos") has a deep serif descender on the "g" that the
+// mask above sliced off. Give its mask the extra room, and pull the next
+// block back by the same amount so the spacing stays as it was.
+.ht__line:last-child {
+  padding-bottom: 0.24em;
+  margin-bottom: -0.18em;
 }
 
 .ht__line-inner {
@@ -192,7 +208,16 @@ $ticker-h: 64px;
   gap: clamp(28px, 4vw, 60px);
   width: max-content;
   padding-left: clamp(20px, 4vw, 56px);
-  animation: htScroll 34s linear infinite;
+  animation: htScroll var(--ticker-duration, 34s) linear infinite;
+
+  &--loading { animation: none; }
+}
+
+// Placeholder bars while the venue list loads.
+.ht__ticker-sk {
+  @include skeleton(var(--ink-press), var(--rule-on-dark));
+  flex: 0 0 auto;
+  height: 10px;
 }
 
 .ht__ticker-item {

@@ -1,6 +1,6 @@
-import { ApprovalStatus, Area, InstitutionType } from '@prisma/client';
+import { ApprovalStatus, Area, InstitutionSubType, InstitutionType } from '@prisma/client';
 import { z } from 'zod';
-import { institutionFieldsSchema } from './institution.validator';
+import { institutionFieldsSchema, openingHoursSchema } from './institution.validator';
 
 /**
  * A USER submitting an institution cannot set its publish state — that is an
@@ -15,30 +15,52 @@ export const submitInstitutionSchema = institutionFieldsSchema.omit({
 });
 
 /**
- * A signed-out visitor suggesting a venue from the home page.
+ * A signed-out visitor adding a new space from the home page ("Add a New
+ * Space"). Captures everything a full catalogue entry holds, so a reviewer can
+ * approve it without chasing details. What stays admin-only: tags,
+ * sub-category and publish state (editorial calls), and images — the visitor
+ * gives `photoLinks` instead, which go into the internal `notes` for the
+ * reviewer, so nothing is uploaded anonymously.
  *
- * Deliberately narrower than `submitInstitutionSchema`: only what a visitor
- * can reasonably know. No lat/lng (an admin pins it on review), no tags,
- * subcategory or opening hours. The visitor's own name and email are
- * optional and never become venue fields — they are written into the
- * internal `notes` so a reviewer can follow up.
+ * Coordinates are optional (most people don't know them) but come as a pair;
+ * without them the reviewer pins the venue from the address or `mapUrl`.
+ *
+ * The visitor's own name and email never become venue fields — they are
+ * written into `notes` so a reviewer can follow up.
  *
  * `company` is a honeypot: the form hides it from people, so anything in
  * it means a bot filled the form. The controller drops those silently.
  */
-export const publicSubmissionSchema = z.object({
-  name: z.string().trim().min(1, 'name is required').max(200),
-  type: z.nativeEnum(InstitutionType),
-  area: z.nativeEnum(Area),
-  address: z.string().trim().min(1, 'address is required').max(300),
-  subArea: z.string().trim().max(100).optional(),
-  website: z.string().trim().url('website must be a valid URL').max(300).optional(),
-  instagram: z.string().trim().max(100).optional(),
-  description: z.string().trim().max(1000).optional(),
-  submitterName: z.string().trim().max(100).optional(),
-  submitterEmail: z.string().trim().email('submitterEmail must be a valid email').max(200).optional(),
-  company: z.string().optional(),
-});
+export const publicSubmissionSchema = z
+  .object({
+    name: z.string().trim().min(1, 'name is required').max(200),
+    type: z.nativeEnum(InstitutionType),
+    subType: z.nativeEnum(InstitutionSubType).optional(),
+    area: z.nativeEnum(Area),
+    address: z.string().trim().min(1, 'address is required').max(300),
+    subArea: z.string().trim().max(100).optional(),
+    mapUrl: z.string().trim().url('mapUrl must be a valid URL').max(500).optional(),
+    lat: z.number().min(-90).max(90).optional(),
+    lng: z.number().min(-180).max(180).optional(),
+    website: z.string().trim().url('website must be a valid URL').max(300).optional(),
+    instagram: z.string().trim().max(100).optional(),
+    phone: z.string().trim().max(50).optional(),
+    email: z.string().trim().email('email must be a valid email').max(200).optional(),
+    openingHours: openingHoursSchema.optional(),
+    hasResidency: z.boolean().optional(),
+    description: z.string().trim().max(2000).optional(),
+    photoLinks: z
+      .array(z.string().trim().url('each photo link must be a valid URL').max(500))
+      .max(5, 'at most 5 photo links')
+      .optional(),
+    submitterName: z.string().trim().max(100).optional(),
+    submitterEmail: z.string().trim().email('submitterEmail must be a valid email').max(200).optional(),
+    company: z.string().optional(),
+  })
+  .refine((d) => (d.lat === undefined) === (d.lng === undefined), {
+    path: ['lng'],
+    message: 'lat and lng must be given together',
+  });
 
 /**
  * Fixing and resubmitting a REJECTED submission: same fields, all optional,

@@ -1,0 +1,273 @@
+@use '../../styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// /galleries/:id — one space's own page.
+//
+// Cream ground like the rest of the site; the facts sit in sand
+// panels (a card colour, so they live on cream, never on sand).
+// Ink title, terracotta eyebrow (5.0:1 on cream). Links inside
+// the sand panels are ink with an orange underline, because
+// terracotta text on sand is only 4.4:1.
+//
+// Two columns on desktop (photo and story, then the facts),
+// one column below 900px.
+// ─────────────────────────────────────────────────────────────
+
+.gd {
+  background: var(--cream);
+  padding: clamp(28px, 5vh, 56px) var(--page-pad) clamp(56px, 9vh, 112px);
+}
+
+.gd__back {
+  @include text-link;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: clamp(20px, 3.5vh, 36px);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+// ── Heading ────────────────────────────────────────────────
+.gd__head { margin-bottom: clamp(24px, 4vh, 44px); }
+
+.gd__eyebrow {
+  @include eyebrow;
+  margin: 0 0 clamp(12px, 2vh, 20px);
+}
+
+.gd__eyebrow-rule { @include eyebrow-rule; }
+
+.gd__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2rem, 5vw, 3.8rem);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.gd__rating {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--ink);
+  margin: 14px 0 0;
+
+  > span:first-child { color: var(--terracotta); }
+}
+
+// ── Layout ─────────────────────────────────────────────────
+.gd__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 56px);
+  align-items: start;
+
+  @media (max-width: 900px) { grid-template-columns: minmax(0, 1fr); }
+}
+
+.gd__main {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(18px, 3vh, 28px);
+  min-width: 0;
+}
+
+.gd__side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+// ── Photo ──────────────────────────────────────────────────
+// Always 4:3 so a tall or wide photo never reshapes the page; the
+// tile colour for a missing photo comes from the shared helper.
+.gd__cover {
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--sand-dark);
+}
+
+.gd__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gd__initials {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 8vw, 4.5rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--cream);
+}
+
+// ── Story ──────────────────────────────────────────────────
+.gd__description {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--ink);
+  margin: 0;
+  max-width: 68ch;
+  white-space: pre-line;   // keep the paragraph breaks the editors typed
+  overflow-wrap: anywhere;
+}
+
+.gd__muted {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.gd__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gd__chip {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 4px 10px;
+}
+
+// ── Fact panels ────────────────────────────────────────────
+.gd__panel {
+  background: var(--sand);
+  border-radius: 2px;
+  padding: clamp(18px, 2.4vw, 28px);
+}
+
+.gd__panel-title {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0 0 16px;
+}
+
+.gd__facts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.gd__row {
+  display: grid;
+  gap: 2px;
+
+  dt {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  dd {
+    margin: 0;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--ink);
+    overflow-wrap: anywhere;
+  }
+
+  // A day with no hours on record recedes, so it isn't read as a time.
+  &--muted dd { color: var(--text-muted); }
+}
+
+// Opening hours read as a table: day on the left, times on the right.
+.gd__facts--hours {
+  gap: 8px;
+
+  .gd__row {
+    grid-template-columns: minmax(6rem, 7.5rem) 1fr;
+    align-items: baseline;
+    gap: 12px;
+
+    dt {
+      font-size: 0.9rem;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--ink);
+    }
+  }
+}
+
+.gd__link {
+  @include text-link;
+  overflow-wrap: anywhere;
+  &, &:visited, &:hover, &:active { color: var(--ink); }
+}
+
+// The Google Maps link sits under the address facts.
+.gd__facts + .gd__link {
+  display: inline-block;
+  margin-top: 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+// ── Loading ────────────────────────────────────────────────
+.gd__skel { @include skeleton; }
+.gd__skel--eyebrow { width: 140px; height: 12px; margin-bottom: 18px; }
+.gd__skel--title {
+  width: min(70%, 520px);
+  height: clamp(2rem, 5vw, 3.8rem);
+  margin-bottom: clamp(24px, 4vh, 44px);
+}
+.gd__skel--cover { aspect-ratio: 4 / 3; }
+.gd__skel--line { height: 14px; }
+.gd__skel--short { width: 60%; }
+.gd__skel--panel { height: 150px; }
+
+// ── Not found / error ──────────────────────────────────────
+.gd__notice {
+  max-width: 48ch;
+  margin: clamp(32px, 8vh, 96px) auto;
+  text-align: center;
+}
+
+.gd__notice-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 14px;
+}
+
+.gd__notice-text {
+  font-family: var(--font-body);
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin: 0 0 24px;
+}
+
+.gd__btn--primary { @include btn-primary; }
+.gd__btn--secondary { @include btn-secondary; }

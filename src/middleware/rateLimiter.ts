@@ -72,3 +72,20 @@ export const publicSubmissionLimiter = rateLimit({
       429,
     ),
 });
+
+/**
+ * Throttle the public contact form (enquiries). Same reasoning and budget as
+ * publicSubmissionLimiter, but keyed separately so writing in doesn't use up
+ * a visitor's suggestions, or the other way round.
+ */
+export const enquiryLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  limit: 5, // per IP per hour
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  store: new UpstashRateLimitStore(),
+  skip: () => env.NODE_ENV === 'test',
+  keyGenerator: (req: Request) => `enquiry:${ipKeyGenerator(req.ip ?? 'unknown')}`,
+  handler: (_req, res) =>
+    errorResponse(res, 'Too many messages from this connection — please try again later', 429),
+});

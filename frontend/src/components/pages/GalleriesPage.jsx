@@ -9,7 +9,7 @@ import "./GalleriesPage.scss";
  *
  * It used to sit at the bottom of the homepage, which meant every
  * visitor scrolled past the whole guide to reach the one thing they
- * might have come for. It is now the destination of the "Galleries"
+ * might have come for. It is now the destination of the "Spaces"
  * nav link instead.
  */
 export default function GalleriesPage() {

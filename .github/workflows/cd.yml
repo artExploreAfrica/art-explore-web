@@ -26,6 +26,7 @@ jobs:
             npm run build
             npm run prisma:deploy
             pm2 restart art-explore-api
+            npm run sync:s3-images || echo "⚠ Image sync failed — check S3/DB credentials on server"
 
   deploy-frontend:
     if: github.event.workflow_run.conclusion == 'success'

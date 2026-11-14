@@ -1,0 +1,244 @@
+@use '../../styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// TAG SHOWCASE — "Find your kind of space"
+//
+// Sand band, like the section it replaces. A strip of tall photo cards
+// the visitor swipes (or steps through with the arrows); each card is
+// a photograph of a space carrying the tag, with the tag's name set
+// over an Ink gradient so the type always has a dark ground.
+//
+// Colour roles: ink type on the sand band; cream type on the photo's
+// Ink gradient; the space count in light orange (4.97:1 on ink);
+// terracotta focus ring.
+// ─────────────────────────────────────────────────────────────
+
+.ts {
+  background: var(--sand);
+  padding: clamp(64px, 11vh, 140px) 0 clamp(64px, 11vh, 140px) var(--page-pad);
+  overflow: hidden;
+}
+
+.ts__state {
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+  padding-right: var(--page-pad);
+}
+
+.ts__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+// ── Header ─────────────────────────────────────────────────
+.ts__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 0 var(--page-pad) clamp(24px, 4vh, 44px) 0;
+}
+
+.ts__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 4.2vw, 3.2rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  margin: 0 0 clamp(10px, 1.6vh, 16px);
+  text-wrap: balance;
+}
+
+.ts__lede {
+  font-family: var(--font-body);
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 46ch;
+}
+
+// ── Arrows ─────────────────────────────────────────────────
+.ts__arrows {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.ts__arrow {
+  @include btn-secondary;
+  padding: 0;
+  width: 44px;
+  height: 44px;
+  justify-content: center;
+  border-color: var(--control-border);
+
+  &:disabled { opacity: 0.35; cursor: default; }
+}
+
+// ── Strip ──────────────────────────────────────────────────
+.ts__track {
+  display: flex;
+  gap: clamp(12px, 1.4vw, 20px);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 0;
+  scrollbar-width: none;
+  // The next card peeks in from the right, which says "there's more".
+  padding-right: var(--page-pad);
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+.ts__card {
+  position: relative;
+  flex: 0 0 clamp(250px, 28vw, 380px);
+  aspect-ratio: 3 / 4;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  background: var(--ink);
+  border-radius: 2px;
+  color: var(--on-dark);
+  text-decoration: none;
+  isolation: isolate;
+  box-shadow: inset 0 0 0 transparent;
+  transition: box-shadow 0.3s var(--ease-out);
+
+  // Ink gradient: text always has a dark ground, whatever the photo.
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    // Dense behind the text block (bottom ~45%) so the orange count and cream
+    // title stay legible even over a bright photo, then fades out above it.
+    background: linear-gradient(to top, rgba(36, 27, 18, 0.94) 0%, rgba(36, 27, 18, 0.82) 30%, rgba(36, 27, 18, 0.6) 48%, rgba(36, 27, 18, 0) 78%);
+  }
+
+  // The light orange top edge every card takes on hover, drawn over the photo.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: var(--orange);
+    z-index: 3;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s var(--ease);
+  }
+
+  &:hover::before,
+  &:focus-visible::before { transform: scaleX(1); }
+  &:hover .ts__img { transform: scale(1.05); }
+  @include focus-ring(var(--terracotta), 3px);
+
+  @media (max-width: 640px) { flex-basis: 78vw; }
+}
+
+.ts__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  transition: transform 0.9s var(--ease);
+}
+
+// Stands in when a photo is missing or its URL is dead.
+.ts__ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--terracotta);
+  color: var(--cream);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(3rem, 8vw, 5rem);
+  letter-spacing: -0.03em;
+}
+
+.ts__body {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: clamp(20px, 2.4vw, 32px);
+  text-align: center;
+}
+
+.ts__count {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--orange);
+}
+
+.ts__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 2.4vw, 2.1rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.ts__blurb {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--on-dark-muted);
+  max-width: 28ch;
+}
+
+.ts__credit {
+  margin-top: 6px;
+  font-family: var(--font-body);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+  opacity: 0.8;
+}
+
+// ── Loading skeleton ───────────────────────────────────────
+.ts__sk {
+  @include skeleton;
+  display: block;
+
+  &--lede { width: min(34ch, 80%); height: 1.1em; }
+  &--card {
+    flex: 0 0 clamp(250px, 28vw, 380px);
+    aspect-ratio: 3 / 4;
+
+    @media (max-width: 640px) { flex-basis: 78vw; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ts__card,
+  .ts__card::before,
+  .ts__img { transition: none; }
+  .ts__card:hover .ts__img { transform: none; }
+}

@@ -235,3 +235,24 @@ $ease-out: cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 0 0 1px var(--terracotta);
   }
 }
+
+// ── Skeleton ───────────────────────────────────────────────
+// Placeholder block shown while live data loads. A soft band of
+// $shine sweeps across $base; for reduced motion it holds still
+// at $base. Size the block to match the content it stands in for
+// so nothing jumps when the real thing arrives.
+@mixin skeleton($base: var(--sand-dark), $shine: var(--sand)) {
+  background: linear-gradient(90deg, $base 0%, $shine 50%, $base 100%) 0 0 / 200% 100%;
+  border-radius: 2px;
+  animation: skeletonSweep 1.4s $ease-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    background: $base;
+  }
+
+  @keyframes skeletonSweep {
+    from { background-position: 100% 0; }
+    to   { background-position: -100% 0; }
+  }
+}

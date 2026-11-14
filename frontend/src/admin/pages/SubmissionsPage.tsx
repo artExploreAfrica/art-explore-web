@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { adminApi, Pagination } from "../api";
-import { formatOpeningHours, Tag } from "../institutionShared";
+import { formatInstitutionType, formatOpeningHours, Tag } from "../institutionShared";
+import { ExhibitionSubmissions } from "./ExhibitionSubmissions";
 
 interface Submission {
   id: string;
@@ -25,7 +26,7 @@ interface Submission {
   tags?: { id: string; label: string }[];
   subCategory?: { name: string } | null;
   submittedBy?: { fullName: string; email: string } | null;
-  status: string;
+  approvalStatus?: string;
   createdAt?: string;
   [key: string]: any;
 }
@@ -45,6 +46,7 @@ const FIELD_LABELS: Record<string, string> = {
   name: "Name",
   description: "Description",
   type: "Type",
+  subType: "Sub-type",
   address: "Address",
   area: "Area",
   subArea: "Sub-area",
@@ -62,6 +64,17 @@ const FIELD_LABELS: Record<string, string> = {
   openingHours: "Opening hours",
   tagIds: "Tags",
 };
+
+/** "PENDING" → "Pending". */
+const formatStatus = (status?: string) =>
+  status ? status.charAt(0) + status.slice(1).toLowerCase() : "—";
+
+/**
+ * A public-form submission has no account; the visitor's optional name/email
+ * are written into notes as "Suggested by: Ada <ada@example.com>".
+ */
+const publicContact = (notes?: string | null): string | null =>
+  notes?.match(/^Suggested by: (.+)$/m)?.[1] ?? null;
 
 /** One row of a diff: label, the live value, and the proposed value. */
 interface DiffRow {
@@ -156,6 +169,7 @@ export function SubmissionsPage() {
     }
     if (field === "openingHours") return "(changed — see the institution's edit form for detail)";
     if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (field === "type" || field === "subType") return formatInstitutionType(String(value));
     return String(value);
   }
 
@@ -264,9 +278,22 @@ export function SubmissionsPage() {
                 <tr>
                   <td>{item.name}</td>
                   <td>{[item.area, item.subArea].filter(Boolean).join(", ") || "—"}</td>
-                  <td>{item.submittedBy?.email || "—"}</td>
                   <td>
-                    <span className="admin-badge admin-badge-neutral">{item.status}</span>
+                    {item.submittedBy ? (
+                      item.submittedBy.email
+                    ) : (
+                      <>
+                        <span className="admin-badge admin-badge-neutral">Public form</span>
+                        {publicContact(item.notes) && (
+                          <div className="admin-table-sub">{publicContact(item.notes)}</div>
+                        )}
+                      </>
+                    )}
+                  </td>
+                  <td>
+                    <span className="admin-badge admin-badge-neutral">
+                      {formatStatus(item.approvalStatus)}
+                    </span>
                   </td>
                   <td>
                     <button
@@ -304,7 +331,8 @@ export function SubmissionsPage() {
                         </div>
                         <div className="admin-form-row">
                           <label>Type</label>
-                          {item.type ? item.type.replace(/_/g, " ") : "—"}
+                          {item.type ? formatInstitutionType(item.type) : "—"}
+                          {item.subType ? ` · ${formatInstitutionType(item.subType)}` : ""}
                         </div>
                         <div className="admin-form-row">
                           <label>Address</label>
@@ -312,7 +340,7 @@ export function SubmissionsPage() {
                         </div>
                         <div className="admin-form-row">
                           <label>Coordinates</label>
-                          {item.lat !== undefined && item.lng !== undefined ? `${item.lat}, ${item.lng}` : "—"}
+                          {item.lat != null && item.lng != null ? `${item.lat}, ${item.lng}` : "Not pinned yet"}
                           {item.mapUrl && (
                             <>
                               {" — "}
@@ -383,6 +411,12 @@ export function SubmissionsPage() {
                           ) : (
                             "None uploaded"
                           )}
+                        </div>
+                        <div className="admin-form-row">
+                          <label>Internal notes</label>
+                          <p className="admin-page-note" style={{ marginTop: 0, whiteSpace: "pre-wrap" }}>
+                            {item.notes || "—"}
+                          </p>
                         </div>
                         <div className="admin-form-row">
                           <label>Submitted by</label>
@@ -538,6 +572,10 @@ export function SubmissionsPage() {
           </button>
         </div>
       )}
+
+      <hr className="admin-form-divider" />
+
+      <ExhibitionSubmissions />
     </div>
   );
 }

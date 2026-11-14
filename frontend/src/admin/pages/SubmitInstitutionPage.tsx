@@ -7,8 +7,11 @@ import {
   DayRow,
   emptyHours,
   hoursFromApi,
+  formatInstitutionType,
   hoursToApi,
+  INSTITUTION_SUBTYPES,
   INSTITUTION_TYPES,
+  InstitutionSubType,
   InstitutionType,
   MAX_IMAGE_BYTES,
   parseGeocode,
@@ -25,6 +28,7 @@ interface Institution {
   name: string;
   description?: string | null;
   type: InstitutionType;
+  subType?: InstitutionSubType | null;
   address: string;
   area: AreaEnum;
   subArea?: string | null;
@@ -48,6 +52,7 @@ const emptyForm = {
   name: "",
   description: "",
   type: "ART_GALLERY" as InstitutionType,
+  subType: "" as InstitutionSubType | "",
   address: "",
   area: "ISLAND" as AreaEnum,
   subArea: "",
@@ -80,6 +85,8 @@ function toApiPayload(
   const payload: Record<string, unknown> = {
     name: form.name.trim(),
     type: form.type,
+    // Always sent, so clearing the dropdown clears the stored sub-type.
+    subType: form.subType || null,
     address: form.address.trim(),
     area: form.area,
     lat: Number(form.lat),
@@ -203,18 +210,10 @@ export function SubmitInstitutionPage() {
     loadSubCategories();
   }, []);
 
-  const tagsByCategory = useMemo(() => {
-    const byCategory = new Map<string, Tag[]>();
-    allTags.forEach((tag) => {
-      const list = byCategory.get(tag.category) || [];
-      list.push(tag);
-      byCategory.set(tag.category, list);
-    });
-    byCategory.forEach((list) => list.sort((a, b) => a.label.localeCompare(b.label)));
-    return Array.from(byCategory, ([category, tags]) => ({ category, tags })).sort((a, b) =>
-      a.category.localeCompare(b.category),
-    );
-  }, [allTags]);
+  const sortedTags = useMemo(
+    () => [...allTags].sort((a, b) => a.label.localeCompare(b.label)),
+    [allTags],
+  );
 
   const subCategoryOptions = useMemo(
     () => allSubCategories.filter((sc) => sc.type === form.type),
@@ -255,6 +254,7 @@ export function SubmitInstitutionPage() {
       name: inst.name || "",
       description: inst.description || "",
       type: (inst.type as InstitutionType) || "ART_GALLERY",
+      subType: inst.subType || "",
       address: inst.address || "",
       area: (inst.area as AreaEnum) || "ISLAND",
       subArea: inst.subArea || "",
@@ -443,7 +443,21 @@ export function SubmitInstitutionPage() {
             >
               {INSTITUTION_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t.replace(/_/g, " ")}
+                  {formatInstitutionType(t)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="admin-form-row">
+            <label>Sub-type <span className="admin-optional">(optional)</span></label>
+            <select
+              value={form.subType}
+              onChange={(e) => setForm({ ...form, subType: e.target.value as InstitutionSubType | "" })}
+            >
+              <option value="">— None —</option>
+              {INSTITUTION_SUBTYPES.map((t) => (
+                <option key={t} value={t}>
+                  {formatInstitutionType(t)}
                 </option>
               ))}
             </select>
@@ -577,17 +591,15 @@ export function SubmitInstitutionPage() {
 
           <hr className="admin-form-divider" />
           <strong>Tags</strong>
-          {tagsByCategory.length === 0 && <p className="admin-page-note">No tags defined yet.</p>}
-          {tagsByCategory.map(({ category, tags }) => (
-            <div key={category} className="admin-form-row">
-              <label>{category.charAt(0) + category.slice(1).toLowerCase()}</label>
-              {tags.map((t) => (
-                <label key={t.id} style={{ display: "block", fontWeight: "normal" }}>
-                  <input type="checkbox" checked={tagIds.includes(t.id)} onChange={() => toggleTag(t.id)} /> {t.label}
-                </label>
-              ))}
-            </div>
-          ))}
+          {sortedTags.length === 0 && <p className="admin-page-note">No tags defined yet.</p>}
+          <div className="admin-tag-picker">
+            {sortedTags.map((t) => (
+              <label key={t.id} className="admin-tag-option">
+                <input type="checkbox" checked={tagIds.includes(t.id)} onChange={() => toggleTag(t.id)} />
+                {t.label}
+              </label>
+            ))}
+          </div>
 
           <hr className="admin-form-divider" />
           <strong>Opening hours</strong>

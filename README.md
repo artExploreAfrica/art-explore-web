@@ -35,6 +35,57 @@ Architecture is strictly layered: **Route → Controller → Service → Prisma*
 
 ## Getting Started
 
+### Quick start (local, Mac / Windows / Linux — no cloud accounts needed)
+
+Needs Node.js 20+ and Docker Desktop. Run from the repo root:
+
+**Option A — same data as the team (recommended).** Get `art-explore-demo.dump` from a teammate and put it in
+the `backups/` folder (it is not in git). Then:
+
+```bash
+git checkout dev && git pull
+cp .env.example .env                       # local-only settings, nothing to fill in
+docker compose up -d                       # Postgres + Redis
+npm install && (cd frontend && npm install)
+npm run db:restore                         # loads backups/art-explore-demo.dump (empty database only)
+npm run dev                                # API on http://localhost:4555  (terminal 1)
+cd frontend && npm run dev                 # site on http://localhost:5173 (terminal 2)
+```
+
+Do **not** run `npm run seed` after restoring: it overwrites curated gallery data with the CSV values.
+Admin panel: `http://localhost:5173/admin`, login `admin@artexplore.local` / `ChangeMe123!` (from the dump).
+
+**Day to day** (after the first-time setup above): open Docker Desktop, then from the repo root:
+
+```bash
+git pull
+npm run update      # npm install (root + frontend) + prisma migrate deploy; seconds when nothing changed
+npm run dev:all     # API + website together in one terminal (Ctrl+C stops both)
+```
+
+`npm run update` never deletes data: migrations only add or alter tables. If the database containers are stopped,
+run `docker start art-explore-db art-explore-redis art-explore-srh` first (or set them to restart automatically
+once with `docker update --restart unless-stopped art-explore-db art-explore-redis art-explore-srh`).
+On Windows, stop any running backend before starting a new one, otherwise `prisma generate` fails with `EPERM`.
+
+**Option B — from scratch, no dump.**
+
+```bash
+# same first four lines as above, then:
+npx prisma migrate deploy                  # create the tables
+npm run seed                               # admin account (from SEED_SUPER_ADMIN_* in .env) + galleries from the CSV
+npx ts-node scripts/tags-2026-11.ts --apply   # the 9 homepage tags (safe to re-run)
+```
+
+The seed does not import images, so this route shows galleries without photos, and the homepage tag cards
+stay hidden until at least one tagged space has a photo. Add photos in the admin panel (needs real `AWS_*`
+values in `.env`).
+
+**After every `git pull`:** run `npm install` if `package.json` changed and `npx prisma migrate deploy`
+if there are new folders in `prisma/migrations/`.
+
+The detailed steps below explain each part (and how to point at a real Postgres / Upstash / S3 instead).
+
 ### 1. Prerequisites
 - Node.js 20 LTS
 - A PostgreSQL database
@@ -300,7 +351,7 @@ const { data, pagination } = await (await fetch(`${BASE}/institutions?${qs}`)).j
 ```
 
 - `area`: `ISLAND` · `MAINLAND` · `OTHER`
-- `type`: `ART_GALLERY` · `MUSEUM` · `INSTITUTE` · `FOUNDATION` · `STUDIO` · `CULTURAL_SPACE`
+- `type`: `ART_GALLERY` · `MUSEUM` · `HUB_INSTITUTION` · `NOMADIC_SPACE` · `ART_FESTIVAL` · `RESIDENCY`
 - `subCategoryId`: an id from `GET /subcategories`
 - `tag`: a tag id **or** slug (`name`) from `GET /tags`
 - `search`: free text over name, description, tags

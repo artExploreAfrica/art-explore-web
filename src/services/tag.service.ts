@@ -1,4 +1,4 @@
-import { AuditAction, Prisma, Tag, TargetModel } from '@prisma/client';
+import { AuditAction, Prisma, Tag, TagCategory, TargetModel } from '@prisma/client';
 import prisma from '../config/db';
 import { ConflictError, NotFoundError } from '../utils/AppError';
 import { auditLog } from '../utils/auditLogger';
@@ -52,7 +52,7 @@ export const create = async (actorId: string, input: CreateTagInput): Promise<Ta
       data: {
         name: input.name,
         label: input.label ?? input.name,
-        category: input.category,
+        category: input.category ?? TagCategory.STYLE,
       },
     });
   } catch (err) {

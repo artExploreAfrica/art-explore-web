@@ -4,7 +4,10 @@ import { z } from 'zod';
 export const createTagSchema = z.object({
   name: z.string().trim().min(1, 'name is required'),
   label: z.string().trim().min(1).optional(),
-  category: z.nativeEnum(TagCategory),
+  // No longer chosen in the admin (tags aren't grouped any more). Still
+  // accepted so older callers keep working; omitted → STYLE (the column is
+  // NOT NULL, and dropping it would be a production database change).
+  category: z.nativeEnum(TagCategory).optional(),
 });
 
 export const updateTagSchema = z

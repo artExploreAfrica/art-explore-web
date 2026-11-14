@@ -292,3 +292,14 @@
   .admin-sidebar { width: 100%; }
   .admin-kpi-grid { grid-template-columns: 1fr; }
 }
+
+/* Tag picker in the institution forms: a wrapping row of tick-chips. */
+.admin-tag-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-tag-option {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 12px; border: 1px solid var(--ae-border, #e5ddd2); border-radius: 999px;
+  font-size: var(--ae-fs-sm, 13px); font-weight: 400; cursor: pointer; background: #fff;
+}
+.admin-tag-option:hover { border-color: var(--ae-primary, #b0431c); }
+.admin-tag-option:has(input:checked) { border-color: var(--ae-primary, #b0431c); background: #fbefe9; }
+.admin-tag-option input { margin: 0; }

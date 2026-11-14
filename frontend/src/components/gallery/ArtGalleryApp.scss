@@ -187,6 +187,19 @@
   @include focus-ring(var(--terracotta), -2px);
 }
 
+// The tag chips (Women Owned, Classics, ...), always shown under the tabs.
+.subtabs {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       8px;
+  padding:   16px 0 0;
+
+  @media (max-width: 480px) {
+    gap:     6px;
+    padding: 12px 0 0;
+  }
+}
+
 // ─── Filter row ─────────────────────────────────────────────────
 .filter-row {
   display:         flex;
@@ -318,10 +331,13 @@
 }
 
 // ─── Gallery card ────────────────────────────────────────────────
+// A card is a link to the space's own page, so it reads as a block, not text.
 .galleries .gallery-card {
   @include card;
-  border-radius: 2px;
-  overflow:      hidden;
+  display:         block;
+  text-decoration: none;
+  border-radius:   2px;
+  overflow:        hidden;
 }
 
 .card__thumb {
@@ -428,7 +444,7 @@
 
 .card__tag {
   font-size:      11px;
-  text-transform: capitalize;
+  text-transform: none; // tag labels keep their own capitals ("Recently established")
   color:          var(--ink);
   border:         1px solid var(--rule);
   border-radius:  2px;

@@ -43,7 +43,7 @@ const router = Router();
  *         schema: { type: string, enum: [ISLAND, MAINLAND, OTHER] }
  *       - in: query
  *         name: type
- *         schema: { type: string, enum: [ART_GALLERY, MUSEUM, INSTITUTE, FOUNDATION, STUDIO, CULTURAL_SPACE] }
+ *         schema: { type: string, enum: [ART_GALLERY, MUSEUM, HUB_INSTITUTION, NOMADIC_SPACE, ART_FESTIVAL, RESIDENCY] }
  *       - in: query
  *         name: subCategoryId
  *         schema: { type: string }

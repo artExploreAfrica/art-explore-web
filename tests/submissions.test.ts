@@ -108,6 +108,34 @@ describe('admin review', () => {
     expect(res.status).toBe(403);
   });
 
+  it('the PENDING queue includes public-form suggestions (no submitter account)', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
+    mocks.prisma.institution.findMany.mockResolvedValue([]);
+    mocks.prisma.institution.count.mockResolvedValue(0);
+
+    const res = await request(app).get('/api/v1/admin/submissions').set(adminToken);
+
+    expect(res.status).toBe(200);
+    expect(mocks.prisma.institution.findMany.mock.calls[0][0].where).toEqual({
+      approvalStatus: 'PENDING',
+      deletedAt: null,
+    });
+  });
+
+  it('the APPROVED view leaves out venues an admin created directly', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
+    mocks.prisma.institution.findMany.mockResolvedValue([]);
+    mocks.prisma.institution.count.mockResolvedValue(0);
+
+    await request(app).get('/api/v1/admin/submissions?status=APPROVED').set(adminToken);
+
+    expect(mocks.prisma.institution.findMany.mock.calls[0][0].where).toEqual({
+      approvalStatus: 'APPROVED',
+      deletedAt: null,
+      OR: [{ submittedById: { not: null } }, { reviewedById: { not: null } }],
+    });
+  });
+
   it('approve sets APPROVED + reviewer and logs APPROVE_INSTITUTION', async () => {
     stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
     mocks.prisma.institution.findFirst.mockResolvedValue(stored);

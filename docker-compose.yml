@@ -1,0 +1,35 @@
+# Local development services only (not used in production).
+#   docker compose up -d     start Postgres + Redis
+#   docker compose down      stop them (data is kept in the `pgdata` volume)
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: art-explore-db
+    environment:
+      POSTGRES_USER: artexplore
+      POSTGRES_PASSWORD: artexplore
+      POSTGRES_DB: artexplore
+    ports:
+      - '5435:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: art-explore-redis
+
+  # The backend talks to Redis over Upstash's REST API; this proxy provides that locally.
+  srh:
+    image: hiett/serverless-redis-http:latest
+    container_name: art-explore-srh
+    environment:
+      SRH_MODE: env
+      SRH_TOKEN: local-dev-token
+      SRH_CONNECTION_STRING: redis://redis:6379
+    ports:
+      - '8079:80'
+    depends_on:
+      - redis
+
+volumes:
+  pgdata:

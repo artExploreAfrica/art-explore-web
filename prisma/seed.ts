@@ -10,6 +10,7 @@ import {
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
+import { TAG_CATEGORY_DEFAULT, TAG_VOCABULARY } from '../src/config/tags';
 import { parseOpeningHoursCell } from '../src/utils/openingHours';
 
 const prisma = new PrismaClient();
@@ -92,9 +93,43 @@ interface GallerySeed {
   openingHours?: Prisma.InputJsonValue;
   tags?: string[];
   isPublished?: boolean;
+  /**
+   * From the sheet's `residency_institution` column: the name of the parent
+   * gallery that runs this residency. The parent gets `hasResidency = true`.
+   */
+  residencyParent?: string;
+}
+
+/**
+ * Catalogue renames between CSV baselines. The seed matches institutions by
+ * name, so without this a renamed venue would be created a second time (losing
+ * its curated images and tags) instead of updated. Each entry is applied only
+ * when no live record already carries the new name, so re-running is a no-op.
+ */
+const LEGACY_NAME_RENAMES: ReadonlyArray<readonly [from: string, to: string]> = [
+  // Final-Art-Explore-DBList.csv baseline (Nov 2026).
+  ['Randle Center', 'John Randle Centre'],
+  ['Art Pantheon', 'The Art Pantheon'],
+];
+
+async function applyLegacyRenames(): Promise<void> {
+  for (const [from, to] of LEGACY_NAME_RENAMES) {
+    const target = await prisma.institution.findFirst({
+      where: { name: { equals: to, mode: 'insensitive' }, deletedAt: null },
+      select: { id: true },
+    });
+    if (target) continue; // already renamed (or created under the new name)
+
+    const { count } = await prisma.institution.updateMany({
+      where: { name: { equals: from, mode: 'insensitive' }, deletedAt: null },
+      data: { name: to },
+    });
+    if (count > 0) console.log(`✏️  Renamed "${from}" → "${to}"`);
+  }
 }
 
 const CSV_CANDIDATES = [
+  'Final-Art-Explore-DBList.csv',
   'ArtandCulturalSpacesDBlatest5.csv',
   'ArtandCulturalSpacesDB-latest-4.csv',
   'ArtandCulturalSpacesDB-latest.csv',
@@ -120,6 +155,7 @@ function mapInstitutionType(rawType: string, _name: string): InstitutionType | n
   if (label === 'museums' || label === 'museum') return InstitutionType.MUSEUM;
   if (label === 'art festivals' || label.includes('festival')) return InstitutionType.ART_FESTIVAL;
   if (label === 'nomadic spaces' || label.includes('nomadic')) return InstitutionType.NOMADIC_SPACE;
+  if (label === 'residencies' || label.includes('residenc')) return InstitutionType.RESIDENCY;
   if (label === 'art hubs/institutions' || label === 'art hubs' || label.includes('hub')) {
     return InstitutionType.HUB_INSTITUTION;
   }
@@ -253,7 +289,13 @@ function loadGalleriesFromCsv(): GallerySeed[] {
 
     // Drop any row that fails the hard constraints — this also filters out
     // garbage produced if a description ever contained an embedded newline.
-    if (!row.name || !type || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    // Coordinates are only a hard constraint for fixed venues; without the
+    // coordsOptional guard this dropped every nomadic space and festival.
+    if (
+      !row.name ||
+      !type ||
+      (!coordsOptional && (!Number.isFinite(lat) || !Number.isFinite(lng)))
+    ) {
       skipped++;
       continue;
     }
@@ -290,6 +332,7 @@ function loadGalleriesFromCsv(): GallerySeed[] {
       phone: cleanPhone(row.phone),
       email: row.email || undefined,
       openingHours,
+      residencyParent: row.residency_institution || undefined,
     });
   }
 
@@ -306,6 +349,8 @@ async function seedGalleries(): Promise<void> {
     console.warn('⚠️  No galleries to import — skipping.');
     return;
   }
+
+  await applyLegacyRenames();
 
   let created = 0;
   let updated = 0;
@@ -403,6 +448,18 @@ async function seedGalleries(): Promise<void> {
   }
 
   console.log(`✅ Imported ${galleries.length} galleries (${created} created, ${updated} updated)`);
+
+  // Flag parent galleries that run a residency listed in the sheet. Only ever
+  // sets true, so a flag curated in the admin UI is never cleared by a re-seed.
+  const parents = [...new Set(galleries.map((g) => g.residencyParent).filter(Boolean))] as string[];
+  for (const parent of parents) {
+    const { count } = await prisma.institution.updateMany({
+      where: { name: { equals: parent, mode: 'insensitive' }, deletedAt: null },
+      data: { hasResidency: true },
+    });
+    if (count === 0) console.warn(`⚠️  Residency parent "${parent}" not found in the catalogue.`);
+  }
+  if (parents.length > 0) console.log(`✅ Flagged ${parents.length} residency parent(s)`);
 }
 
 /** A small starter set of admin-managed sub-categories, idempotent by (type, name). */
@@ -411,10 +468,10 @@ async function seedSubCategories(): Promise<void> {
     { name: 'Contemporary', type: InstitutionType.ART_GALLERY },
     { name: 'Photography', type: InstitutionType.ART_GALLERY },
     { name: 'Modern', type: InstitutionType.ART_GALLERY },
-    { name: 'Painting Studio', type: InstitutionType.STUDIO },
-    { name: 'Sculpture Studio', type: InstitutionType.STUDIO },
-    { name: 'Museum', type: InstitutionType.CULTURAL_SPACE },
-    { name: 'Heritage Site', type: InstitutionType.CULTURAL_SPACE },
+    { name: 'Painting Studio', type: InstitutionType.HUB_INSTITUTION },
+    { name: 'Sculpture Studio', type: InstitutionType.HUB_INSTITUTION },
+    { name: 'Museum', type: InstitutionType.HUB_INSTITUTION },
+    { name: 'Heritage Site', type: InstitutionType.HUB_INSTITUTION },
   ];
 
   for (const sc of subCategories) {
@@ -428,35 +485,17 @@ async function seedSubCategories(): Promise<void> {
   console.log(`✅ Seeded ${subCategories.length} sub-categories`);
 }
 
-/** The v2 predefined tag vocabulary, idempotent by unique name (slug). */
+/** The tag vocabulary (src/config/tags.ts), idempotent by unique name (slug). */
 async function seedTags(): Promise<void> {
-  const tags: { name: string; label: string; category: TagCategory }[] = [
-    { name: 'WOMEN_OWNED', label: 'Women Owned', category: TagCategory.OWNERSHIP },
-    { name: 'ARTIST_LED', label: 'Artist Led', category: TagCategory.OWNERSHIP },
-    { name: 'LIVE_EXHIBITION', label: 'Live Exhibition', category: TagCategory.FORMAT },
-    { name: 'BY_APPOINTMENT', label: 'By Appointment', category: TagCategory.FORMAT },
-    { name: 'ONLINE', label: 'Online', category: TagCategory.FORMAT },
-    { name: 'OUR_PICKS', label: 'Our Picks', category: TagCategory.CURATION },
-    { name: 'NEW_ARRIVAL', label: 'New Arrival', category: TagCategory.CURATION },
-    { name: 'FEATURED', label: 'Featured', category: TagCategory.CURATION },
-    { name: 'CONTEMPORARY', label: 'Contemporary', category: TagCategory.STYLE },
-    { name: 'MODERN', label: 'Modern', category: TagCategory.STYLE },
-    { name: 'PHOTOGRAPHY', label: 'Photography', category: TagCategory.STYLE },
-    { name: 'SCULPTURE', label: 'Sculpture', category: TagCategory.STYLE },
-    { name: 'DIGITAL_ART', label: 'Digital Art', category: TagCategory.STYLE },
-    { name: 'TEXTILE', label: 'Textile & Fabric', category: TagCategory.STYLE },
-    { name: 'MIXED_MEDIA', label: 'Mixed Media', category: TagCategory.STYLE },
-  ];
-
-  for (const tag of tags) {
+  for (const tag of TAG_VOCABULARY) {
     await prisma.tag.upsert({
       where: { name: tag.name },
-      update: { label: tag.label, category: tag.category },
-      create: tag,
+      update: { label: tag.label },
+      create: { ...tag, category: TAG_CATEGORY_DEFAULT },
     });
   }
 
-  console.log(`✅ Seeded ${tags.length} tags`);
+  console.log(`✅ Seeded ${TAG_VOCABULARY.length} tags`);
 }
 
 async function main(): Promise<void> {

@@ -44,6 +44,33 @@ beforeEach(() => {
 });
 
 describe('POST /api/v1/admin/tags', () => {
+  it('creates a tag without a category (hidden in the admin) and stores the STYLE default', async () => {
+    mocks.prisma.tag.create.mockResolvedValue(stored);
+
+    const res = await request(app)
+      .post('/api/v1/admin/tags')
+      .set(adminToken)
+      .send({ name: 'WOMEN_OWNED', label: 'Women Owned' });
+
+    expect(res.status).toBe(201);
+    expect(mocks.prisma.tag.create.mock.calls[0][0].data).toEqual({
+      name: 'WOMEN_OWNED',
+      label: 'Women Owned',
+      category: 'STYLE',
+    });
+  });
+
+  it('still honours a category if an older caller sends one', async () => {
+    mocks.prisma.tag.create.mockResolvedValue(stored);
+
+    await request(app)
+      .post('/api/v1/admin/tags')
+      .set(adminToken)
+      .send({ name: 'ARTIST_LED', label: 'Artist Led', category: 'OWNERSHIP' });
+
+    expect(mocks.prisma.tag.create.mock.calls[0][0].data.category).toBe('OWNERSHIP');
+  });
+
   it('201s and logs CREATE + invalidates cache', async () => {
     mocks.prisma.tag.create.mockResolvedValue(stored);
 

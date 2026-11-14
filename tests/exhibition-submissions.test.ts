@@ -122,6 +122,8 @@ describe('POST /api/v1/submissions/exhibitions', () => {
       isActive: false,
       submittedById: 'user_1',
       institutionId: 'inst_1',
+      // Regression: omitting images hit the NOT NULL column (Prisma P2011).
+      images: [],
     });
     expect(mocks.prisma.auditLog.create.mock.calls[0][0].data).toMatchObject({
       action: 'SUBMIT',
@@ -131,7 +133,7 @@ describe('POST /api/v1/submissions/exhibitions', () => {
 });
 
 describe('GET /api/v1/admin/submissions/exhibitions', () => {
-  it('lists only user-submitted exhibitions, PENDING by default', async () => {
+  it('lists every PENDING exhibition by default, including public-form ones', async () => {
     stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
     mocks.prisma.exhibition.findMany.mockResolvedValue([pending]);
     mocks.prisma.exhibition.count.mockResolvedValue(1);
@@ -141,9 +143,24 @@ describe('GET /api/v1/admin/submissions/exhibitions', () => {
       .set(adminToken);
 
     expect(res.status).toBe(200);
-    expect(mocks.prisma.exhibition.findMany.mock.calls[0][0].where).toMatchObject({
+    // No submitter filter: an anonymous submission has submittedById null.
+    expect(mocks.prisma.exhibition.findMany.mock.calls[0][0].where).toEqual({
       approvalStatus: 'PENDING',
-      submittedById: { not: null },
+    });
+  });
+
+  it('keeps the APPROVED view to submitted or reviewed exhibitions', async () => {
+    stubActiveUser(mocks.prisma.user.findUnique, Role.ADMIN, { id: 'admin_1' });
+    mocks.prisma.exhibition.findMany.mockResolvedValue([]);
+    mocks.prisma.exhibition.count.mockResolvedValue(0);
+
+    await request(app)
+      .get('/api/v1/admin/submissions/exhibitions?status=APPROVED')
+      .set(adminToken);
+
+    expect(mocks.prisma.exhibition.findMany.mock.calls[0][0].where).toEqual({
+      approvalStatus: 'APPROVED',
+      OR: [{ submittedById: { not: null } }, { approvedById: { not: null } }],
     });
   });
 });

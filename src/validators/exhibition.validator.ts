@@ -70,6 +70,24 @@ const noClientImages = z.undefined({
   invalid_type_error: 'images cannot be set directly — upload them to this submission instead',
 });
 
+/**
+ * A signed-out visitor adding an exhibition from the home page. Same fields as
+ * a contributor submission, for an existing published venue, plus optional
+ * contact details (kept in the exhibition's internal `notes`) and the
+ * `company` honeypot — see publicSubmissionSchema.
+ */
+export const publicExhibitionSchema = exhibitionFields
+  .omit({ images: true })
+  .extend({
+    institutionId: z.string().min(1, 'institutionId is required'),
+    name: z.string().trim().min(1, 'name is required').max(200),
+    description: z.string().trim().max(2000).optional(),
+    submitterName: z.string().trim().max(100).optional(),
+    submitterEmail: z.string().trim().email('submitterEmail must be a valid email').max(200).optional(),
+    company: z.string().optional(),
+  })
+  .refine((data) => data.endDate >= data.startDate, endNotBeforeStart);
+
 export const submitExhibitionSchema = exhibitionFields
   .omit({ images: true })
   .extend({
@@ -130,6 +148,7 @@ export const setExhibitionActiveSchema = z.object({
 
 export type ExhibitionScope = z.infer<typeof exhibitionScopeSchema>;
 export type SubmitExhibitionInput = z.infer<typeof submitExhibitionSchema>;
+export type PublicExhibitionInput = z.infer<typeof publicExhibitionSchema>;
 export type UpdateSubmittedExhibitionInput = z.infer<typeof updateSubmittedExhibitionSchema>;
 export type CreateExhibitionInput = z.infer<typeof createExhibitionSchema>;
 export type UpdateExhibitionInput = z.infer<typeof updateExhibitionSchema>;

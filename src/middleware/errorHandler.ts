@@ -69,9 +69,22 @@ export const errorHandler = (
         });
       case 'P2025':
         return errorResponse(res, 'Record not found', 404);
+      // The database is unreachable or overloaded — a temporary server-side
+      // problem, not a bad request. 503 tells clients and monitoring as much.
+      case 'P1001': // can't reach database server
+      case 'P1002': // database server timed out
+      case 'P1008': // operation timed out
+      case 'P1017': // server closed the connection
+      case 'P2024': // timed out waiting for a connection from the pool
+        return errorResponse(res, 'Database temporarily unavailable', 503, { code: err.code });
       default:
         return errorResponse(res, 'Database request error', 400, { code: err.code });
     }
+  }
+
+  // Prisma couldn't connect at all (e.g. database down when the first query runs).
+  if (err instanceof Prisma.PrismaClientInitializationError) {
+    return errorResponse(res, 'Database temporarily unavailable', 503);
   }
 
   if (err instanceof Prisma.PrismaClientValidationError) {

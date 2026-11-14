@@ -1,0 +1,189 @@
+@use '../../styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// WHO ARE WE? — the short about section under the hero.
+//
+// Cream ground with ink type; the copy is ink and muted ink, both
+// approved pairings on cream. Under it, five sand cards (a card
+// colour, so they sit on cream, never on a sand band): index, the
+// live count, the kind of space and one line about it. Hover and
+// focus are the shared card states (cream with a light-orange top
+// edge, terracotta ring); the index turns terracotta, which is 5.0:1
+// on cream. The one button is the primary (terracotta, the colour
+// people click).
+//
+// One row of five on desktop; two columns on a phone, where the
+// fifth card takes the whole last row rather than sitting alone.
+// ─────────────────────────────────────────────────────────────
+
+.ww {
+  background: var(--cream);
+  padding: clamp(64px, 10vh, 120px) var(--page-pad);
+}
+
+// ── Copy ───────────────────────────────────────────────────
+.ww__intro {
+  max-width: 62ch;
+  margin: 0 auto clamp(32px, 6vh, 64px);
+  text-align: center;
+}
+
+.ww__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 4.6vw, 3.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  margin: 0 0 clamp(14px, 2vh, 22px);
+  text-wrap: balance;
+}
+
+.ww__text {
+  font-family: var(--font-body);
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+
+  &:last-child { margin-bottom: 0; }
+}
+
+// ── Cards ──────────────────────────────────────────────────
+.ww__cards {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(10px, 1.4vw, 20px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  > li { display: flex; }   // equal-height cards in a row
+
+  @media (max-width: 860px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+
+    // Five cards in two columns leave the last one alone: give it the row.
+    > li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  }
+}
+
+.ww__card {
+  @include card;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(24px, 3vw, 40px) clamp(14px, 1.6vw, 24px);
+  border-radius: 2px;
+  text-align: center;
+  text-decoration: none;
+
+  @media (max-width: 860px) { padding: 22px 14px; }
+
+  &:hover .ww__index,
+  &:focus-visible .ww__index { color: var(--terracotta); }
+}
+
+.ww__index {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  color: var(--ink);
+  margin-bottom: clamp(10px, 1.6vh, 18px);
+  transition: color 0.3s $ease-out;
+}
+
+.ww__num {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.6rem, 4.6vw, 4.4rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  margin-bottom: clamp(10px, 1.6vh, 16px);
+
+  // Same footprint as a two-digit number, so nothing jumps on load.
+  &--loading {
+    @include skeleton;
+    width: 1.5em;
+    height: 0.9em;
+  }
+}
+
+.ww__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1rem, 1.3vw, 1.2rem);
+  line-height: 1.2;
+  color: var(--ink);
+  margin-bottom: 10px;
+  text-wrap: balance;
+}
+
+.ww__blurb {
+  font-family: var(--font-body);
+  font-size: clamp(0.8rem, 0.9vw, 0.9rem);
+  line-height: 1.6;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+// ── Total ──────────────────────────────────────────────────
+// One line, "Total = 116 spaces", on a sand chip that hugs its words and sits
+// centred under the cards. Same sand and ink as the cards; not a link, so no
+// hover state.
+.ww__total {
+  width: fit-content;
+  max-width: 100%;
+  margin: clamp(10px, 1.4vw, 20px) auto 0;
+  padding: clamp(12px, 1.4vw, 18px) clamp(20px, 2.4vw, 32px);
+  background: var(--sand);
+  border-radius: 2px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.05rem, 1.5vw, 1.35rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  white-space: nowrap;
+  text-align: center;
+
+  @media (max-width: 860px) { margin-top: 12px; }
+}
+
+.ww__total-num {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+
+  // Same footprint as a three-digit count, so nothing jumps on load.
+  &--loading {
+    @include skeleton;
+    display: inline-block;
+    width: 1.8em;
+    height: 0.9em;
+    vertical-align: -0.1em;
+  }
+}
+
+// ── Button ─────────────────────────────────────────────────
+.ww__more {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(28px, 5vh, 48px);
+}
+
+.ww__btn {
+  @include btn-primary;
+
+  svg { transition: transform 0.35s $ease; }
+  &:hover svg { transform: translateX(5px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ww__index,
+  .ww__btn svg { transition: none; }
+}

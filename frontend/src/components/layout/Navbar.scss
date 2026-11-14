@@ -1,17 +1,13 @@
 @use '../../styles/brand' as *;
 
 // ─────────────────────────────────────────────────────────────
-// NAVBAR — "Navigation on ink" (Colour Alignment, section 02).
+// NAVBAR — ink ground, cream/rust links and dropdowns.
 //
-// Ink ground, cream links (14.8:1). Hover and active take a light
-// orange underline, and hover turns the text light orange, which
-// is 4.97:1 on ink. Focus is a 2px cream outline. The ground is
-// solid so the links never pick up the hero photo underneath.
-//
-// Interactions:
-//   · links      — orange underline wipes in from the left
-//   · logo       — fades slightly
-//   · mobile     — panel slides down, links stagger in
+// Logo: rust compass icon (favicon-red) + "Art Explore" text.
+//   Icon is intentionally larger than the text.
+// Nav items: About (dropdown), Map, Spaces (dropdown).
+// Dropdowns open on click; cream floating panel on desktop,
+//   inline expansion on mobile.
 // ─────────────────────────────────────────────────────────────
 
 .navbar {
@@ -25,38 +21,46 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    height: 82px;
-    // Same centred measure as the page sections, so the logo lines
-    // up with section content rather than sitting at the viewport
-    // edge.
+    height: 72px;
     max-width: none;
     padding: 0 var(--page-pad);
 
-    @media (max-width: 768px) { height: 70px; }
-    @media (max-width: 480px) { height: 62px; }
+    @media (max-width: 768px) { height: 60px; }
+    @media (max-width: 480px) { height: 54px; }
   }
 
   // ── Logo ───────────────────────────────────────────────────
-  // Cream wordmark asset. Height-driven so it scales with the bar.
   .logo {
     display: inline-flex;
     align-items: center;
+    gap: 10px;
     text-decoration: none;
     line-height: 0;
     @include focus-ring(var(--cream), 4px);
+
+    &:hover .logo__icon { opacity: 0.82; }
   }
 
-  .logo__img {
-    height: clamp(30px, 3.4vw, 42px);
+  .logo__icon {
+    height: clamp(48px, 5.8vw, 68px);
     width: auto;
     display: block;
     transition: opacity 0.3s var(--ease-out);
 
-    &:hover { opacity: 0.82; }
+    @media (max-width: 480px) { height: 42px; }
+  }
 
-    @media (max-width: 480px) {
-      height: 26px;
-    }
+  .logo__text {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(11px, 1.35vw, 16px);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--cream);
+    line-height: 1;
+    white-space: nowrap;
+
+    @media (max-width: 480px) { font-size: 11px; }
   }
 
   // ── Mobile toggle ──────────────────────────────────────────
@@ -80,15 +84,15 @@
     @media (max-width: 768px) { display: block; }
   }
 
-  // ── Links ──────────────────────────────────────────────────
+  // ── Nav links list ────────────────────────────────────────
   .nav-links {
     display: flex;
     align-items: center;
     gap: clamp(22px, 2.6vw, 40px);
     list-style: none;
 
-    a,
-    .nav-logout {
+    // Plain anchor links (Map)
+    a {
       @include nav-link-on-ink;
       font-family: var(--font-body);
       font-size: 13px;
@@ -97,11 +101,11 @@
       text-transform: uppercase;
     }
 
-    // ── Mobile panel ──
+    // ── Mobile panel ────────────────────────────────────────
     @media (max-width: 768px) {
       display: none;
       position: absolute;
-      top: 70px;
+      top: 60px;
       left: 0;
       right: 0;
       background: var(--ink);
@@ -109,58 +113,136 @@
       flex-direction: column;
       align-items: flex-start;
       padding: 26px clamp(20px, 5vw, 40px) 32px;
-      gap: 20px;
+      gap: 18px;
 
       &.active {
         display: flex;
         animation: navPanelIn 0.45s var(--ease) both;
       }
 
-      // Stagger the links in behind the panel.
-      &.active li {
+      &.active > li {
         animation: navItemIn 0.5s var(--ease) both;
       }
-      &.active li:nth-child(1) { animation-delay: 0.06s; }
-      &.active li:nth-child(2) { animation-delay: 0.12s; }
-      &.active li:nth-child(3) { animation-delay: 0.18s; }
-      &.active li:nth-child(4) { animation-delay: 0.24s; }
-      &.active li:nth-child(5) { animation-delay: 0.30s; }
+      &.active > li:nth-child(1) { animation-delay: 0.06s; }
+      &.active > li:nth-child(2) { animation-delay: 0.14s; }
+      &.active > li:nth-child(3) { animation-delay: 0.22s; }
 
-      a {
-        font-size: 15px;
-        display: block;
-        padding: 6px 0;
-      }
+      a { font-size: 15px; display: block; padding: 6px 0; }
     }
 
     @media (max-width: 480px) {
-      top: 62px;
+      top: 54px;
       padding: 20px;
-      gap: 16px;
+      gap: 14px;
     }
   }
 
-  // ── Auth cluster ───────────────────────────────────────────
-  .nav-auth {
-    display: flex;
+  // ── Dropdown trigger button ───────────────────────────────
+  // Looks and behaves exactly like a plain nav link, but is a
+  // <button> so it can toggle without navigating.
+  .nav-dropdown-trigger {
+    @include nav-link-on-ink;
+    display: inline-flex;
     align-items: center;
-    gap: 14px;
-  }
-
-  .nav-user {
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--on-dark-muted);
-  }
-
-  .nav-logout {
+    gap: 5px;
     background: none;
-    border: none;
+    border: 0;
+    padding: 0 0 6px;
     cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    // Reset button defaults that fight the mixin:
+    line-height: inherit;
+
+    @media (max-width: 768px) { font-size: 15px; padding-bottom: 0; }
+  }
+
+  .nav-chevron {
+    flex-shrink: 0;
+    transition: transform 0.25s var(--ease-out);
+    // Keep the chevron vertically centred relative to the text
+    margin-top: 1px;
+  }
+
+  // ── Dropdown item ─────────────────────────────────────────
+  .nav-item--has-dropdown {
+    position: relative;
+
+    // Rotate chevron when open
+    &.is-open .nav-chevron { transform: rotate(180deg); }
+
+    // Desktop dropdown panel
+    .nav-dropdown {
+      display: none;
+      list-style: none;
+      position: absolute;
+      top: calc(100% + 14px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--cream);
+      border: 1px solid var(--rule);
+      border-top: 2px solid var(--orange);
+      border-radius: 2px;
+      min-width: 190px;
+      box-shadow: 0 8px 28px rgba(36, 27, 18, 0.16);
+      z-index: 10;
+      animation: dropdownIn 0.2s var(--ease) both;
+
+      li a {
+        display: block;
+        padding: 11px 18px;
+        color: var(--ink);
+        font-family: var(--font-body);
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        text-transform: none;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: background 0.18s var(--ease-out), color 0.18s var(--ease-out);
+
+        &:hover {
+          background: var(--sand);
+          color: var(--terracotta);
+        }
+        @include focus-ring(var(--terracotta));
+      }
+    }
+
+    &.is-open .nav-dropdown { display: block; }
+
+    // Mobile: no absolute positioning — items appear inline
+    @media (max-width: 768px) {
+      .nav-dropdown {
+        position: static;
+        transform: none;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        min-width: 0;
+        padding: 8px 0 0 14px;
+        animation: none;
+
+        li a {
+          color: var(--on-dark-muted);
+          font-size: 14px;
+          font-weight: 500;
+          padding: 5px 0;
+          letter-spacing: 0.04em;
+
+          &:hover { background: transparent; color: var(--cream); }
+        }
+      }
+
+      &.is-open .nav-dropdown { display: flex; flex-direction: column; }
+    }
   }
 }
 
+// ── Keyframes ────────────────────────────────────────────────
 @keyframes navPanelIn {
   from { opacity: 0; transform: translateY(-12px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -171,15 +253,23 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-// Respect a reduced-motion preference — kill transforms, keep state.
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+// Respect reduced motion
 @media (prefers-reduced-motion: reduce) {
   .navbar {
-    .logo__img,
+    .logo__icon,
+    .nav-dropdown-trigger,
     .nav-links a,
     .nav-links a::after,
+    .nav-chevron,
     .mobile-menu-btn { transition: none; }
 
     .nav-links.active,
-    .nav-links.active li { animation: none; }
+    .nav-links.active > li,
+    .nav-dropdown { animation: none; }
   }
 }

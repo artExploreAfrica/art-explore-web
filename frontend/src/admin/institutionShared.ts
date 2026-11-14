@@ -7,31 +7,72 @@
 export type InstitutionType =
   | "ART_GALLERY"
   | "MUSEUM"
+  | "HUB_INSTITUTION"
+  | "NOMADIC_SPACE"
+  | "ART_FESTIVAL"
+  | "RESIDENCY";
+export type InstitutionSubType =
+  | "ART_GALLERY"
+  | "MUSEUM"
   | "INSTITUTE"
   | "FOUNDATION"
   | "STUDIO"
   | "CULTURAL_SPACE"
-  | "HUB_INSTITUTION"
-  | "NOMADIC_SPACE"
+  | "ONLINE"
   | "ART_FESTIVAL";
 export type AreaEnum = "ISLAND" | "MAINLAND" | "OTHER";
 
-export const INSTITUTION_TYPES: InstitutionType[] = [
+/** InstitutionSubType from prisma/schema.prisma — a finer kind within the type. */
+export const INSTITUTION_SUBTYPES: InstitutionSubType[] = [
   "ART_GALLERY",
   "MUSEUM",
   "INSTITUTE",
   "FOUNDATION",
   "STUDIO",
   "CULTURAL_SPACE",
+  "ONLINE",
+  "ART_FESTIVAL",
+];
+
+/** "Art Hub/Institution · Studio" — the sub-type is left out when it just repeats the type. */
+export function formatTypeWithSubType(type?: string | null, subType?: string | null): string {
+  if (!type) return "—";
+  const main = formatInstitutionType(type);
+  return subType && subType !== type ? `${main} · ${formatInstitutionType(subType)}` : main;
+}
+
+export const INSTITUTION_TYPES: InstitutionType[] = [
+  "ART_GALLERY",
+  "MUSEUM",
   "HUB_INSTITUTION",
   "NOMADIC_SPACE",
   "ART_FESTIVAL",
+  "RESIDENCY",
 ];
 export const AREAS: AreaEnum[] = ["ISLAND", "MAINLAND", "OTHER"];
+
+/**
+ * Types with no fixed venue (mirrors NO_FIXED_VENUE_TYPES in the backend
+ * validator). For these, address and coordinates may be left blank; the place
+ * is then simply left off the map.
+ */
+export const NO_FIXED_VENUE_TYPES: ReadonlySet<InstitutionType> = new Set<InstitutionType>([
+  "NOMADIC_SPACE",
+  "ART_FESTIVAL",
+]);
+
+export const needsLocation = (type: InstitutionType): boolean => !NO_FIXED_VENUE_TYPES.has(type);
+
+/** Types whose display name isn't just the title-cased enum. */
+const INSTITUTION_TYPE_LABELS: Partial<Record<InstitutionType, string>> = {
+  HUB_INSTITUTION: "Art Hub/Institution",
+};
 
 /** Human-readable label for a type — used anywhere a badge or list shows it,
  * instead of every call site re-deriving it from the raw enum string. */
 export function formatInstitutionType(type: string): string {
+  const label = INSTITUTION_TYPE_LABELS[type as InstitutionType];
+  if (label) return label;
   return type
     .toLowerCase()
     .split("_")
@@ -152,7 +193,8 @@ export interface Tag {
   id: string;
   name: string;
   label: string;
-  category: string;
+  /** Not shown or edited any more; kept because the API still returns it. */
+  category?: string;
 }
 
 /** Mirrors prisma/schema.prisma `model SubCategory`. */

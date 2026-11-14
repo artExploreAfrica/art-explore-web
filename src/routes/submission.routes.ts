@@ -8,6 +8,7 @@ import { roleGuard } from '../middleware/roleGuard';
 import { uploadImage } from '../middleware/upload';
 import { validate } from '../middleware/validate';
 import {
+  publicExhibitionSchema,
   submitExhibitionSchema,
   updateSubmittedExhibitionSchema,
 } from '../validators/exhibition.validator';
@@ -26,12 +27,14 @@ const router = Router();
  * @swagger
  * /api/v1/submissions/public:
  *   post:
- *     summary: Suggest a venue without an account (created PENDING, unpublished)
+ *     summary: Add a new space without an account (created PENDING, unpublished)
  *     description: >
- *       Used by the "Are we missing a gallery?" form on the home page. Accepts
- *       only name, type, area, address, subArea, website, instagram and
- *       description, plus optional submitterName / submitterEmail, which are
- *       stored in the internal notes. Rate limited per IP.
+ *       Used by "Add a New Space" in the home-page contribute form. Accepts the
+ *       full venue entry (name, type, subType, area, address, subArea, mapUrl,
+ *       optional lat/lng pair, website, instagram, phone, email, openingHours,
+ *       hasResidency, description) except tags, sub-category, images and
+ *       publish state. photoLinks and the optional submitterName /
+ *       submitterEmail are stored in the internal notes. Rate limited per IP.
  *     tags: [Submissions]
  *     responses:
  *       201: { description: Suggestion received and pending review }
@@ -44,6 +47,30 @@ router.post(
   publicSubmissionLimiter,
   validate({ body: publicSubmissionSchema }),
   submissionController.submitPublic,
+);
+
+/**
+ * @swagger
+ * /api/v1/submissions/exhibitions/public:
+ *   post:
+ *     summary: Add an exhibition without an account (created PENDING, inactive)
+ *     description: >
+ *       Used by "Add an Exhibition" in the home-page contribute form. The venue
+ *       must be published and approved. submitterName / submitterEmail are
+ *       stored in the exhibition's internal notes. Shares the per-IP limit of
+ *       /submissions/public.
+ *     tags: [Submissions]
+ *     responses:
+ *       201: { description: Exhibition received and pending review }
+ *       400: { description: Validation failed }
+ *       404: { description: Venue not found }
+ *       429: { description: Too many suggestions from this connection }
+ */
+router.post(
+  '/exhibitions/public',
+  publicSubmissionLimiter,
+  validate({ body: publicExhibitionSchema }),
+  submissionController.submitExhibitionPublic,
 );
 
 // Every other submission route requires an authenticated USER.

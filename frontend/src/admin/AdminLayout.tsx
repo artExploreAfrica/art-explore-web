@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Building2,
   Inbox,
+  Mail,
   Tag,
   FolderTree,
   Users,
@@ -24,6 +25,7 @@ const baseNavItems: NavItem[] = [
   { to: "/admin", label: "Dashboard", end: true, icon: LayoutDashboard },
   { to: "/admin/institutions", label: "Institutions", icon: Building2 },
   { to: "/admin/submissions", label: "Submissions", icon: Inbox },
+  { to: "/admin/enquiries", label: "Enquiries", icon: Mail },
   { to: "/admin/tags", label: "Tags", icon: Tag },
   { to: "/admin/subcategories", label: "Subcategories", icon: FolderTree },
 ];

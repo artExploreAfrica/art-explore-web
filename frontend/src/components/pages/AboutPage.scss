@@ -1,0 +1,271 @@
+@use '../../styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// ABOUT PAGE — Our Vision (cream, with photos of spaces from the
+// database), Contact (ink, text links only), then the shared
+// Contribute section ("Help us map Lagos art"), which brings its
+// own styles.
+// ─────────────────────────────────────────────────────────────
+
+$band-y: clamp(64px, 11vh, 140px);
+
+.ab {
+  background: var(--cream);
+}
+
+.ab-eyebrow {
+  @include eyebrow;
+  margin: 0 0 clamp(12px, 2vh, 18px);
+
+  &::before {
+    content: '';
+    @include eyebrow-rule;
+  }
+
+  &--on-dark { color: var(--orange); }
+}
+
+// ── Our Vision ────────────────────────────────────────────
+.ab-vision {
+  padding: $band-y var(--page-pad);
+  background: var(--cream);
+  scroll-margin-top: var(--navbar-h, 82px);   // /about#vision lands below the sticky navbar
+}
+
+.ab-vision__head {
+  padding-bottom: clamp(18px, 3vh, 28px);
+  margin-bottom: clamp(32px, 6vh, 64px);
+  border-bottom: 1px solid var(--terracotta);
+}
+
+.ab-vision__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.8rem, 8vw, 6.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+
+.ab-vision__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(32px, 6vw, 96px);
+  align-items: start;
+}
+
+.ab-vision__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: none;
+}
+
+.ab-vision__item {
+  display: grid;
+  grid-template-columns: clamp(52px, 6vw, 84px) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: clamp(18px, 3vh, 28px) 0;
+  border-top: 1px solid var(--rule);
+
+  &:last-child { border-bottom: 1px solid var(--rule); }
+}
+
+.ab-vision__num {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(1.5rem, 2.6vw, 2.2rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--terracotta);
+}
+
+.ab-vision__text {
+  margin: 0;
+  max-width: 36ch;
+  font-family: var(--font-body);
+  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+  line-height: 1.45;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+// Photo mosaic: two columns, the right one dropped half a tile so
+// the grid reads as a collage rather than a table.
+.ab-vision__photos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(10px, 1.2vw, 16px);
+
+  > :nth-child(even) { transform: translateY(clamp(24px, 6vw, 72px)); }
+}
+
+.ab-photo {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--sand);
+
+  &--loading { @include skeleton; }
+}
+
+.ab-photo__link {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: var(--cream);
+  text-decoration: none;
+  @include focus-ring(var(--terracotta), 3px);
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.6s $ease;
+  }
+
+  &:hover img { transform: scale(1.04); }
+}
+
+.ab-photo__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 36px 14px 12px;
+  background: linear-gradient(to top,
+    color-mix(in srgb, var(--ink) 85%, transparent),
+    transparent);
+}
+
+.ab-photo__name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.ab-photo__meta {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--on-dark-muted);
+}
+
+// ── Contact ───────────────────────────────────────────────
+.ab-contact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: clamp(32px, 6vw, 96px);
+  align-items: end;
+  padding: $band-y var(--page-pad);
+  background: var(--ink);
+  color: var(--cream);
+}
+
+.ab-contact__title {
+  margin: 0 0 clamp(14px, 2vh, 22px);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  color: var(--cream);
+
+  em {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    color: var(--orange);
+  }
+}
+
+.ab-contact__lede {
+  margin: 0;
+  max-width: 40ch;
+  font-family: var(--font-body);
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  line-height: 1.65;
+  color: var(--on-dark-muted);
+}
+
+.ab-contact__list {
+  margin: 0;
+}
+
+.ab-contact__row {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.3fr) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 16px;
+  padding: clamp(16px, 2.5vh, 24px) 0;
+  border-top: 1px solid var(--rule-on-dark);
+
+  &:last-child { border-bottom: 1px solid var(--rule-on-dark); }
+
+  dt {
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--on-dark-muted);
+  }
+
+  dd {
+    margin: 0;
+    min-width: 0;
+  }
+
+  a {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(1.15rem, 2.4vw, 1.9rem);
+    letter-spacing: -0.02em;
+    color: var(--orange);
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+    overflow-wrap: anywhere;
+    transition: text-decoration-color 0.25s $ease-out;
+
+    &:hover { text-decoration-color: var(--orange); }
+    @include focus-ring(var(--cream), 4px);
+  }
+}
+
+// ── Motion ────────────────────────────────────────────────
+@media (prefers-reduced-motion: reduce) {
+  .ab-photo__link img,
+  .ab-contact__row a { transition: none; }
+  .ab-photo__link:hover img { transform: none; }
+}
+
+// ── Tablet and below: stack ──────────────────────────────
+@media (max-width: 900px) {
+  .ab-vision__body,
+  .ab-contact {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  // Leave room for the dropped column so it doesn't overlap the next band.
+  .ab-vision__photos { padding-bottom: clamp(24px, 6vw, 72px); }
+}
+
+@media (max-width: 480px) {
+  .ab-contact__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+}

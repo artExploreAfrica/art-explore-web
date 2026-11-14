@@ -9,6 +9,7 @@ import {
   uploadInstitutionImage,
 } from '../utils/s3Uploader';
 import {
+  PublicExhibitionInput,
   SubmitExhibitionInput,
   UpdateSubmittedExhibitionInput,
 } from '../validators/exhibition.validator';
@@ -47,6 +48,20 @@ export const mine = asyncHandler(async (req: Request, res: Response) => {
   const query = req.query as unknown as MySubmissionsQuery;
   const { data, pagination } = await institutionService.listMine(req.user!.id, query);
   return successResponse(res, data, 'Your submissions retrieved', 200, pagination);
+});
+
+/**
+ * POST /api/v1/submissions/exhibitions/public — a signed-out visitor adds an
+ * exhibition. Acknowledgement only, honeypot handled as in submitPublic. An
+ * unknown venue still 404s: the form only offers listed venues, so that is a
+ * stale page or a hand-crafted request, not a bot to fool.
+ */
+export const submitExhibitionPublic = asyncHandler(async (req: Request, res: Response) => {
+  const body = req.body as PublicExhibitionInput;
+  if (!body.company) {
+    await exhibitionService.submitPublic(body);
+  }
+  return successResponse(res, null, 'Thanks — the exhibition is pending review', 201);
 });
 
 /** POST /api/v1/submissions/exhibitions — a USER submits an exhibition for review. */

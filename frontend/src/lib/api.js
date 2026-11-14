@@ -36,7 +36,10 @@ export async function apiGet(path, params = {}, token) {
   const json = await res.json().catch(() => null);
 
   if (!res.ok || !json?.success) {
-    throw new Error(json?.message || `Request failed (${res.status})`);
+    // `status` lets a caller tell "not found" from "server trouble".
+    throw Object.assign(new Error(json?.message || `Request failed (${res.status})`), {
+      status: res.status,
+    });
   }
   return json;
 }

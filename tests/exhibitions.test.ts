@@ -124,6 +124,18 @@ describe('GET /api/v1/institutions/:id/exhibitions (public)', () => {
     });
   });
 
+  it('never returns the internal notes', async () => {
+    mocks.prisma.institution.findFirst.mockResolvedValue({ id: 'inst_1' });
+    mocks.prisma.exhibition.findMany.mockResolvedValue([
+      { ...exhibition, notes: 'Submitted by: Ada <ada@example.com>' },
+    ]);
+
+    const res = await request(app).get('/api/v1/institutions/inst_1/exhibitions');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0]).not.toHaveProperty('notes');
+  });
+
   it('activates an exhibition via admin toggle', async () => {
     mocks.prisma.exhibition.findFirst.mockResolvedValue(exhibition);
     mocks.prisma.exhibition.update.mockResolvedValue({ ...exhibition, isActive: false });

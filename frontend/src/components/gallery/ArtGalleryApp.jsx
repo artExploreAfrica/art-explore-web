@@ -1,21 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import "./ArtGalleryApp.scss";
 import { useGalleries } from "../../hooks/useGalleries"; // ← live data from the API
+import { getInitials, placeholderColor } from "../../lib/placeholder";
+import { formatInstitutionType, INSTITUTION_TYPES } from "../../admin/institutionShared";
 
+// "All" plus one tab per InstitutionType, labelled as everywhere else. The tag
+// chips (Women Owned, Classics, ...) sit in their own row beneath the tabs.
 const TABS = [
-  { id: "all", label: "All", matchTypes: null },
-  { id: "galleries", label: "Galleries", matchTypes: ["gallery"] },
-  {
-    id: "exhibitions",
-    label: "Exhibitions",
-    matchTypes: ["exhibition", "exhibit"],
-  },
-  { id: "artists", label: "Artists", matchTypes: ["artist", "studio"] },
-  {
-    id: "events",
-    label: "Events",
-    matchTypes: ["event", "performance", "fair"],
-  },
+  { id: "all", label: "All", type: null },
+  ...INSTITUTION_TYPES.map((type) => ({ id: type, label: formatInstitutionType(type), type })),
 ];
 
 const SORT_OPTIONS = [
@@ -60,38 +54,26 @@ function getDistanceKm(lat1, lng1, lat2, lng2) {
 }
 
 function countForTab(tab, data) {
-  if (!tab.matchTypes) return data.length;
-  return data.filter((g) =>
-    g.artTypes.some((t) => tab.matchTypes.includes(t.toLowerCase())),
-  ).length;
+  if (!tab.type) return data.length;
+  return data.filter((g) => g.type === tab.type).length;
 }
 
-function placeholderColor(name) {
-  // Brand colours only, each dark enough for cream initials.
-  const palette = [
-    "#241b12", // ink
-    "#3a2d20", // ink, pressed shade
-    "#b0431c", // terracotta
-    "#8a3216", // terracotta, pressed shade
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++)
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return palette[Math.abs(hash) % palette.length];
+// The tags actually in use, A to Z, each with how many spaces carry it.
+function tagOptionsOf(data) {
+  const byName = new Map();
+  for (const g of data) {
+    for (const t of g.tags ?? []) {
+      const entry = byName.get(t.name) ?? { name: t.name, label: t.label, count: 0 };
+      entry.count += 1;
+      byName.set(t.name, entry);
+    }
+  }
+  return [...byName.values()].sort((a, b) => a.label.localeCompare(b.label));
 }
 
-function getInitials(name) {
-  return name
-    .split(" ")
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-}
-
-function useGalleryFilters(data) {
+function useGalleryFilters(data, { tagName = null, initialTab = "all" } = {}) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [sortBy, setSortBy] = useState("name");
   const [nearMe, setNearMe] = useState(false);
   const [openNow, setOpenNow] = useState(false);
@@ -134,16 +116,15 @@ function useGalleryFilters(data) {
       result = result.filter(
         (g) =>
           g.name.toLowerCase().includes(q) ||
-          g.neighborhood.toLowerCase().includes(q),
+          g.neighborhood.toLowerCase().includes(q) ||
+          g.subArea?.toLowerCase().includes(q),
       );
     }
 
     const tab = TABS.find((t) => t.id === activeTab);
-    if (tab?.matchTypes) {
-      result = result.filter((g) =>
-        g.artTypes.some((t) => tab.matchTypes.includes(t.toLowerCase())),
-      );
-    }
+    if (tab?.type) result = result.filter((g) => g.type === tab.type);
+    // A picked tag narrows the list across every kind of space.
+    if (tagName) result = result.filter((g) => g.tags?.some((t) => t.name === tagName));
 
     if (openNow) result = result.filter((g) => isOpenNow(g.hours));
     if (topRated) result = result.filter((g) => g.rating >= 4.0);
@@ -160,6 +141,7 @@ function useGalleryFilters(data) {
     dataWithDistance,
     searchQuery,
     activeTab,
+    tagName,
     openNow,
     topRated,
     nearMe,
@@ -170,6 +152,7 @@ function useGalleryFilters(data) {
   const hasActiveFilters =
     searchQuery ||
     activeTab !== "all" ||
+    tagName ||
     nearMe ||
     openNow ||
     topRated ||
@@ -260,21 +243,41 @@ function SearchBox({ searchQuery, setSearchQuery }) {
   );
 }
 
-function CategoryTabs({ activeTab, setActiveTab, rawData }) {
+function CategoryTabs({ activeTab, setActiveTab, rawData, tagOptions, activeTag, setActiveTag }) {
   return (
-    <div className="tabs" role="tablist">
-      {TABS.map((tab) => (
-        <button
-          key={tab.id}
-          role="tab"
-          aria-selected={tab.id === activeTab}
-          className={`tabs__tab ${tab.id === activeTab ? "tabs__tab--active" : ""}`}
-          onClick={() => setActiveTab(tab.id)}
-        >
-          {tab.label} ({countForTab(tab, rawData)})
-        </button>
-      ))}
-    </div>
+    <>
+      <div className="tabs" role="tablist">
+        {/* A type with no spaces yet gets no tab, unless it is the one selected. */}
+        {TABS.filter(
+          (tab) => tab.id === "all" || tab.id === activeTab || countForTab(tab, rawData) > 0,
+        ).map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={tab.id === activeTab}
+            className={`tabs__tab ${tab.id === activeTab ? "tabs__tab--active" : ""}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            {tab.label} ({countForTab(tab, rawData)})
+          </button>
+        ))}
+      </div>
+      {tagOptions.length > 0 && (
+        <div className="subtabs" role="group" aria-label="Filter by tag">
+          {tagOptions.map((tag) => (
+            <button
+              key={tag.name}
+              type="button"
+              className={`chip ${tag.name === activeTag ? "chip--on" : ""}`}
+              aria-pressed={tag.name === activeTag}
+              onClick={() => setActiveTag(tag.name === activeTag ? null : tag.name)}
+            >
+              {tag.label} ({tag.count})
+            </button>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -362,8 +365,14 @@ function FilterRow({
 
 function GalleryCard({ gallery }) {
   const open = isOpenNow(gallery.hours);
+  // Real tags only, A to Z. A space with none shows no tag chip at all, so the
+  // ones that carry a researched tag stand out.
+  const tags = [...(gallery.tags ?? [])].sort((a, b) => a.label.localeCompare(b.label));
+  // The sub-area stored for the space. One with none (a festival or nomadic space
+  // with no fixed place) shows no line, rather than a guess made from its address.
+  const subArea = gallery.subArea?.trim();
   return (
-    <div className="gallery-card">
+    <Link to={`/galleries/${gallery.id}`} className="gallery-card">
       <div
         className="card__thumb"
         style={{ backgroundColor: placeholderColor(gallery.name) }}
@@ -381,16 +390,19 @@ function GalleryCard({ gallery }) {
       </div>
       <div className="card__body">
         <h3 className="card__name">{gallery.name}</h3>
-        <p className="card__neighborhood">{gallery.neighborhood}</p>
+        {subArea && <p className="card__neighborhood">{subArea}</p>}
         {/* Show address from merged data */}
         {gallery.address && <p className="card__address">{gallery.address}</p>}
-        <div className="card__tags">
-          {gallery.artTypes.map((t) => (
-            <span key={t} className="card__tag">
-              {t}
-            </span>
-          ))}
-        </div>
+        {(tags.length > 0 || gallery.hasExhibition) && (
+          <div className="card__tags">
+            {tags.map((t) => (
+              <span key={t.name} className="card__tag">
+                {t.label}
+              </span>
+            ))}
+            {gallery.hasExhibition && <span className="card__tag">Exhibition</span>}
+          </div>
+        )}
         {gallery.rating != null && (
           <div className="card__rating">
             <div className="card__stars">
@@ -409,7 +421,7 @@ function GalleryCard({ gallery }) {
           </div>
         )}
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -437,7 +449,47 @@ function ResultsGrid({ galleries, searchQuery }) {
 
 export default function ArtGalleryApp() {
   const { galleries, loading, error, reload } = useGalleries();
-  const F = useGalleryFilters(galleries);
+
+  // /galleries?tag=WOMEN_OWNED — arrived from a homepage tag card, or picked from the
+  // tag chips. The URL keeps the pick, so the link can be shared.
+  const [params, setParams] = useSearchParams();
+  const tagName = params.get("tag");
+  const F = useGalleryFilters(galleries, { tagName });
+  const { setActiveTab } = F;
+
+  const setTag = (name) =>
+    setParams(
+      (p) => {
+        const next = new URLSearchParams(p);
+        if (name) next.set("tag", name);
+        else next.delete("tag");
+        return next;
+      },
+      { replace: true },
+    );
+  // A kind-of-space tab or a tag, one at a time: picking either drops the other.
+  // A tag narrows the whole directory, so it also sets the tab back to All.
+  const chooseTab = (id) => {
+    setActiveTab(id);
+    setTag(null);
+  };
+  const chooseTag = (name) => {
+    setTag(name);
+    setActiveTab("all");
+  };
+  const resetAll = () => {
+    F.resetAllFilters();
+    setTag(null);
+  };
+
+  const tagOptions = useMemo(() => {
+    const options = tagOptionsOf(galleries);
+    // A tag nobody carries yet (a shared link to it) still shows, so it can be switched off.
+    if (tagName && !options.some((o) => o.name === tagName)) {
+      options.push({ name: tagName, label: tagName.toLowerCase().replace(/_/g, " "), count: 0 });
+    }
+    return options;
+  }, [galleries, tagName]);
   return (
     <div className="galleries" id="galleries">
       <header className="app__hero">
@@ -452,9 +504,12 @@ export default function ArtGalleryApp() {
         setSearchQuery={F.setSearchQuery}
       />
       <CategoryTabs
-        activeTab={F.activeTab}
-        setActiveTab={F.setActiveTab}
+        activeTab={tagName ? null : F.activeTab}
+        setActiveTab={chooseTab}
         rawData={F.rawData}
+        tagOptions={tagOptions}
+        activeTag={tagName}
+        setActiveTag={chooseTag}
       />
       <FilterRow
         nearMe={F.nearMe}
@@ -466,7 +521,7 @@ export default function ArtGalleryApp() {
         sortBy={F.sortBy}
         setSortBy={F.setSortBy}
         hasActiveFilters={F.hasActiveFilters}
-        resetAllFilters={F.resetAllFilters}
+        resetAllFilters={resetAll}
         resultCount={F.resultCount}
       />
       {loading ? (

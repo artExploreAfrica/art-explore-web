@@ -21,6 +21,7 @@ import {
   UploadCloud,
   FileCheck2,
   Star,
+  Tags,
 } from "lucide-react";
 import { adminApi, Pagination } from "../api";
 import {
@@ -30,11 +31,15 @@ import {
   DayRow,
   emptyHours,
   formatInstitutionType,
+  formatTypeWithSubType,
   hoursFromApi,
   hoursToApi,
+  INSTITUTION_SUBTYPES,
   INSTITUTION_TYPES,
+  InstitutionSubType,
   InstitutionType,
   MAX_IMAGE_BYTES,
+  needsLocation,
   OpeningHours,
   parseGeocode,
   Tag,
@@ -47,6 +52,7 @@ interface Institution {
   name: string;
   description?: string;
   type?: InstitutionType;
+  subType?: InstitutionSubType | null;
   address?: string;
   area?: AreaEnum;
   subArea?: string | null;
@@ -92,6 +98,7 @@ const emptyForm = {
   name: "",
   description: "",
   type: "ART_GALLERY" as InstitutionType,
+  subType: "" as InstitutionSubType | "",
   address: "",
   area: "ISLAND" as AreaEnum,
   subArea: "",
@@ -105,6 +112,7 @@ const emptyForm = {
   notes: "",
   hasResidency: false,
   hasSocial: false,
+  tagIds: [] as string[],
 };
 
 type InstitutionForm = typeof emptyForm;
@@ -161,12 +169,19 @@ function toApiPayload(form: InstitutionForm, hours: Record<string, DayRow>): Rec
   const payload: Record<string, unknown> = {
     name: form.name.trim(),
     type: form.type,
-    address: form.address.trim(),
+    // Always sent, so clearing the dropdown clears the stored sub-type.
+    subType: form.subType || null,
+    // Blank location fields go as null, never "" or Number("") === 0: a 0,0
+    // pin would land in the Gulf of Guinea. The API requires them for every
+    // type except those with no fixed venue (NO_FIXED_VENUE_TYPES).
+    address: form.address.trim() || null,
     area: form.area,
-    lat: Number(form.lat),
-    lng: Number(form.lng),
+    lat: String(form.lat).trim() === "" ? null : Number(form.lat),
+    lng: String(form.lng).trim() === "" ? null : Number(form.lng),
     hasResidency: form.hasResidency,
     hasSocial: form.hasSocial,
+    // Always sent, so unticking every tag removes them all (update replaces the set).
+    tagIds: form.tagIds,
   };
 
   // Optional strings: omit when blank. Sending "" fails `.url()` and `.email()`,
@@ -237,9 +252,9 @@ export function InstitutionsPage() {
   // instead of just whatever page happened to be open).
   const [allItems, setAllItems] = useState<Institution[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
-  // Every defined tag, for the filter dropdown — deliberately not derived from
-  // allItems: there is no UI yet to attach tags to an institution, so scanning
-  // institutions for their tags would always come up empty.
+  // Every defined tag: feeds the filter dropdown and the tag picker in the
+  // form. Deliberately not derived from allItems — a tag nobody has yet would
+  // never show up there, and it could not be picked.
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -358,21 +373,12 @@ export function InstitutionsPage() {
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [allItems]);
 
-  // Sourced from allTags (every tag that exists), not from allItems' attached
-  // tags — there is no admin UI yet to attach a tag to an institution, so the
-  // latter would always be empty. Grouped by category to match TagsPage.tsx.
-  const tagOptionsByCategory = useMemo(() => {
-    const byCategory = new Map<string, Tag[]>();
-    allTags.forEach((tag) => {
-      const list = byCategory.get(tag.category) || [];
-      list.push(tag);
-      byCategory.set(tag.category, list);
-    });
-    byCategory.forEach((list) => list.sort((a, b) => a.label.localeCompare(b.label)));
-    return Array.from(byCategory, ([category, tags]) => ({ category, tags })).sort((a, b) =>
-      a.category.localeCompare(b.category),
-    );
-  }, [allTags]);
+  // Every tag that exists, A–Z. Tags aren't grouped any more (Category is
+  // gone from the Tags page), so the filter and the form picker share one list.
+  const sortedTags = useMemo(
+    () => [...allTags].sort((a, b) => a.label.localeCompare(b.label)),
+    [allTags],
+  );
 
   const activeFilterCount = [filterArea, filterSubArea, filterTagId, filterType, filterStatus].filter(
     Boolean,
@@ -428,6 +434,7 @@ export function InstitutionsPage() {
       name: inst.name || "",
       description: inst.description || "",
       type: (inst.type as InstitutionType) || "ART_GALLERY",
+      subType: inst.subType || "",
       address: inst.address || "",
       area: (inst.area as AreaEnum) || "ISLAND",
       subArea: inst.subArea || "",
@@ -441,6 +448,7 @@ export function InstitutionsPage() {
       notes: inst.notes || "",
       hasResidency: Boolean(inst.hasResidency),
       hasSocial: Boolean(inst.hasSocial),
+      tagIds: (inst.tags ?? []).map((t) => t.id),
     });
     setHours(hoursFromApi(inst.openingHours));
     setEditingImages(Array.isArray(inst.images) ? inst.images : []);
@@ -695,6 +703,9 @@ export function InstitutionsPage() {
     }
   }
 
+  // Address and coordinates are optional only for types with no fixed venue.
+  const locationRequired = needsLocation(form.type);
+
   const formCard = !showForm ? null : (
     <form className="admin-form-card" onSubmit={handleSubmit}>
       <div className="admin-form-section">
@@ -729,6 +740,20 @@ export function InstitutionsPage() {
             </select>
           </div>
           <div className="admin-form-row">
+            <label>Sub-type <span className="admin-optional">(optional)</span></label>
+            <select
+              value={form.subType}
+              onChange={(e) => setForm({ ...form, subType: e.target.value as InstitutionSubType | "" })}
+            >
+              <option value="">— None —</option>
+              {INSTITUTION_SUBTYPES.map((t) => (
+                <option key={t} value={t}>
+                  {formatInstitutionType(t)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="admin-form-row">
             <label className="admin-required">Area</label>
             <select
               value={form.area}
@@ -744,8 +769,16 @@ export function InstitutionsPage() {
           </div>
         </div>
         <div className="admin-form-row">
-          <label className="admin-required">Address</label>
-          <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
+          {locationRequired ? (
+            <label className="admin-required">Address</label>
+          ) : (
+            <label>Address <span className="admin-optional">(optional — no fixed venue)</span></label>
+          )}
+          <input
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
+            required={locationRequired}
+          />
         </div>
         <div className="admin-form-row">
           <label>Sub-area <span className="admin-optional">(optional)</span></label>
@@ -762,7 +795,11 @@ export function InstitutionsPage() {
           <MapPin size={16} />
           <div>
             <h3>Location</h3>
-            <p>Coordinates that place it on the map.</p>
+            <p>
+              {locationRequired
+                ? "Coordinates that place it on the map."
+                : "Optional for this type. Leave blank and it won't appear on the map."}
+            </p>
           </div>
         </div>
 
@@ -794,7 +831,7 @@ export function InstitutionsPage() {
 
         <div className="admin-form-grid">
           <div className="admin-form-row">
-            <label className="admin-required">Latitude</label>
+            <label className={locationRequired ? "admin-required" : undefined}>Latitude</label>
             <input
               type="number"
               step="any"
@@ -802,11 +839,11 @@ export function InstitutionsPage() {
               max={90}
               value={form.lat}
               onChange={(e) => setForm({ ...form, lat: e.target.value })}
-              required
+              required={locationRequired || String(form.lng).trim() !== ""}
             />
           </div>
           <div className="admin-form-row">
-            <label className="admin-required">Longitude</label>
+            <label className={locationRequired ? "admin-required" : undefined}>Longitude</label>
             <input
               type="number"
               step="any"
@@ -814,7 +851,7 @@ export function InstitutionsPage() {
               max={180}
               value={form.lng}
               onChange={(e) => setForm({ ...form, lng: e.target.value })}
-              required
+              required={locationRequired || String(form.lat).trim() !== ""}
             />
           </div>
         </div>
@@ -931,6 +968,39 @@ export function InstitutionsPage() {
 
       <div className="admin-form-section">
         <div className="admin-form-section-head">
+          <Tags size={16} />
+          <div>
+            <h3>Tags</h3>
+            <p>Shown on the public site (e.g. the homepage groups). Tick any that apply.</p>
+          </div>
+        </div>
+        {sortedTags.length === 0 ? (
+          <p className="admin-page-note" style={{ marginTop: 0 }}>
+            No tags yet. Create some on the Tags page.
+          </p>
+        ) : (
+          <div className="admin-tag-picker">
+            {sortedTags.map((t) => (
+              <label key={t.id} className="admin-tag-option">
+                <input
+                  type="checkbox"
+                  checked={form.tagIds.includes(t.id)}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      tagIds: e.target.checked ? [...form.tagIds, t.id] : form.tagIds.filter((id) => id !== t.id),
+                    })
+                  }
+                />
+                {t.label}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="admin-form-section">
+        <div className="admin-form-section-head">
           <FlagsIcon size={16} />
           <div>
             <h3>Flags &amp; internal</h3>
@@ -1021,7 +1091,7 @@ export function InstitutionsPage() {
       </div>
 
       <p className="admin-form-footnote">
-        Fields marked * are required. Sub-category and tags are writable on the API but have no field here yet.
+        Fields marked * are required. Sub-category is writable on the API but has no field here yet.
       </p>
       <div className="admin-form-actions">
         <button className="admin-btn admin-btn-primary" type="submit" disabled={saving}>
@@ -1125,14 +1195,10 @@ export function InstitutionsPage() {
             <label>Tag</label>
             <select value={filterTagId} onChange={(e) => setFilterTagId(e.target.value)}>
               <option value="">All</option>
-              {tagOptionsByCategory.map(({ category, tags }) => (
-                <optgroup key={category} label={category.charAt(0) + category.slice(1).toLowerCase()}>
-                  {tags.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.label}
-                    </option>
-                  ))}
-                </optgroup>
+              {sortedTags.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
               ))}
             </select>
           </div>
@@ -1277,12 +1343,17 @@ export function InstitutionsPage() {
                           <div>
                             <span className="admin-table-name">{item.name}</span>
                             {item.type && (
-                              <span className="admin-table-sub">{formatInstitutionType(item.type)}</span>
+                              <span className="admin-table-sub">{formatTypeWithSubType(item.type, item.subType)}</span>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td>{[item.area && (item.area.charAt(0) + item.area.slice(1).toLowerCase()), item.subArea].filter(Boolean).join(" · ") || "—"}</td>
+                      <td>
+                        {item.subArea || "—"}
+                        {item.area && (
+                          <span className="admin-table-sub">{item.area.charAt(0) + item.area.slice(1).toLowerCase()}</span>
+                        )}
+                      </td>
                       <td>
                         <span className={`admin-badge ${item.isPublished ? "admin-badge-success" : "admin-badge-neutral"}`}>
                           <span className="admin-badge-dot" />

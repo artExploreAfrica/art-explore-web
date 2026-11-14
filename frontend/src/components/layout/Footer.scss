@@ -33,15 +33,27 @@
 }
 
 .site-footer__mark {
-  font-family: var(--font-logo);
-  font-weight: 900;
-  font-size: clamp(18px, 2vw, 22px);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--on-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
+}
 
-  span { font-weight: 300; letter-spacing: 0.18em; }
+.site-footer__mark-icon {
+  height: clamp(32px, 3.8vw, 44px);
+  width: auto;
+  display: block;
+}
+
+.site-footer__mark-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(10px, 1.1vw, 13px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cream);
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .site-footer__line {
@@ -50,6 +62,38 @@
   line-height: 1.55;
   color: var(--on-dark-muted);
   margin: 0;
+}
+
+// Instagram / email icons under the strapline. Cream on ink, turning
+// light orange on hover like the footer links; 36px circles so they are
+// comfortable touch targets.
+.site-footer__social {
+  display: flex;
+  gap: 10px;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.site-footer__social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--rule-on-dark);
+  border-radius: 50%;
+  color: var(--cream);
+  font-size: 18px;
+  transition: color 0.25s $ease-out, border-color 0.25s $ease-out;
+
+  &:hover,
+  &:active {
+    color: var(--orange);
+    border-color: var(--orange);
+  }
+
+  @include focus-ring(var(--cream), 3px);
 }
 
 .site-footer__nav {

@@ -5,10 +5,9 @@ interface Tag {
   id: string;
   name: string;
   label: string;
-  category: string;
 }
 
-const emptyForm = { name: "", label: "", category: "STYLE" };
+const emptyForm = { name: "", label: "" };
 
 export function TagsPage() {
   const [items, setItems] = useState<Tag[]>([]);
@@ -43,7 +42,7 @@ export function TagsPage() {
 
   function startEdit(tag: Tag) {
     setEditingId(tag.id);
-    setForm({ name: tag.name, label: tag.label, category: tag.category });
+    setForm({ name: tag.name, label: tag.label });
     setShowForm(true);
   }
 
@@ -95,14 +94,6 @@ export function TagsPage() {
             <label>Display label (e.g. Contemporary)</label>
             <input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} required />
           </div>
-          <div className="admin-form-row">
-            <label>Category</label>
-            <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-              <option value="STYLE">Style</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="THEME">Theme</option>
-            </select>
-          </div>
           <button className="admin-btn admin-btn-primary" type="submit" disabled={saving}>
             {saving ? "Saving..." : editingId ? "Save changes" : "Create tag"}
           </button>
@@ -121,7 +112,6 @@ export function TagsPage() {
             <tr>
               <th>Label</th>
               <th>Name</th>
-              <th>Category</th>
               <th></th>
             </tr>
           </thead>
@@ -130,7 +120,6 @@ export function TagsPage() {
               <tr key={item.id}>
                 <td>{item.label}</td>
                 <td>{item.name}</td>
-                <td>{item.category}</td>
                 <td>
                   <button className="admin-btn" onClick={() => startEdit(item)}>
                     Edit
