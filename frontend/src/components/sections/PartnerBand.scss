@@ -1,0 +1,231 @@
+@use '../../styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// PARTNER BAND — "Help us map Lagos art."
+//
+// Sand section. Three choices:
+//   A  Full-width dark (ink) band → /partner
+//   B  Cream card → /about
+//   C  Cream card → add-space form
+// ─────────────────────────────────────────────────────────────
+
+.pb {
+  background: var(--sand);
+  padding: clamp(64px, 11vh, 140px) var(--page-pad);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.pb__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 4.6vw, 3.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  margin: 0 0 clamp(14px, 2vh, 22px);
+  text-wrap: balance;
+
+  em {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+}
+
+.pb__lede {
+  font-family: var(--font-body);
+  font-size: clamp(0.95rem, 1.1vw, 1.05rem);
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin: 0 auto clamp(24px, 4vh, 36px);
+  max-width: 48ch;
+}
+
+// ── Panel ──────────────────────────────────────────────────
+.pb__panel {
+  width: 100%;
+  max-width: 760px;
+  text-align: left;
+}
+
+.pb__subhead {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.0rem, 1.4vw, 1.2rem);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: 0 0 18px;
+}
+
+// ── A: dark band ───────────────────────────────────────────
+.pb__band {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 28px;
+  background: var(--ink);
+  border-radius: 2px;
+  text-decoration: none;
+  color: var(--cream);
+  margin-bottom: 14px;
+  transition: background 0.25s var(--ease-out);
+
+  &:hover {
+    background: var(--ink-press);
+
+    .pb__arrow-icon { transform: translateX(5px); }
+  }
+
+  @include focus-ring(var(--cream), 3px);
+}
+
+.pb__band-letter {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(246, 239, 226, 0.3);
+  border-radius: 2px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--on-dark-muted);
+}
+
+.pb__band-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pb__band-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.0rem, 1.5vw, 1.15rem);
+  line-height: 1.2;
+  color: var(--cream);
+}
+
+.pb__band-text {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--on-dark-muted);
+}
+
+.pb__band-go {
+  flex-shrink: 0;
+  color: var(--on-dark-muted);
+
+  .pb__arrow-icon {
+    display: block;
+    transition: transform 0.3s var(--ease);
+  }
+}
+
+// ── B + C: cream cards ─────────────────────────────────────
+.pb__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+
+  @media (max-width: 540px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pb__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px 20px 48px;
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  text-decoration: none;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 transparent;
+  transition: box-shadow 0.3s var(--ease-out), border-color 0.3s var(--ease-out),
+              transform 0.2s var(--ease-out);
+
+  &:hover {
+    border-color: var(--control-border);
+    box-shadow: inset 0 3px 0 var(--orange);
+    transform: translateY(-2px);
+
+    .pb__arrow-icon { transform: translateX(5px); }
+  }
+
+  @include focus-ring(var(--terracotta), 3px);
+}
+
+.pb__card-letter {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--terracotta);
+}
+
+.pb__card-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.pb__card-text {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.pb__card-go {
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+  color: var(--text-muted);
+
+  .pb__arrow-icon {
+    display: block;
+    transition: transform 0.3s var(--ease);
+  }
+}
+
+// ── Footer line ────────────────────────────────────────────
+.pb__footer {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.pb__footer-link {
+  color: var(--terracotta);
+  text-decoration: underline;
+  text-decoration-color: var(--orange);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color 0.2s var(--ease-out);
+
+  &:hover { color: var(--terracotta-press); }
+  @include focus-ring(var(--ink));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb__band,
+  .pb__card,
+  .pb__arrow-icon { transition: none; }
+}
