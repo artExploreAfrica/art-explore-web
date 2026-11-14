@@ -36,9 +36,17 @@ export default function Footer() {
     <footer className="site-footer">
       <div className="site-footer__top">
         <div className="site-footer__brand">
-          <p className="site-footer__mark">
-            Art<span>Explore</span>
-          </p>
+          <div className="site-footer__mark">
+            <img
+              src="/brand/favicon-red.png"
+              alt=""
+              className="site-footer__mark-icon"
+              aria-hidden="true"
+              width="512"
+              height="512"
+            />
+            <span className="site-footer__mark-text">Art Explore</span>
+          </div>
           <p className="site-footer__line">
             Galleries, museums and cultural spaces across Lagos — mapped.
           </p>

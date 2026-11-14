@@ -33,15 +33,27 @@
 }
 
 .site-footer__mark {
-  font-family: var(--font-logo);
-  font-weight: 900;
-  font-size: clamp(18px, 2vw, 22px);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--on-dark);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
+}
 
-  span { font-weight: 300; letter-spacing: 0.18em; }
+.site-footer__mark-icon {
+  height: clamp(32px, 3.8vw, 44px);
+  width: auto;
+  display: block;
+}
+
+.site-footer__mark-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(10px, 1.1vw, 13px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cream);
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .site-footer__line {
