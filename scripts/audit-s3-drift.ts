@@ -55,6 +55,12 @@ const SLUG_ALIASES: Record<string, string> = {
   mydrim: 'Mydrim Gallery',
   'goethe-institute-lagos': 'Goethe Institut Lagos',
   henriwometa: 'Henrimoweta African Art Center',
+  // Folder slug matches the catalogue name.
+  'john-randle-centre': 'John Randle Centre',
+  // Old S3 folder predates the Nov-2026 rename ("Randle Center" → "John Randle Centre").
+  'randle-center': 'John Randle Centre',
+  // S3 folder was created before "The" was added to the institution name.
+  'art-pantheon': 'The Art Pantheon',
 };
 
 const foldAccents = (v: string): string => v.normalize('NFD').replace(/[̀-ͯ]/g, '');

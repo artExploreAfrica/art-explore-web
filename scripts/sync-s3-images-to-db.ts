@@ -47,10 +47,12 @@ const SLUG_ALIASES: Record<string, string> = {
   'goethe-institute-lagos': 'Goethe Institut Lagos',
   // Transposed letters in the folder name (henriWOmeta / henriMOweta) — same venue.
   henriwometa: 'Henrimoweta African Art Center',
-   // Folder slug matches the catalogue name as of the Final-Art-Explore-DBList baseline.
- 'john-randle-centre': 'John Randle Centre',
- // S3 folder was created before "The" was added to the institution name.
- 'art-pantheon': 'The Art Pantheon',
+  // Folder slug matches the catalogue name as of the Final-Art-Explore-DBList baseline.
+  'john-randle-centre': 'John Randle Centre',
+  // Old S3 folder predates the Nov-2026 rename ("Randle Center" → "John Randle Centre").
+  'randle-center': 'John Randle Centre',
+  // S3 folder was created before "The" was added to the institution name.
+  'art-pantheon': 'The Art Pantheon',
 };
 
 const prisma = new PrismaClient();
