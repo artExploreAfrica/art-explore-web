@@ -34,26 +34,42 @@
   display:         flex;
   justify-content: center;
   align-items:     center;
-  gap:             10px;
   padding:         0 0 18px;
-  flex-wrap:       wrap;
   flex-shrink:     0;
   z-index:         10;
 
-  // Mobile: stuck just under the sticky navbar — at top: 0 the navbar sat
-  // on top of it and hid the region buttons. The three region buttons are
-  // centred on one row; Overview drops to a short centred line beneath,
-  // since all four don't fit across a phone.
   @media (max-width: 768px) {
-    gap:             6px;
-    padding:         10px 12px 4px;
-    background:      rgba(246, 239, 226, 0.96);
+    padding:        10px 12px 4px;
+    background:     rgba(246, 239, 226, 0.96);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    position:        sticky;
-    top:             var(--navbar-h, 62px);
-    z-index:         20;
-    border-bottom:   1px solid var(--rule);
+    position:       sticky;
+    top:            var(--navbar-h, 62px);
+    z-index:        20;
+    border-bottom:  1px solid var(--rule);
+  }
+}
+
+// Column container that sizes to the filter row's natural width;
+// the search bar stretches to match it.
+.regionBarInner {
+  display:        flex;
+  flex-direction: column;
+  align-items:    stretch;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+}
+
+// The row of filter controls — sets the natural width for the whole group.
+.filterRow {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+
+  @media (max-width: 768px) {
+    gap:             6px;
     flex-wrap:       wrap;
     justify-content: center;
 
@@ -153,8 +169,6 @@
   &:active { color: var(--terracotta-press); }
   @include focus-ring(var(--ink));
 
-  // Mobile: its own centred line under the region buttons. It's a text
-  // link, so a 32px row is enough of a target and keeps the bar short.
   @media (max-width: 768px) {
     flex:       0 0 100%;
     padding:    6px 14px;
@@ -163,6 +177,49 @@
 
   @media (max-width: 380px) {
     font-size: 10px;
+  }
+}
+
+// ── Map row (horizontal: gallery panel + map + right col) ─────
+.mapRow {
+  flex:      1;
+  display:   flex;
+  min-height: 0;
+}
+
+// Left sidebar: gallery detail card — desktop only
+.galleryPanel {
+  width:          300px;
+  flex-shrink:    0;
+  display:        flex;
+  flex-direction: column;
+  border-right:   1px solid var(--rule);
+  overflow:       hidden;
+  background:     var(--cream);
+
+  @media (max-width: 768px) { display: none; }
+}
+
+// Search bar — fills .regionBarInner width, which equals the filter row above it
+.searchRow {
+  padding: 4px 0 2px;
+}
+
+.searchBarInput {
+  @include input-field;
+  width:          100%;
+  height:         36px;
+  padding:        0 14px;
+  font-size:      12px;
+  font-weight:    500;
+  letter-spacing: 0.04em;
+  color:          var(--ink);
+  box-sizing:     border-box;
+
+  &:focus { outline-offset: -2px; }
+
+  @media (max-width: 768px) {
+    height: 40px;
   }
 }
 
@@ -191,6 +248,16 @@
   min-height:     0;
   display:        flex;
   flex-direction: column;
+}
+
+// Mainland region colour overlay (#b45309) — a very subtle warm tint across
+// the entire map canvas. pointer-events: none so the map stays fully interactive.
+.mapOverlay {
+  position:       absolute;
+  inset:          0;
+  z-index:        2;
+  pointer-events: none;
+  background:     rgba(180, 83, 9, 0.07); // #b45309 at 7 %
 }
 
 // Sweep across the map plus a status pill while the venue list loads.

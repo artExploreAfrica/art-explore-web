@@ -5,7 +5,6 @@ import styles from './MapView.module.scss';
 import { useGalleries } from '../../hooks/useGalleries'; // ← live data from the API
 import { placeOf } from '../../lib/adapters';
 import { neighbourhoodsGeoJSON, landmarksGeoJSON } from '../../data/lagosGeo';
-import LegendPanel from './LegendPanel';
 import GalleryCard from './GalleryCard';
 
 const MAPTILER_KEY = 'eBsT19HyOExrdi0WUD3x';
@@ -21,7 +20,7 @@ const LAYER_DEFAULTS = {
   neighbourhoods: true,
   landmarks:      true,
   greenZones:     true,
-  regionOverlays: true,
+  regionOverlays: false,
   galleries:      true,
 };
 
@@ -46,7 +45,7 @@ const matchesFilters = (g, { region, neighbourhood, type }) =>
 
 const isUnfiltered = (f) => f.region === 'All' && !f.neighbourhood && !f.type;
 
-const FIT_PADDING        = { top: 100, bottom: 60,  left: 60,  right: 280 };
+const FIT_PADDING        = { top: 80,  bottom: 60,  left: 60,  right: 60  };
 // Mobile: top clears the sticky filter bar, which overlaps the map once
 // scrolled to; bottom clears the layers toggle and zoom buttons. The old
 // 140px bottom reserved room for a bottom sheet that is closed whenever a
@@ -166,8 +165,16 @@ const MapView = () => {
   const [activeLayers,    setActiveLayers]    = useState(LAYER_DEFAULTS);
   const [selectedGallery, setSelectedGallery] = useState(null);
   const [mapReady,        setMapReady]        = useState(false);
+  const [isMobile,        setIsMobile]        = useState(() => window.innerWidth <= 768);
+  const [searchQuery,     setSearchQuery]     = useState('');
 
   useEffect(() => { galleriesRef.current = withCoords(galleries); }, [galleries]);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Neighbourhoods that actually have venues, within the selected region,
   // with how many each has. Vague places ("Island", "Mainland") aren't
@@ -197,10 +204,16 @@ const MapView = () => {
     });
 
   // The panel lists fixed art & cultural spaces only; its count is "N".
-  const panelSpaces = useMemo(
-    () => galleries.filter((g) => !NOT_A_FIXED_SPACE.has(g.type) && matchesFilters(g, filters)),
-    [galleries, filters],
-  );
+  // When a search query is active it overrides all top-bar filters.
+  const panelSpaces = useMemo(() => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      return galleries
+        .filter((g) => !NOT_A_FIXED_SPACE.has(g.type))
+        .filter((g) => g.name.toLowerCase().includes(q) || placeOf(g).toLowerCase().includes(q));
+    }
+    return galleries.filter((g) => !NOT_A_FIXED_SPACE.has(g.type) && matchesFilters(g, filters));
+  }, [galleries, filters, searchQuery]);
 
   // ── Fly to a gallery and open the bottom sheet ────────────
   const flyToGallery = useCallback((gallery) => {
@@ -282,16 +295,25 @@ const MapView = () => {
   );
 
   // ── Filter pins + refit bounds when the top-bar filters change ──
+  // searchOverride: when non-null, use this list instead of matchesFilters
   const updateGalleryFilter = useCallback(
-    (activeFilters) => {
+    (activeFilters, searchOverride = null) => {
       const map = mapRef.current;
       if (!map || !mapReady || !map.getSource('galleries')) return;
 
       const all = galleriesRef.current;
-      const filtered = all.filter((g) => matchesFilters(g, activeFilters));
+      const filtered = searchOverride !== null
+        ? searchOverride
+        : all.filter((g) => matchesFilters(g, activeFilters));
+
       map.getSource('galleries').setData(buildGalleriesGeoJSON(filtered));
 
       const padding = isMobileRef.current ? FIT_PADDING_MOBILE : FIT_PADDING;
+
+      if (searchOverride !== null) {
+        // For search: fit to results without refitting on every keystroke — just show pins
+        return;
+      }
 
       if (isUnfiltered(activeFilters)) {
         map.fitBounds(ALL_BOUNDS, { padding, duration: 800 });
@@ -573,43 +595,12 @@ const MapView = () => {
         },
       });
 
-      // Pin click:
-      // Mobile — flyToGallery centres the marker in the visible map zone
-      //          above the bottom sheet, then GalleryCard slides up.
-      // Desktop — same fly + a MapLibre popup beside the marker.
+      // Pin click: fly to gallery and open the detail panel
       map.on('click', 'gallery-pins', (e) => {
         const props   = e.features[0].properties;
         const gallery = galleriesRef.current.find((g) => g.id === props.id);
         if (!gallery) return;
-
         flyToGallery(gallery);
-
-        if (!isMobileRef.current) {
-          new maplibregl.Popup({
-            offset:      [0, -52],
-            maxWidth:    '300px',
-            closeButton: true,
-            className:   'gallery-popup-wrapper',
-          })
-            .setLngLat(e.features[0].geometry.coordinates)
-            .setHTML(`
-              <div class="popup-content">
-                <img src="${gallery.image}" alt="${gallery.name}" class="popup-image"
-                  onerror="this.src='https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=400&q=60'"/>
-                <div class="popup-text">
-                  <div class="popup-meta">
-                    <span class="popup-region popup-region--${gallery.region.toLowerCase()}">${gallery.region}</span>
-                    <span class="popup-neighbourhood">${gallery.neighborhood}</span>
-                  </div>
-                  <h4>${gallery.name}</h4>
-                  <p>${gallery.address}</p>
-                  <div class="popup-footer">
-                    <span class="popup-tags">${[gallery.typeLabel, gallery.hasExhibition && 'Exhibition'].filter(Boolean).join(' · ')}</span>
-                  </div>
-                </div>
-              </div>`)
-            .addTo(map);
-        }
       });
 
       map.on('mousemove', 'gallery-pins', (e) => {
@@ -630,77 +621,103 @@ const MapView = () => {
   // ── Sync filters and layer visibility with map ────────────
   // Also re-runs when `galleries` changes (API fetch resolves) so the
   // pins that were seeded empty at mount get populated once data arrives.
+  // When a search query is active it overrides all top-bar filters.
   useEffect(() => {
     if (!mapReady) return;
-    updateGalleryFilter(filters);
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      const matches = galleriesRef.current.filter(
+        (g) => g.name.toLowerCase().includes(q) || placeOf(g).toLowerCase().includes(q),
+      );
+      updateGalleryFilter(filters, matches);
+    } else {
+      updateGalleryFilter(filters);
+    }
     applyLayerVisibility(activeLayers);
-  }, [filters, mapReady, galleries, updateGalleryFilter, applyLayerVisibility]);
+  }, [filters, mapReady, galleries, updateGalleryFilter, applyLayerVisibility, searchQuery]);
 
   // ── Render ────────────────────────────────────────────────
   return (
     <div className={styles.mapWrapper}>
+      {/* Filter bar — search above, all 4 controls below, centred as one group */}
       <div className={styles.regionBar}>
-        {['All', 'Island', 'Mainland'].map((r) => (
-          <button
-            key={r}
-            className={`${styles.regionBtn} ${activeRegion === r ? styles.regionBtnActive : ''} ${styles[`regionBtn${r}`] ?? ''}`}
-            onClick={() => setRegion(r)}
-          >
-            {r === 'All' ? 'All Lagos' : r}
-          </button>
-        ))}
-        <select
-          className={styles.filterSelect}
-          aria-label="Neighbourhood"
-          value={filters.neighbourhood}
-          onChange={(e) => setFilters((f) => ({ ...f, neighbourhood: e.target.value }))}
-        >
-          <option value="">All neighbourhoods</option>
-          {neighbourhoodOptions.map(([name, count]) => (
-            <option key={name} value={name}>
-              {name} ({count})
-            </option>
-          ))}
-        </select>
-        <select
-          className={styles.filterSelect}
-          aria-label="Type of space"
-          value={filters.type}
-          onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
-        >
-          <option value="">All types</option>
-          {TYPE_FILTERS.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <button className={styles.resetBtn} onClick={resetView} title="Clear filters and show all of Lagos">
-          ↺ Reset
-        </button>
+        <div className={styles.regionBarInner}>
+          <div className={styles.filterRow}>
+            <button
+              className={`${styles.regionBtn} ${styles.regionBtnActive}`}
+              onClick={() => setRegion('All')}
+            >
+              All Lagos
+            </button>
+            <select
+              className={styles.filterSelect}
+              aria-label="Neighbourhood"
+              value={filters.neighbourhood}
+              onChange={(e) => setFilters((f) => ({ ...f, neighbourhood: e.target.value }))}
+            >
+              <option value="">All neighbourhoods</option>
+              {neighbourhoodOptions.map(([name, count]) => (
+                <option key={name} value={name}>
+                  {name} ({count})
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.filterSelect}
+              aria-label="Type of space"
+              value={filters.type}
+              onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
+            >
+              <option value="">All types</option>
+              {TYPE_FILTERS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <button className={styles.resetBtn} onClick={resetView} title="Clear filters and show all of Lagos">
+              ↺ Reset
+            </button>
+          </div>
+          <div className={styles.searchRow}>
+            <input
+              type="search"
+              className={styles.searchBarInput}
+              placeholder="Search spaces…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search art spaces"
+            />
+          </div>
+        </div>
       </div>
 
-      <div className={styles.mapStage}>
-        <div ref={mapContainer} className={styles.mapContainer} />
-        {/* Basemap is usable straight away; this only says the pins are on their way. */}
-        {loading && (
-          <div className={styles.loading} role="status">
-            <span className={styles.loadingDot} aria-hidden="true" />
-            Loading galleries…
+      {/* Main row: gallery panel (left) + map (centre) + guide + search (right) */}
+      <div className={styles.mapRow}>
+
+        {/* Left: gallery detail — desktop sidebar, only when a gallery is selected */}
+        {!isMobile && selectedGallery && (
+          <div className={styles.galleryPanel}>
+            <GalleryCard gallery={selectedGallery} onClose={() => setSelectedGallery(null)} sidebar />
           </div>
         )}
+
+        {/* Centre: the map canvas with mainland colour overlay */}
+        <div className={styles.mapStage}>
+          <div ref={mapContainer} className={styles.mapContainer} />
+          {/* Mainland region colour (#b45309) as a subtle tint over the map */}
+          <div className={styles.mapOverlay} aria-hidden="true" />
+          {loading && (
+            <div className={styles.loading} role="status">
+              <span className={styles.loadingDot} aria-hidden="true" />
+              Loading galleries…
+            </div>
+          )}
+        </div>
       </div>
 
-      <LegendPanel
-        activeLayers={activeLayers}
-        onToggle={toggleLayer}
-        spaces={panelSpaces}
-        onGalleryClick={flyToGallery}
-        onNeighbourhoodClick={flyToNeighbourhood}
-        galleryOpen={!!selectedGallery}
-      />
-
-      {selectedGallery && (
+      {/* Mobile: GalleryCard as a fixed bottom sheet (outside mapRow) */}
+      {isMobile && selectedGallery && (
         <GalleryCard gallery={selectedGallery} onClose={() => setSelectedGallery(null)} />
       )}
     </div>

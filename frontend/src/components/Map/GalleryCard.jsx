@@ -38,7 +38,7 @@ const instagramUrl = (value) => {
   return /^https?:\/\//i.test(v) ? v : `https://www.instagram.com/${v.replace(/\/$/, '')}`;
 };
 
-const GalleryCard = ({ gallery, onClose }) => {
+const GalleryCard = ({ gallery, onClose, sidebar }) => {
   const kicker = [gallery.typeLabel, subTypeLabel(gallery)].filter(Boolean).join(' · ');
   const hours = formatOpeningHours(gallery.openingHours);
   // The venue's own Google Maps link beats a raw coordinate search.
@@ -83,6 +83,77 @@ const GalleryCard = ({ gallery, onClose }) => {
   }, []);
 
   const isExpanded = sheetState === 'expanded';
+
+  // Sidebar mode: no backdrop, no handle row, always show full content
+  if (sidebar) {
+    return (
+      <div
+        className={styles.cardSidebar}
+        role="dialog"
+        aria-modal="true"
+        aria-label={gallery.name}
+      >
+        <button className={styles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+
+        <div className={styles.imageWrap}>
+          <img
+            src={gallery.image}
+            alt={gallery.name}
+            className={styles.image}
+            onError={(e) => { e.target.src = FALLBACK_IMAGE; }}
+          />
+          <div className={styles.imageOverlay}>
+            <span className={`${styles.regionBadge} ${gallery.region === 'Island' ? styles.regionIsland : styles.regionMainland}`}>
+              {gallery.region}
+            </span>
+          </div>
+        </div>
+
+        <div className={styles.body}>
+          <p className={styles.kicker}>{kicker}</p>
+          <h3 className={styles.name}>{gallery.name}</h3>
+          <p className={styles.neighbourhood}>{placeOf(gallery)}</p>
+
+          {gallery.description && <p className={styles.description}>{gallery.description}</p>}
+          {gallery.address && <p className={styles.address}>{gallery.address}</p>}
+
+          {hours.length > 0 && (
+            <dl className={styles.hours}>
+              {hours.map((row) => (
+                <div key={row.label} className={styles.hoursRow}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+
+          {(gallery.website || gallery.instagram || gallery.phone) && (
+            <div className={styles.links}>
+              {gallery.website && (
+                <a href={withScheme(gallery.website)} target="_blank" rel="noopener noreferrer">Website ↗</a>
+              )}
+              {gallery.instagram && (
+                <a href={instagramUrl(gallery.instagram)} target="_blank" rel="noopener noreferrer">Instagram ↗</a>
+              )}
+              {gallery.phone && <a href={`tel:${gallery.phone.replace(/[^\d+]/g, '')}`}>{gallery.phone}</a>}
+            </div>
+          )}
+
+          {(gallery.hasExhibition || gallery.hasResidency) && (
+            <div className={styles.tags}>
+              {gallery.hasExhibition && <span className={styles.tag}>Exhibition on view</span>}
+              {gallery.hasResidency && <span className={styles.tag}>Artist residency</span>}
+            </div>
+          )}
+
+          <a className={styles.directionsBtn} href={directions} target="_blank" rel="noopener noreferrer">
+            Get Directions ↗
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

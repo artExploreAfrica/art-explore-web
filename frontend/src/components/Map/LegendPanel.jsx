@@ -4,7 +4,7 @@
 //  the GalleryCard bottom sheet is active.
 // ─────────────────────────────────────────────────────────────
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import styles from './LegendPanel.module.scss';
 import { placeOf } from '../../lib/adapters';
 
@@ -33,48 +33,21 @@ const LegendPanel = ({
   spaces,       // art & cultural spaces after the map's top-bar filters
   onGalleryClick,
   onNeighbourhoodClick,
-  galleryOpen,  // NEW: true when GalleryCard is visible on mobile
 }) => {
-  // On mobile, default to collapsed so it doesn't clutter the map.
-  // On desktop, start expanded as before.
-  const [collapsed, setCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState('layers');
 
-  useEffect(() => {
-    if (window.innerWidth <= 768) {
-      setCollapsed(true);
-    }
-  }, []);
-
   return (
-    <div
-      className={[
-        styles.panel,
-        collapsed ? styles.panelCollapsed : '',
-        // On mobile: fade out + disable when GalleryCard bottom sheet is open
-        galleryOpen ? styles.panelHidden : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
+    <div className={styles.panel}>
       {/* ── Header ─────────────────────────────────────────── */}
       <div className={styles.header}>
         <div className={styles.headerTitle}>
           <span className={styles.headerIcon}>🗺</span>
-          {!collapsed && <span>Map Guide</span>}
+          <span>Map Guide</span>
         </div>
-        <button
-          className={styles.collapseBtn}
-          onClick={() => setCollapsed((c) => !c)}
-          aria-label={collapsed ? 'Expand legend' : 'Collapse legend'}
-        >
-          {collapsed ? '◀' : '▶'}
-        </button>
       </div>
 
       {/* ── Tabs + content ─────────────────────────────────── */}
-      {!collapsed && (
-        <>
+      <>
           <div className={styles.tabs}>
             {['layers', 'galleries', 'areas'].map((tab) => (
               <button
@@ -163,8 +136,7 @@ const LegendPanel = ({
               ))}
             </div>
           )}
-        </>
-      )}
+      </>
     </div>
   );
 };
