@@ -186,32 +186,20 @@
   @media (max-width: 768px) { display: none; }
 }
 
-// Right sidebar: map guide (LegendPanel) + search input
-.rightCol {
-  width:          280px;
-  flex-shrink:    0;
-  display:        flex;
-  flex-direction: column;
-  border-left:    1px solid var(--rule);
-  background:     var(--cream);
-  overflow:       hidden;
-
-  @media (max-width: 768px) { display: none; }
+// Search bar centred below the filter buttons — full-width row in the region bar
+.searchRow {
+  flex:            0 0 100%;
+  display:         flex;
+  justify-content: center;
+  padding:         4px 0 2px;
 }
 
-// Search bar under the map guide
-.searchWrap {
-  flex-shrink:  0;
-  padding:      12px;
-  border-top:   1px solid var(--rule);
-  background:   var(--sand);
-}
-
-.searchInput {
+.searchBarInput {
   @include input-field;
-  width:          100%;
+  width:          340px;
+  max-width:      100%;
   height:         36px;
-  padding:        0 12px;
+  padding:        0 14px;
   font-size:      12px;
   font-weight:    500;
   letter-spacing: 0.04em;
@@ -219,6 +207,11 @@
   box-sizing:     border-box;
 
   &:focus { outline-offset: -2px; }
+
+  @media (max-width: 768px) {
+    width:  100%;
+    height: 40px;
+  }
 }
 
 // ── Map frame ─────────────────────────────────────────────────
@@ -246,6 +239,16 @@
   min-height:     0;
   display:        flex;
   flex-direction: column;
+}
+
+// Mainland region colour overlay (#b45309) — a very subtle warm tint across
+// the entire map canvas. pointer-events: none so the map stays fully interactive.
+.mapOverlay {
+  position:       absolute;
+  inset:          0;
+  z-index:        2;
+  pointer-events: none;
+  background:     rgba(180, 83, 9, 0.07); // #b45309 at 7 %
 }
 
 // Sweep across the map plus a status pill while the venue list loads.

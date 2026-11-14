@@ -5,7 +5,6 @@ import styles from './MapView.module.scss';
 import { useGalleries } from '../../hooks/useGalleries'; // ← live data from the API
 import { placeOf } from '../../lib/adapters';
 import { neighbourhoodsGeoJSON, landmarksGeoJSON } from '../../data/lagosGeo';
-import LegendPanel from './LegendPanel';
 import GalleryCard from './GalleryCard';
 
 const MAPTILER_KEY = 'eBsT19HyOExrdi0WUD3x';
@@ -640,7 +639,7 @@ const MapView = () => {
   // ── Render ────────────────────────────────────────────────
   return (
     <div className={styles.mapWrapper}>
-      {/* Filter bar — region (All Lagos only), neighbourhood, type, reset */}
+      {/* Filter bar — region (All Lagos only), neighbourhood, type, reset + search */}
       <div className={styles.regionBar}>
         <button
           className={`${styles.regionBtn} ${styles.regionBtnActive}`}
@@ -677,6 +676,17 @@ const MapView = () => {
         <button className={styles.resetBtn} onClick={resetView} title="Clear filters and show all of Lagos">
           ↺ Reset
         </button>
+        {/* Search bar centred below the filter row */}
+        <div className={styles.searchRow}>
+          <input
+            type="search"
+            className={styles.searchBarInput}
+            placeholder="Search spaces…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search art spaces"
+          />
+        </div>
       </div>
 
       {/* Main row: gallery panel (left) + map (centre) + guide + search (right) */}
@@ -689,36 +699,17 @@ const MapView = () => {
           </div>
         )}
 
-        {/* Centre: the map canvas */}
+        {/* Centre: the map canvas with mainland colour overlay */}
         <div className={styles.mapStage}>
           <div ref={mapContainer} className={styles.mapContainer} />
+          {/* Mainland region colour (#b45309) as a subtle tint over the map */}
+          <div className={styles.mapOverlay} aria-hidden="true" />
           {loading && (
             <div className={styles.loading} role="status">
               <span className={styles.loadingDot} aria-hidden="true" />
               Loading galleries…
             </div>
           )}
-        </div>
-
-        {/* Right: map guide + search */}
-        <div className={styles.rightCol}>
-          <LegendPanel
-            activeLayers={activeLayers}
-            onToggle={toggleLayer}
-            spaces={panelSpaces}
-            onGalleryClick={flyToGallery}
-            onNeighbourhoodClick={flyToNeighbourhood}
-          />
-          <div className={styles.searchWrap}>
-            <input
-              type="search"
-              className={styles.searchInput}
-              placeholder="Search spaces…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search art spaces"
-            />
-          </div>
         </div>
       </div>
 
