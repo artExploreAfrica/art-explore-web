@@ -639,54 +639,57 @@ const MapView = () => {
   // ── Render ────────────────────────────────────────────────
   return (
     <div className={styles.mapWrapper}>
-      {/* Filter bar — search above, then region (All Lagos only), neighbourhood, type, reset */}
+      {/* Filter bar — search above, all 4 controls below, centred as one group */}
       <div className={styles.regionBar}>
-        {/* Search bar centred above the filter buttons */}
-        <div className={styles.searchRow}>
-          <input
-            type="search"
-            className={styles.searchBarInput}
-            placeholder="Search spaces…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search art spaces"
-          />
+        <div className={styles.regionBarInner}>
+          <div className={styles.filterRow}>
+            <button
+              className={`${styles.regionBtn} ${styles.regionBtnActive}`}
+              onClick={() => setRegion('All')}
+            >
+              All Lagos
+            </button>
+            <select
+              className={styles.filterSelect}
+              aria-label="Neighbourhood"
+              value={filters.neighbourhood}
+              onChange={(e) => setFilters((f) => ({ ...f, neighbourhood: e.target.value }))}
+            >
+              <option value="">All neighbourhoods</option>
+              {neighbourhoodOptions.map(([name, count]) => (
+                <option key={name} value={name}>
+                  {name} ({count})
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.filterSelect}
+              aria-label="Type of space"
+              value={filters.type}
+              onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
+            >
+              <option value="">All types</option>
+              {TYPE_FILTERS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <button className={styles.resetBtn} onClick={resetView} title="Clear filters and show all of Lagos">
+              ↺ Reset
+            </button>
+          </div>
+          <div className={styles.searchRow}>
+            <input
+              type="search"
+              className={styles.searchBarInput}
+              placeholder="Search spaces…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search art spaces"
+            />
+          </div>
         </div>
-        <button
-          className={`${styles.regionBtn} ${styles.regionBtnActive}`}
-          onClick={() => setRegion('All')}
-        >
-          All Lagos
-        </button>
-        <select
-          className={styles.filterSelect}
-          aria-label="Neighbourhood"
-          value={filters.neighbourhood}
-          onChange={(e) => setFilters((f) => ({ ...f, neighbourhood: e.target.value }))}
-        >
-          <option value="">All neighbourhoods</option>
-          {neighbourhoodOptions.map(([name, count]) => (
-            <option key={name} value={name}>
-              {name} ({count})
-            </option>
-          ))}
-        </select>
-        <select
-          className={styles.filterSelect}
-          aria-label="Type of space"
-          value={filters.type}
-          onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}
-        >
-          <option value="">All types</option>
-          {TYPE_FILTERS.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-        <button className={styles.resetBtn} onClick={resetView} title="Clear filters and show all of Lagos">
-          ↺ Reset
-        </button>
       </div>
 
       {/* Main row: gallery panel (left) + map (centre) + guide + search (right) */}
