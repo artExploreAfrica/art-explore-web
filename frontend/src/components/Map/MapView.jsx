@@ -20,7 +20,7 @@ const LAYER_DEFAULTS = {
   neighbourhoods: true,
   landmarks:      true,
   greenZones:     true,
-  regionOverlays: true,
+  regionOverlays: false,
   galleries:      true,
 };
 
@@ -639,8 +639,19 @@ const MapView = () => {
   // ── Render ────────────────────────────────────────────────
   return (
     <div className={styles.mapWrapper}>
-      {/* Filter bar — region (All Lagos only), neighbourhood, type, reset + search */}
+      {/* Filter bar — search above, then region (All Lagos only), neighbourhood, type, reset */}
       <div className={styles.regionBar}>
+        {/* Search bar centred above the filter buttons */}
+        <div className={styles.searchRow}>
+          <input
+            type="search"
+            className={styles.searchBarInput}
+            placeholder="Search spaces…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search art spaces"
+          />
+        </div>
         <button
           className={`${styles.regionBtn} ${styles.regionBtnActive}`}
           onClick={() => setRegion('All')}
@@ -676,17 +687,6 @@ const MapView = () => {
         <button className={styles.resetBtn} onClick={resetView} title="Clear filters and show all of Lagos">
           ↺ Reset
         </button>
-        {/* Search bar centred below the filter row */}
-        <div className={styles.searchRow}>
-          <input
-            type="search"
-            className={styles.searchBarInput}
-            placeholder="Search spaces…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search art spaces"
-          />
-        </div>
       </div>
 
       {/* Main row: gallery panel (left) + map (centre) + guide + search (right) */}

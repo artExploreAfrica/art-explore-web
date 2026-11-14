@@ -186,12 +186,12 @@
   @media (max-width: 768px) { display: none; }
 }
 
-// Search bar centred below the filter buttons — full-width row in the region bar
+// Search bar centred above the filter buttons — full-width row in the region bar
 .searchRow {
   flex:            0 0 100%;
   display:         flex;
   justify-content: center;
-  padding:         4px 0 2px;
+  padding:         2px 0 4px;
 }
 
 .searchBarInput {
