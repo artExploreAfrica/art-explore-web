@@ -24,16 +24,19 @@
  * and is safe to re-run. Run it after scripts/data-quality-2026-10.ts, which
  * merges duplicates and fixes names this script relies on.
  *
- * Usage:
+ * Production: you don't run this by hand. It is registered as the data
+ * migration "2026-11-tags" (src/dataMigrations), so the deploy applies it once
+ * per database and records that it ran. Running it on every deploy would be
+ * wrong: step 2 would delete tags created in the admin, and step 3 would put
+ * back tags an admin had removed.
+ *
+ * Usage (local, by hand):
  *   npx ts-node scripts/tags-2026-11.ts            # dry run (default)
  *   npx ts-node scripts/tags-2026-11.ts --apply    # write
  */
 import 'dotenv/config';
 import { InstitutionType, Prisma, PrismaClient } from '@prisma/client';
 import { TAG_CATEGORY_DEFAULT, TAG_VOCABULARY } from '../src/config/tags';
-
-const prisma = new PrismaClient();
-const APPLY = process.argv.includes('--apply');
 
 type Tx = Prisma.TransactionClient;
 
@@ -110,8 +113,16 @@ const ASSIGNMENTS: Record<string, string[]> = {
   ],
 };
 
-const log: string[] = [];
-const missing: string[] = [];
+/** What a run changed, and the names it could not find in this database. */
+export interface TagRunReport {
+  changes: string[];
+  missing: string[];
+}
+
+// Collected per run by applyTags(); module-level so the helpers below can stay
+// as they were.
+let log: string[] = [];
+let missing: string[] = [];
 const note = (line: string) => log.push(line);
 
 async function vocabulary(tx: Tx) {
@@ -177,35 +188,55 @@ async function assignments(tx: Tx) {
   await attach(tx, 'LIVE_EXHIBITION', shows.map((r) => r.name), ' (has a live exhibition)');
 }
 
+/**
+ * The whole job, inside a transaction the caller owns. Used by the CLI below
+ * and by the deploy's run-once data migrations (src/dataMigrations), which is
+ * how this reaches production: there it runs exactly once per database.
+ */
+export async function applyTags(tx: Tx): Promise<TagRunReport> {
+  log = [];
+  missing = [];
+  await vocabulary(tx);
+  await assignments(tx);
+  return { changes: [...log], missing: [...missing] };
+}
+
 /** Thrown at the end of a dry run so the transaction rolls back. */
 class DryRun extends Error {}
 
 async function main(): Promise<void> {
-  console.log(`Mode: ${APPLY ? 'APPLY (writing)' : 'DRY RUN (no writes)'}\n`);
+  const prisma = new PrismaClient();
+  const apply = process.argv.includes('--apply');
+  console.log(`Mode: ${apply ? 'APPLY (writing)' : 'DRY RUN (no writes)'}\n`);
 
   // One transaction: a dry run executes the real queries and rolls back, so its
   // report is exactly what --apply does.
+  let report: TagRunReport = { changes: [], missing: [] };
   try {
     await prisma.$transaction(
       async (tx) => {
-        await vocabulary(tx);
-        await assignments(tx);
-        if (!APPLY) throw new DryRun();
+        report = await applyTags(tx);
+        if (!apply) throw new DryRun();
       },
       { timeout: 60_000 },
     );
   } catch (e) {
     if (!(e instanceof DryRun)) throw e;
+  } finally {
+    await prisma.$disconnect();
   }
 
-  console.log(log.length ? log.join('\n') : 'Nothing to change — already done.');
-  if (missing.length) console.log(`\nNot found in this database (skipped):\n  ${missing.join('\n  ')}`);
-  console.log(`\n${log.length} change(s) ${APPLY ? 'written' : 'would be written — re-run with --apply'}.`);
+  const { changes, missing: notFound } = report;
+  console.log(changes.length ? changes.join('\n') : 'Nothing to change — already done.');
+  if (notFound.length) console.log(`\nNot found in this database (skipped):\n  ${notFound.join('\n  ')}`);
+  console.log(`\n${changes.length} change(s) ${apply ? 'written' : 'would be written — re-run with --apply'}.`);
 }
 
-main()
-  .catch((e) => {
+// Only when run directly (npx ts-node scripts/tags-2026-11.ts), not when the
+// data-migration runner imports applyTags.
+if (require.main === module) {
+  main().catch((e) => {
     console.error(e);
     process.exitCode = 1;
-  })
-  .finally(() => prisma.$disconnect());
+  });
+}

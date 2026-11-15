@@ -105,9 +105,20 @@ manual** — there is no automated SSH/pm2 pipeline yet.
 npm ci
 npm run build          # compiles to dist/
 npm run prisma:deploy  # apply committed migrations
+npm run data:migrate   # apply pending run-once data migrations
 npm run seed           # first deploy only (idempotent)
 npm start              # or: pm2 restart art-explore-api
 ```
+
+### Data migrations (run once per database)
+Data fixes that production needs — a new tag list, merged duplicates — go in
+`src/dataMigrations/index.ts`, not in a script someone has to remember to run on
+the server. The CD pipeline runs `npm run data:migrate` after `prisma:deploy`
+and before the restart; each migration runs once and is recorded in the
+`DataMigration` table, so later deploys skip it. Running these on every deploy
+would be wrong, since they set up data the admin then owns. Preview with
+`npm run data:migrate:dry`. Append new entries only; never rename one that has
+shipped.
 
 Set `NODE_ENV=production` so stack traces are never returned in error responses.
 `ALLOWED_ORIGINS` is **required** in production (boot fails if empty).

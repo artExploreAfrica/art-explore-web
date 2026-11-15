@@ -343,3 +343,12 @@ model Enquiry {
 
   @@index([status, createdAt])
 }
+
+// Ledger of one-off data scripts (src/dataMigrations) that have been applied to
+// this database. The deploy runs `npm run data:migrate`, which runs each script
+// not listed here once and records it, so a data fix reaches production
+// automatically and never runs twice (re-running would undo admin edits).
+model DataMigration {
+  name      String   @id
+  appliedAt DateTime @default(now())
+}
