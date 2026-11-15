@@ -34,6 +34,8 @@
     "sync:images:live:dry": "ts-node scripts/sync-images-from-live.ts --dry-run",
     "recompute:exhibitions": "ts-node scripts/recompute-has-exhibition.ts",
     "recompute:exhibitions:dry": "ts-node scripts/recompute-has-exhibition.ts --dry-run",
+    "data:migrate": "ts-node scripts/data-migrate.ts",
+    "data:migrate:dry": "ts-node scripts/data-migrate.ts --dry-run",
     "test:coverage": "vitest run --coverage"
   },
   "keywords": [
