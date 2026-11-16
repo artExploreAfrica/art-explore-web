@@ -9,9 +9,9 @@ import "./TagShowcase.scss";
  *
  * It replaces the old "Popular galleries" section, which was organised by
  * type (gallery, museum, hub…). Those types still have their own tabs on the
- * directory; here the six tags the team chose are the doorways:
+ * directory; here the tags the team chose are the doorways:
  * Women Owned, Affordable Art, Children Focused, Workshops & Classes,
- * Recently established, Classics.
+ * Recently established, Classics, Yoruba History.
  *
  * Each card is a swipeable photo. Its cover is a photo of one of the spaces
  * that carries the tag (COVER_PREFERENCE below says which, with a fallback to
@@ -27,6 +27,7 @@ const TAGS = [
   { name: "WORKSHOPS_CLASSES", label: "Workshops & Classes", blurb: "Hands-on: pottery, painting, perfume-making and more." },
   { name: "RECENTLY_ESTABLISHED", label: "Recently established", blurb: "New rooms that opened in the last few years." },
   { name: "CLASSICS", label: "Classics", blurb: "Long-standing galleries and heritage museums." },
+  { name: "YORUBA_HISTORY", label: "Yoruba History", blurb: "Where Yoruba art, history and heritage live on." },
 ];
 
 // Fallback covers, used until an admin picks one on the Tags page (stored as
