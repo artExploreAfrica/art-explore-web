@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { TAG_VOCABULARY } from '../src/config/tags';
 
 describe('tag vocabulary', () => {
-  it('is the nine agreed tags, with unique upper-case slugs', () => {
+  it('is the agreed tags, with unique upper-case slugs', () => {
     expect(TAG_VOCABULARY.map((t) => t.label)).toEqual([
       'Women Owned',
       'Affordable Art',
@@ -15,13 +15,14 @@ describe('tag vocabulary', () => {
       'Recently established',
       'Classics',
       'Live Exhibition',
+      'Yoruba History',
     ]);
     const slugs = TAG_VOCABULARY.map((t) => t.name);
     expect(new Set(slugs).size).toBe(slugs.length);
     for (const slug of slugs) expect(slug).toMatch(/^[A-Z]+(_[A-Z]+)*$/);
   });
 
-  // The homepage lists its six tags by slug in the frontend package, which
+  // The homepage lists its tags by slug in the frontend package, which
   // can't import from src/. A typo there would silently drop a card, so check
   // every slug it names exists, with the same label.
   it('covers every tag the homepage section names', () => {
@@ -32,7 +33,7 @@ describe('tag vocabulary', () => {
       label: m[2],
     }));
 
-    expect(named).toHaveLength(6);
+    expect(named).toHaveLength(7);
     for (const tag of named) {
       expect(TAG_VOCABULARY).toContainEqual(expect.objectContaining(tag));
     }
