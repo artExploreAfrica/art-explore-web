@@ -217,6 +217,10 @@ export const adminApi = {
 
   // tags
   tags: (page = 1) => apiRequest(`/api/v1/admin/tags?page=${page}`),
+  // One tag with the spaces that carry it (for the edit form).
+  tag: (id: string) => apiRequest(`/api/v1/admin/tags/${id}`),
+  // Every non-deleted space, slim rows, for the tag form's searchable picker.
+  tagSpaceOptions: () => apiRequest('/api/v1/admin/tags/space-options'),
   createTag: (data: Record<string, unknown>) =>
     apiRequest('/api/v1/admin/tags', { method: 'POST', body: data }),
   updateTag: (id: string, data: Record<string, unknown>) =>
