@@ -1,7 +1,8 @@
 import { TagCategory } from '@prisma/client';
 
 /**
- * The tag vocabulary: the nine tags the Art Explore team works with.
+ * The tag vocabulary: the tags the Art Explore team works with (the nine
+ * agreed in November 2026, plus Yoruba History, which has a home-page card).
  *
  * One list, read by `prisma/seed.ts` (fresh databases) and
  * `scripts/tags-2026-11.ts` (replaces the old list on an existing one), so
@@ -30,4 +31,7 @@ export const TAG_VOCABULARY: readonly TagDefinition[] = [
   { name: 'RECENTLY_ESTABLISHED', label: 'Recently established' },
   { name: 'CLASSICS', label: 'Classics' },
   { name: 'LIVE_EXHIBITION', label: 'Live Exhibition' },
+  // Created in the live admin (Nov 2026) and given a home-page card; listed
+  // here so a fresh database (seed) has it too, or that card would be missing.
+  { name: 'YORUBA_HISTORY', label: 'Yoruba History' },
 ];
