@@ -1,0 +1,69 @@
+/* Tags page: space picker and cover chooser. Uses the admin tokens from AdminLayout.css. */
+
+.tag-form .admin-form-row { margin-bottom: var(--ae-sp-4); }
+
+.tag-hint { margin: 6px 0 0; font-size: var(--ae-fs-sm); color: var(--ae-muted); line-height: 1.4; }
+.tag-hint code, .admin-table code { font-size: var(--ae-fs-sm); background: var(--ae-surface); padding: 1px 5px; border-radius: 4px; }
+
+.tag-count { margin-left: 6px; font-weight: 600; color: var(--ae-accent); }
+
+.tag-space-list {
+  margin-top: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--ae-border);
+  border-radius: var(--ae-radius-sm);
+  background: var(--ae-white);
+}
+
+/* `.admin-form-row label` styles every label as a small caption; reset for rows. */
+.admin-form-row label.tag-space {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--ae-border);
+  font-size: var(--ae-fs-md);
+  font-weight: 400;
+  color: var(--ae-text);
+  cursor: pointer;
+}
+.admin-form-row label.tag-space:last-child { border-bottom: 0; }
+.admin-form-row label.tag-space:hover { background: var(--ae-surface); }
+.admin-form-row label.tag-space.is-on { background: var(--ae-accent-tint); }
+.admin-form-row label.tag-space input[type="checkbox"] { margin: 0; width: 16px; height: 16px; flex: none; accent-color: var(--ae-accent); }
+
+.tag-space-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tag-badge {
+  flex: none;
+  font-size: var(--ae-fs-xs);
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--ae-warning-bg);
+  color: var(--ae-warning);
+}
+.tag-badge--muted { background: var(--ae-surface); color: var(--ae-muted); }
+
+.tag-thumb {
+  flex: none;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--ae-surface);
+  display: inline-block;
+}
+.tag-thumb--empty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--ae-fs-sm);
+  font-weight: 600;
+  color: var(--ae-muted);
+}
+
+.tag-cover-row { display: flex; align-items: center; gap: 12px; }
+.tag-cover-row select { flex: 1; }
+
+.tag-cover-cell { display: inline-flex; align-items: center; gap: 8px; max-width: 220px; }
+.tag-cover-cell .tag-hint { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

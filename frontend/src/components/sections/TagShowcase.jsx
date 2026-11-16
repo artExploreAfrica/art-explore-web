@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useGalleries } from "../../hooks/useGalleries";
+import { apiGet } from "../../lib/api";
 import "./TagShowcase.scss";
 
 /**
@@ -28,8 +29,9 @@ const TAGS = [
   { name: "CLASSICS", label: "Classics", blurb: "Long-standing galleries and heritage museums." },
 ];
 
-// The space whose photo fronts each tag, in order of preference. Chosen from
-// photos already in the catalogue; only used if that space carries the tag.
+// Fallback covers, used until an admin picks one on the Tags page (stored as
+// Tag.coverInstitutionId and read below). In order of preference; only used if
+// that space carries the tag.
 const COVER_PREFERENCE = {
   WOMEN_OWNED: ["Nike Art Gallery"],
   AFFORDABLE_ART: ["Ogirikan Art Gallery"],
@@ -39,8 +41,16 @@ const COVER_PREFERENCE = {
   CLASSICS: ["Treasure House Fine Arts"],
 };
 
-function pickCover(spaces, preferred = []) {
+/**
+ * The admin's choice wins — but only while it still qualifies: `spaces` is
+ * already limited to published spaces carrying the tag, so a cover whose space
+ * was unpublished, deleted, untagged or stripped of photos simply isn't found
+ * here and the card falls back instead of breaking.
+ */
+function pickCover(spaces, chosenId, preferred = []) {
   const withPhoto = spaces.filter((g) => g.image);
+  const chosen = chosenId && withPhoto.find((g) => g.id === chosenId);
+  if (chosen) return chosen;
   for (const name of preferred) {
     const hit = withPhoto.find((g) => g.name === name);
     if (hit) return hit;
@@ -109,8 +119,36 @@ function Skeleton() {
   );
 }
 
+/**
+ * Tag name → the cover space an admin chose (Tag.coverInstitutionId). Loaded
+ * alongside the spaces so a card never shows one photo and then swaps to
+ * another; if the request fails, the cards just use the automatic covers.
+ */
+function useTagCovers() {
+  const [covers, setCovers] = useState({});
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let live = true;
+    apiGet("/tags", { limit: 100 })
+      .then((res) => {
+        if (!live) return;
+        const map = {};
+        for (const t of res?.data ?? []) if (t.coverInstitutionId) map[t.name] = t.coverInstitutionId;
+        setCovers(map);
+      })
+      .catch(() => {})
+      .finally(() => live && setLoading(false));
+    return () => {
+      live = false;
+    };
+  }, []);
+  return { covers, loading };
+}
+
 export default function TagShowcase() {
-  const { galleries, loading, error } = useGalleries();
+  const { galleries, loading: galleriesLoading, error } = useGalleries();
+  const { covers, loading: coversLoading } = useTagCovers();
+  const loading = galleriesLoading || coversLoading;
   const trackRef = useRef(null);
   const [edge, setEdge] = useState({ start: true, end: false });
 
@@ -118,9 +156,10 @@ export default function TagShowcase() {
     () =>
       TAGS.map((t) => {
         const spaces = galleries.filter((g) => g.tags?.some((x) => x.name === t.name));
-        return { ...t, count: spaces.length, cover: pickCover(spaces, COVER_PREFERENCE[t.name]) };
+        const cover = pickCover(spaces, covers[t.name], COVER_PREFERENCE[t.name]);
+        return { ...t, count: spaces.length, cover };
       }).filter((c) => c.cover),
-    [galleries],
+    [galleries, covers],
   );
 
   // Arrows disable at either end of the strip.

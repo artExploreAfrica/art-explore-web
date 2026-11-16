@@ -1171,6 +1171,9 @@ router.delete(
  *       409: { description: Duplicate name }
  */
 router.get('/tags', isAdmin, validate({ query: listTagsQuerySchema }), adminTagController.list);
+// Declared before `/tags/:id` so "space-options" is never read as a tag id.
+router.get('/tags/space-options', isAdmin, adminTagController.spaceOptions);
+router.get('/tags/:id', isAdmin, validate({ params: idParamSchema }), adminTagController.getById);
 router.post('/tags', isAdmin, validate({ body: createTagSchema }), adminTagController.create);
 
 /**

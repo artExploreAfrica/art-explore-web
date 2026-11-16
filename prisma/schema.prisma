@@ -156,11 +156,19 @@ model Tag {
   name         String        @unique
   label        String
   category     TagCategory
-  institutions Institution[]
+  // Named only because Tag and Institution now have two relations; the name
+  // keeps the existing `_InstitutionToTag` join table, so nothing moves.
+  institutions Institution[] @relation("InstitutionToTag")
+  // The space whose main photo fronts this tag on the home page, chosen in the
+  // admin's Tags page. null = automatic. Must be one of `institutions` (the
+  // tag service enforces that); a deleted space clears it.
+  coverInstitutionId String?
+  coverInstitution   Institution? @relation("TagCover", fields: [coverInstitutionId], references: [id], onDelete: SetNull)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   @@index([category])
+  @@index([coverInstitutionId])
 }
 
 model Institution {
@@ -184,7 +192,9 @@ model Institution {
   phone        String?
   email        String?
   openingHours Json?
-  tags         Tag[]
+  tags         Tag[]           @relation("InstitutionToTag")
+  // Tags whose home-page card uses this space's photo (Tag.coverInstitution).
+  coverForTags Tag[]           @relation("TagCover")
   subCategoryId String?
   subCategory   SubCategory?   @relation(fields: [subCategoryId], references: [id])
   exhibitions   Exhibition[]
