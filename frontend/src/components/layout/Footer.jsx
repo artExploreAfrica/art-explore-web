@@ -6,7 +6,7 @@ import "./Footer.scss";
  * Site footer, shared by every public page.
  *
  * Links only to places that exist on the site. Section links
- * (/#map, /#contribute) land on the home page and scroll there —
+ * (/#contribute) land on the home page and scroll there —
  * Home handles the hash once it mounts.
  */
 
@@ -15,7 +15,7 @@ const COLUMNS = [
     title: "Explore",
     links: [
       { label: "About", to: "/about" },
-      { label: "The map", to: { pathname: "/", hash: "#map" } },
+      { label: "The map", to: "/map" },
       { label: "All galleries", to: "/galleries" },
       { label: "Add a gallery", to: { pathname: "/", hash: "#contribute" } },
     ],

@@ -14,17 +14,17 @@
 .mapWrapper {
   position:       relative;
   background:     var(--cream);
-  // Same centred measure as every other non-hero section.
-  padding:        0 var(--page-pad) clamp(48px, 8vh, 96px);
-  height:         90vh;
+  // Lives on /map (MapPage), which gives it whatever the screen has left
+  // under the navbar; it fills that and never makes the page scroll.
+  padding:        16px var(--page-pad) 24px;
+  flex:           1;
+  min-height:     0;
   width:          100%;
   display:        flex;
   flex-direction: column;
   font-family:    var(--font-body);
 
   @media (max-width: 768px) {
-    height:  100svh;
-    height:  100vh; // fallback for browsers without svh
     padding: 0;
   }
 }
@@ -43,8 +43,8 @@
     background:     rgba(246, 239, 226, 0.96);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    position:       sticky;
-    top:            var(--navbar-h, 62px);
+    // The page doesn't scroll any more, so the bar simply sits above the map.
+    position:       relative;
     z-index:        20;
     border-bottom:  1px solid var(--rule);
   }

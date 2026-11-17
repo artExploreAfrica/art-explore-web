@@ -38,7 +38,7 @@ const SLIDES = [
     accentLine: 2,
     desc: "From the landmark institutions of Victoria Island to the raw creative energy of Yaba — every gallery, studio and exhibition space, mapped and ready to explore.",
     cta: [
-      { label: "Open Map", href: "#map", solid: true },
+      { label: "Open Map", to: "/map", solid: true },
       { label: "Browse Spaces", to: "/galleries", solid: false, arrow: true },
     ],
     bg: "/images/hero/quintessence.jpg",
