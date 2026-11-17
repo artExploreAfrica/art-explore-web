@@ -10,7 +10,7 @@
     "seed": "ts-node prisma/seed.ts"
   },
   "scripts": {
-    "predev": "prisma generate",
+    "predev": "node scripts/prisma-generate-if-needed.js",
     "dev": "kill-port 4555 && ts-node-dev --respawn --transpile-only src/server.ts",
     "dev:all": "concurrently -k -n api,web -c blue,magenta \"npm run dev\" \"npm run dev --prefix frontend\"",
     "update": "npm install && cd frontend && npm install && cd .. && prisma migrate deploy",
