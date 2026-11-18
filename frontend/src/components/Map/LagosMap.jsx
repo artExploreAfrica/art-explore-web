@@ -11,10 +11,12 @@ import "./LagosMap.scss";
  * the screen mid-page, so visitors scrolling past got stuck dragging the map
  * instead of the page. What's left here is a teaser and the way in.
  *
- * The teaser is a collage: photos of real spaces, each with a small pin and
- * its name ("these are on the map"), around a small map tile. It's pictures
- * only — no map library, nothing to swipe — and the whole collage is one link
- * to /map, with the "Explore our map" button underneath.
+ * The teaser is one framed composition: photos of real spaces laid like
+ * prints on a table — white borders, slight tilts, each overlapping the next —
+ * with the space's name and a small pin on each print's border, and a small
+ * map card tucked over the corner. It's pictures only — no map library,
+ * nothing to swipe — and the whole frame is one link to /map, with the
+ * "Explore our map" button underneath.
  *
  * The photos are a random pick of published spaces that have one, chosen
  * afresh on every visit so the home page shows off more of the catalogue.
@@ -63,56 +65,53 @@ function PhotoTile({ space, slot }) {
   const [state, setState] = useState("loading"); // loading | ready | failed
   const place = placeOf(space);
   return (
-    <figure
-      className={`map-collage__tile map-collage__tile--photo map-collage__tile--p${slot}${
-        state === "loading" ? " is-loading" : ""
-      }`}
-    >
-      {state === "failed" ? (
-        <span className="map-collage__ph">{initials(space.name)}</span>
-      ) : (
-        // Some originals are large and slow on mobile data: the tile shimmers
-        // until the photo arrives, then it fades in.
-        <img
-          src={space.image}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className={state === "ready" ? "is-ready" : undefined}
-          onLoad={() => setState("ready")}
-          onError={() => setState("failed")}
-        />
-      )}
-      <figcaption className="map-collage__label">
-        <PinIcon />
-        <span className="map-collage__name">{space.name}</span>
+    <figure className={`map-stack__print map-stack__print--p${slot}`}>
+      <span className={`map-stack__photo${state === "loading" ? " is-loading" : ""}`}>
+        {state === "failed" ? (
+          <span className="map-stack__ph">{initials(space.name)}</span>
+        ) : (
+          // Some originals are large and slow on mobile data: the print
+          // shimmers until the photo arrives, then it fades in.
+          <img
+            src={space.image}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className={state === "ready" ? "is-ready" : undefined}
+            onLoad={() => setState("ready")}
+            onError={() => setState("failed")}
+          />
+        )}
+      </span>
+      <figcaption className="map-stack__caption">
+        <PinIcon size={9} />
+        <span className="map-stack__name">{space.name}</span>
         {/* "Other" just means the area is unknown — say nothing instead. */}
-        {place && place !== "Other" && <span className="map-collage__place">{place}</span>}
+        {place && place !== "Other" && <span className="map-stack__place">{place}</span>}
       </figcaption>
     </figure>
   );
 }
 
-// A few small pins on a quiet map: the map as one tile among the photos.
+// A few tiny pins on a quiet map: the map as a small card over the prints.
 const MAP_PINS = [
-  [30, 34],
-  [52, 50],
-  [70, 40],
-  [44, 70],
+  [30, 36],
+  [56, 52],
+  [72, 30],
 ];
 
 function MapTile() {
   return (
-    <div className="map-collage__tile map-collage__tile--map" aria-hidden="true">
+    <div className="map-stack__map" aria-hidden="true">
       <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
-        <path className="map-collage__water" d="M0 82 C 22 74, 44 90, 64 80 S 90 72, 100 78 V100 H0z" />
-        <path className="map-collage__water" d="M34 56 C 48 48, 60 60, 74 54 S 92 56, 100 52 V62 C 88 66, 74 60, 62 66 S 42 62, 34 56z" />
-        <g className="map-collage__roads">
+        <path className="map-stack__water" d="M0 82 C 22 74, 44 90, 64 80 S 90 72, 100 78 V100 H0z" />
+        <path className="map-stack__water" d="M34 56 C 48 48, 60 60, 74 54 S 92 56, 100 52 V62 C 88 66, 74 60, 62 66 S 42 62, 34 56z" />
+        <g className="map-stack__roads">
           <path d="M0 26 L100 40" />
           <path d="M28 0 L44 100" />
           <path d="M76 0 L66 100" />
         </g>
-        <g className="map-collage__pins">
+        <g className="map-stack__pins">
           {MAP_PINS.map(([x, y]) => (
             <g key={`${x}-${y}`} transform={`translate(${x} ${y})`}>
               <path d="M0 0c-2-2.6-3.1-4.3-3.1-5.8a3.1 3.1 0 0 1 6.2 0c0 1.5-1.1 3.2-3.1 5.8z" />
@@ -121,8 +120,8 @@ function MapTile() {
           ))}
         </g>
       </svg>
-      <span className="map-collage__maptag">
-        <PinIcon size={11} /> On the map
+      <span className="map-stack__maptag">
+        <PinIcon size={9} /> On the map
       </span>
     </div>
   );
@@ -158,17 +157,23 @@ export default function MapSection() {
         </p>
       </div>
 
-      <Link to="/map" className="map-collage" aria-label="Explore our map">
+      <Link to="/map" className="map-stack" aria-label="Explore our map">
+        {/* Faint map lines behind the prints, so the frame still says "map". */}
+        <svg className="map-stack__bg" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 14 L100 22 M0 44 L100 36 M22 0 L34 60 M64 0 L58 60 M86 0 L92 60" />
+        </svg>
         {Array.from({ length: PHOTO_COUNT }, (_, i) =>
           photos[i] ? (
             <PhotoTile key={photos[i].id} space={photos[i]} slot={i + 1} />
           ) : (
-            // Placeholders while the spaces load (or if too few have photos).
+            // Blank prints while the spaces load (or if too few have photos).
             <span
               key={`ph-${i}`}
-              className={`map-collage__tile map-collage__tile--p${i + 1} map-collage__tile--empty${loading ? " is-loading" : ""}`}
+              className={`map-stack__print map-stack__print--p${i + 1}`}
               aria-hidden="true"
-            />
+            >
+              <span className={`map-stack__photo${loading ? " is-loading" : ""}`} />
+            </span>
           ),
         )}
         <MapTile />

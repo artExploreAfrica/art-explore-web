@@ -57,158 +57,208 @@
   max-width: 58ch;
 }
 
-// ── Teaser: photo collage + small map tile, all one link to /map ──
-// Phone: 2 columns — two photos, then the map tile and a third photo.
-// Desktop: 4 columns — a tall photo, two stacked, the map, a tall photo.
-.map-collage {
-  display: grid;
-  gap: 8px;
+// ── Teaser: one frame, prints laid like photos on a table ─────
+// Everything sits inside a single rounded frame. The prints are absolutely
+// placed (percentages of the frame), tilted a little and overlapping, and a
+// small map card is tucked over the bottom-right corner. Phones show three
+// prints with gentler tilts so nothing is cut off on a narrow screen.
+.map-stack {
+  position: relative;
+  display: block;
   max-width: 980px;
   margin: clamp(28px, 4vh, 44px) auto 0;
+  aspect-ratio: 16 / 8.5;
+  border-radius: 20px;
+  border: 1px solid var(--rule);
+  background: #efe6d4;
+  overflow: hidden;
   text-decoration: none;
   color: inherit;
-  border-radius: 16px;
+  isolation: isolate;
 
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: repeat(2, minmax(150px, 46vw));
-  grid-template-areas:
-    "p1 p2"
-    "map p3";
-
-  @media (min-width: 769px) {
-    gap: 10px;
-    grid-template-columns: 1.35fr 1fr 1fr 1.1fr;
-    grid-template-rows: repeat(2, 190px);
-    grid-template-areas:
-      "p1 p2 map p3"
-      "p1 p4 map p3";
-  }
+  @media (max-width: 768px) { aspect-ratio: 1 / 1.08; border-radius: 16px; }
 
   &:focus-visible { outline: 2px solid var(--terracotta); outline-offset: 4px; }
+}
 
-  // Lift the whole collage a touch on hover, like a card.
-  transition: transform 0.2s ease;
-  &:hover { transform: translateY(-2px); }
-  @media (prefers-reduced-motion: reduce) {
-    transition: none;
-    &:hover { transform: none; }
+.map-stack__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+
+  path { fill: none; stroke: #fffaf0; stroke-width: 0.9; vector-effect: non-scaling-stroke; }
+}
+
+// A print: white border, thicker at the bottom for the caption, soft shadow.
+.map-stack__print {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 6px 6px 0;
+  background: #fffdf8;
+  border-radius: 4px;
+  box-shadow:
+    0 1px 2px rgba(36, 27, 18, 0.12),
+    0 10px 24px rgba(36, 27, 18, 0.18);
+  transform: rotate(var(--tilt, 0deg));
+  transition: transform 0.35s ease;
+
+  @media (min-width: 769px) { padding: 8px 8px 0; }
+}
+
+// On hover the prints spread a touch and straighten, like someone nudging them.
+.map-stack:hover .map-stack__print {
+  transform: rotate(calc(var(--tilt, 0deg) * 0.4)) translateY(-3px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-stack__print { transition: none; }
+  .map-stack:hover .map-stack__print { transform: rotate(var(--tilt, 0deg)); }
+}
+
+// Layouts. Each print's caption sits on its bottom border, so the rule for
+// overlaps is: a print may cover a neighbour's photo or the tail of its name,
+// never the start of a caption. The map card only covers photo corners.
+
+// Desktop (4 prints).
+.map-stack__print--p1 { left: 4%;  top: 9%;  width: 29%; height: 76%; --tilt: -3deg;   z-index: 1; }
+.map-stack__print--p2 { left: 26%; top: 20%; width: 27%; height: 70%; --tilt: 2.5deg;  z-index: 2; }
+.map-stack__print--p3 { left: 48%; top: 6%;  width: 26%; height: 66%; --tilt: -1.5deg; z-index: 3; }
+.map-stack__print--p4 { left: 69%; top: 5%;  width: 27%; height: 48%; --tilt: 3deg;    z-index: 4; }
+
+// Phone (3 prints, gentler tilts): p1 top-left, p2 top-right over p1's edge,
+// p3 bottom-left tucked under p1, map card bottom-right.
+@media (max-width: 768px) {
+  .map-stack__print--p1 { left: 5%;  top: 5%;  width: 45%; height: 49%; --tilt: -2.5deg; z-index: 2; }
+  .map-stack__print--p2 { left: 47%; top: 11%; width: 48%; height: 46%; --tilt: 2deg;    z-index: 3; }
+  .map-stack__print--p3 { left: 7%;  top: 47%; width: 48%; height: 47%; --tilt: 1.5deg;  z-index: 1; }
+  .map-stack__print--p4 { display: none; }
+}
+
+.map-stack__photo {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #e9dfcc;
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+
+    &.is-ready { opacity: 1; }
   }
 }
 
-.map-collage__tile {
-  position: relative;
-  overflow: hidden;
-  border-radius: 12px;
-  background: #e9dfcc;
-  margin: 0;
-  min-width: 0;
+// Shimmer while the spaces load, and on each print until its photo arrives.
+.map-stack__photo.is-loading {
+  background: linear-gradient(100deg, #e9dfcc 30%, #f3ead9 50%, #e9dfcc 70%);
+  background-size: 300% 100%;
+  animation: map-stack-shimmer 1.4s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) { animation: none; }
 }
-
-.map-collage__tile--p1 { grid-area: p1; }
-.map-collage__tile--p2 { grid-area: p2; }
-.map-collage__tile--p3 { grid-area: p3; }
-.map-collage__tile--p4 {
-  grid-area: p4;
-  @media (max-width: 768px) { display: none; } // phones show three photos
-}
-.map-collage__tile--map { grid-area: map; background: #efe6d4; border: 1px solid var(--rule); }
-
-.map-collage__tile--photo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  opacity: 0;
-  transition: transform 0.5s ease, opacity 0.4s ease;
-
-  &.is-ready { opacity: 1; }
-}
-.map-collage:hover .map-collage__tile--photo img { transform: scale(1.04); }
-@media (prefers-reduced-motion: reduce) {
-  .map-collage:hover .map-collage__tile--photo img { transform: none; }
+@keyframes map-stack-shimmer {
+  from { background-position: 100% 0; }
+  to   { background-position: 0 0; }
 }
 
 // Initials when a photo fails to load, like the tag cards.
-.map-collage__ph {
+.map-stack__ph {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   color: var(--terracotta);
 }
 
-// Pin + name + place, on a soft dark fade at the bottom of each photo.
-.map-collage__label {
-  position: absolute;
-  inset: auto 0 0 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 6px;
-  align-items: center;
-  padding: 28px 10px 9px;
-  background: linear-gradient(to top, rgba(20, 14, 8, 0.78), rgba(20, 14, 8, 0));
-  color: #fff;
-  text-align: left;
-
-  svg { color: var(--terracotta); grid-row: span 2; }
-}
-
-.map-collage__name {
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 0.82rem;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.map-collage__place {
-  font-family: var(--font-body);
-  font-size: 0.7rem;
-  opacity: 0.8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-// Shimmer while the spaces load, and on each photo tile until its photo arrives.
-.map-collage__tile.is-loading {
-  background: linear-gradient(100deg, #e9dfcc 30%, #f3ead9 50%, #e9dfcc 70%);
-  background-size: 300% 100%;
-  animation: map-collage-shimmer 1.4s ease-in-out infinite;
-  @media (prefers-reduced-motion: reduce) { animation: none; }
-}
-@keyframes map-collage-shimmer {
-  from { background-position: 100% 0; }
-  to   { background-position: 0 0; }
-}
-
-// The map tile: a quiet drawing with a few small pins.
-// Only the drawing fills the tile — not the small pin in the "On the map" badge.
-.map-collage__tile--map > svg { width: 100%; height: 100%; display: block; }
-.map-collage__water { fill: #d9e3e0; }
-.map-collage__roads path { fill: none; stroke: #fffaf0; stroke-width: 1.4; }
-.map-collage__pins { fill: var(--terracotta); }
-
-.map-collage__maptag {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  display: inline-flex;
+// Caption on the print's white border: pin, name, area.
+.map-stack__caption {
+  display: flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 10px;
+  min-width: 0;
+  padding: 6px 2px 7px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  text-align: left;
+
+  @media (min-width: 769px) { padding: 8px 2px 10px; }
+
+  svg { color: var(--terracotta); flex-shrink: 0; }
+}
+
+.map-stack__name {
+  font-weight: 600;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+
+  @media (min-width: 769px) { font-size: 0.8rem; }
+}
+
+.map-stack__place {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &::before { content: "· "; }
+
+  // Phones: the name gets the room.
+  @media (max-width: 768px) { display: none; }
+}
+
+// The small map card, tucked over the bottom-right corner, above the prints.
+.map-stack__map {
+  position: absolute;
+  right: 4%;
+  bottom: 6%;
+  width: 21%;
+  aspect-ratio: 1;
+  z-index: 5;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 4px solid #fffdf8;
+  background: #efe6d4;
+  box-shadow: 0 10px 24px rgba(36, 27, 18, 0.22);
+  transform: rotate(-2deg);
+
+  @media (max-width: 768px) { width: 36%; right: 5%; bottom: 7%; border-width: 3px; }
+
+  > svg { width: 100%; height: 100%; display: block; }
+}
+
+.map-stack__water { fill: #d9e3e0; }
+.map-stack__roads path { fill: none; stroke: #fffaf0; stroke-width: 1.6; }
+.map-stack__pins { fill: var(--terracotta); }
+
+.map-stack__maptag {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
   border-radius: 999px;
   background: var(--cream);
-  border: 1px solid var(--rule);
   color: var(--ink);
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   white-space: nowrap;
 
   svg { color: var(--terracotta); flex-shrink: 0; }
