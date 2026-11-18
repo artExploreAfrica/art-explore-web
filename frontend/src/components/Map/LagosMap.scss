@@ -56,3 +56,64 @@
   margin: 0 auto;
   max-width: 58ch;
 }
+
+// ── Teaser: a drawing of the map that links to /map ───────────
+.map-section__preview {
+  display: block;
+  max-width: 880px;
+  margin: clamp(28px, 4vh, 44px) auto 0;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #efe6d4;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  @media (max-width: 768px) { aspect-ratio: 4 / 3; }
+
+  &:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(36, 27, 18, 0.12); }
+  &:focus-visible { outline: 2px solid var(--terracotta); outline-offset: 3px; }
+
+  svg { width: 100%; height: 100%; display: block; }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    &:hover { transform: none; }
+  }
+}
+
+.map-section__water { fill: #d9e3e0; }
+
+.map-section__roads path {
+  fill: none;
+  stroke: #fffaf0;
+  stroke-width: 1.2;
+}
+
+.map-section__pins { fill: var(--terracotta); }
+
+.map-section__cta {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(20px, 3vh, 32px);
+}
+
+// Primary button: terracotta, big enough for a thumb (≥ 48px tall).
+.map-section__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 28px;
+  border-radius: 999px;
+  background: var(--terracotta);
+  color: var(--cream);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: background 0.2s ease;
+
+  &:hover { background: var(--ink); }
+  &:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+}

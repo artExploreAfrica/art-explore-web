@@ -122,14 +122,11 @@ export default function Navbar() {
             </ul>
           </li>
 
-          {/* Map — scroll target on the home page */}
+          {/* Map — its own page */}
           <li>
-            <a
-              href="#map"
-              onClick={(e) => { e.preventDefault(); scrollToSection("map"); }}
-            >
+            <Link to="/map" onClick={closeAll}>
               Map
-            </a>
+            </Link>
           </li>
 
           {/* Spaces dropdown */}

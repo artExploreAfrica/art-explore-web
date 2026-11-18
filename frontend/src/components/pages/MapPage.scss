@@ -1,0 +1,31 @@
+// The whole page is exactly one screen: navbar on top, map filling the rest.
+// Nothing scrolls, so a swipe can only ever move the map.
+.map-page {
+  height: 100vh;   // fallback for browsers without dvh
+  height: 100dvh;  // follows the phone's address bar as it shows and hides
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: none; // no pull-to-refresh bounce fighting the map
+  background: var(--cream);
+}
+
+.map-page__main {
+  flex: 1;
+  min-height: 0; // let the map shrink to the space left under the navbar
+  display: flex;
+  flex-direction: column;
+}
+
+// For screen readers; the map itself is the visual heading.
+.map-page__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
