@@ -81,14 +81,97 @@
   &:focus-visible { outline: 2px solid var(--terracotta); outline-offset: 4px; }
 }
 
+// The map under the prints: lagoon, sea and a few roads, stretched to fit.
 .map-stack__bg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   z-index: 0;
+}
+.map-stack__water { fill: #dbe4e1; }
+.map-stack__road {
+  fill: none;
+  stroke: #fffaf0;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
 
-  path { fill: none; stroke: #fffaf0; stroke-width: 0.9; vector-effect: non-scaling-stroke; }
+// Every space, as a faint dot where it really is.
+.map-stack__dot {
+  position: absolute;
+  z-index: 0;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border-radius: 50%;
+  background: var(--terracotta);
+  opacity: 0.45;
+  box-shadow: 0 0 0 1.5px rgba(255, 250, 240, 0.8);
+
+  @media (max-width: 768px) { width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; }
+}
+
+// Dashed lines from each print to its pin — desktop only (busy on phones).
+.map-stack__lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+
+  @media (max-width: 768px) { display: none; }
+}
+.map-stack__line {
+  stroke: var(--terracotta);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 4;
+  opacity: 0.7;
+  vector-effect: non-scaling-stroke;
+}
+// Phones show three prints, so the 4th print's line and pin go with it.
+@media (max-width: 768px) {
+  .map-stack__pin--p4 { display: none; }
+}
+
+// The photographed spaces' pins: full strength, but UNDER the prints — on
+// top they'd sit on a photo and look like that photo's pin. Most land in the
+// open strip at the bottom anyway, where the Island and Lekki spaces are.
+.map-stack__pin {
+  position: absolute;
+  z-index: 0;
+  display: block;
+  line-height: 0;
+  color: var(--terracotta);
+  transform: translate(-50%, -100%);
+  filter: drop-shadow(0 2px 2px rgba(36, 27, 18, 0.35));
+
+  svg { width: 14px; height: auto; }
+}
+
+// "N spaces on the map", bottom-left over the sea.
+.map-stack__count {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--cream);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.72rem;
+  white-space: nowrap;
+
+  svg { color: var(--terracotta); flex-shrink: 0; }
+
+  @media (max-width: 768px) { left: 10px; bottom: 9px; font-size: 0.66rem; padding: 4px 9px; }
 }
 
 // A print: white border, thicker at the bottom for the caption, soft shadow.
@@ -122,18 +205,20 @@
 // overlaps is: a print may cover a neighbour's photo or the tail of its name,
 // never the start of a caption. The map card only covers photo corners.
 
-// Desktop (4 prints).
-.map-stack__print--p1 { left: 4%;  top: 9%;  width: 29%; height: 76%; --tilt: -3deg;   z-index: 1; }
-.map-stack__print--p2 { left: 26%; top: 20%; width: 27%; height: 70%; --tilt: 2.5deg;  z-index: 2; }
-.map-stack__print--p3 { left: 48%; top: 6%;  width: 26%; height: 66%; --tilt: -1.5deg; z-index: 3; }
-.map-stack__print--p4 { left: 69%; top: 5%;  width: 27%; height: 48%; --tilt: 3deg;    z-index: 4; }
+// Desktop (4 prints). Kept above ~75% so the bottom strip — where the
+// Island and Lekki pins cluster — stays open. PRINT_ANCHORS in LagosMap.jsx
+// (each print's bottom-centre) must follow these.
+.map-stack__print--p1 { left: 4%;  top: 6%;  width: 29%; height: 64%; --tilt: -3deg;   z-index: 1; }
+.map-stack__print--p2 { left: 26%; top: 14%; width: 27%; height: 60%; --tilt: 2.5deg;  z-index: 2; }
+.map-stack__print--p3 { left: 48%; top: 5%;  width: 26%; height: 56%; --tilt: -1.5deg; z-index: 3; }
+.map-stack__print--p4 { left: 69%; top: 4%;  width: 27%; height: 46%; --tilt: 3deg;    z-index: 4; }
 
 // Phone (3 prints, gentler tilts): p1 top-left, p2 top-right over p1's edge,
-// p3 bottom-left tucked under p1, map card bottom-right.
+// p3 below tucked under p1; the bottom strip is left for the pins.
 @media (max-width: 768px) {
-  .map-stack__print--p1 { left: 5%;  top: 5%;  width: 45%; height: 49%; --tilt: -2.5deg; z-index: 2; }
-  .map-stack__print--p2 { left: 47%; top: 11%; width: 48%; height: 46%; --tilt: 2deg;    z-index: 3; }
-  .map-stack__print--p3 { left: 7%;  top: 47%; width: 48%; height: 47%; --tilt: 1.5deg;  z-index: 1; }
+  .map-stack__print--p1 { left: 5%;  top: 4%;  width: 45%; height: 42%; --tilt: -2.5deg; z-index: 2; }
+  .map-stack__print--p2 { left: 47%; top: 9%;  width: 48%; height: 40%; --tilt: 2deg;    z-index: 3; }
+  .map-stack__print--p3 { left: 8%;  top: 42%; width: 46%; height: 37%; --tilt: 1.5deg;  z-index: 1; }
   .map-stack__print--p4 { display: none; }
 }
 
@@ -219,49 +304,6 @@
 
   // Phones: the name gets the room.
   @media (max-width: 768px) { display: none; }
-}
-
-// The small map card, tucked over the bottom-right corner, above the prints.
-.map-stack__map {
-  position: absolute;
-  right: 4%;
-  bottom: 6%;
-  width: 21%;
-  aspect-ratio: 1;
-  z-index: 5;
-  overflow: hidden;
-  border-radius: 12px;
-  border: 4px solid #fffdf8;
-  background: #efe6d4;
-  box-shadow: 0 10px 24px rgba(36, 27, 18, 0.22);
-  transform: rotate(-2deg);
-
-  @media (max-width: 768px) { width: 36%; right: 5%; bottom: 7%; border-width: 3px; }
-
-  > svg { width: 100%; height: 100%; display: block; }
-}
-
-.map-stack__water { fill: #d9e3e0; }
-.map-stack__roads path { fill: none; stroke: #fffaf0; stroke-width: 1.6; }
-.map-stack__pins { fill: var(--terracotta); }
-
-.map-stack__maptag {
-  position: absolute;
-  left: 6px;
-  bottom: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--cream);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 0.66rem;
-  white-space: nowrap;
-
-  svg { color: var(--terracotta); flex-shrink: 0; }
 }
 
 .map-section__cta {

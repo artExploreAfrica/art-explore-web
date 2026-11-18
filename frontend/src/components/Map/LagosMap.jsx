@@ -13,10 +13,13 @@ import "./LagosMap.scss";
  *
  * The teaser is one framed composition: photos of real spaces laid like
  * prints on a table — white borders, slight tilts, each overlapping the next —
- * with the space's name and a small pin on each print's border, and a small
- * map card tucked over the corner. It's pictures only — no map library,
- * nothing to swipe — and the whole frame is one link to /map, with the
- * "Explore our map" button underneath.
+ * with the space's name and a small pin on each print's border — laid over
+ * a faint map of Lagos. The map's pins are every space's real location, so
+ * the Island and Lekki clusters show where they really are; the pins of the
+ * photographed spaces are stronger, and on desktop a dashed line runs from
+ * each print to its pin. It's pictures only — no map library, nothing to
+ * swipe — and the whole frame is one link to /map, with the "Explore our
+ * map" button underneath.
  *
  * The photos are a random pick of published spaces that have one, chosen
  * afresh on every visit so the home page shows off more of the catalogue.
@@ -93,37 +96,41 @@ function PhotoTile({ space, slot }) {
   );
 }
 
-// A few tiny pins on a quiet map: the map as a small card over the prints.
-const MAP_PINS = [
-  [30, 36],
-  [56, 52],
-  [72, 30],
+// The part of Lagos the frame shows. Nearly every space falls inside; the
+// few that don't (Badagry, far Ikorodu) just aren't drawn.
+const BOUNDS = { west: 3.26, east: 3.66, north: 6.64, south: 6.4 };
+
+/** lat/lng → % of the frame (left, top). null when outside BOUNDS. */
+function project(g) {
+  const lat = Number(g.lat);
+  const lng = Number(g.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const x = ((lng - BOUNDS.west) / (BOUNDS.east - BOUNDS.west)) * 100;
+  const y = ((BOUNDS.north - lat) / (BOUNDS.north - BOUNDS.south)) * 100;
+  return x >= 1 && x <= 99 && y >= 1 && y <= 97 ? { x, y } : null;
+}
+
+// Where each print's dashed line starts: its bottom-centre, in % of the
+// frame. Must match the desktop print positions in LagosMap.scss.
+const PRINT_ANCHORS = [
+  [18.5, 70],
+  [39.5, 74],
+  [61, 61],
+  [82.5, 50],
 ];
 
-function MapTile() {
+/** Lagos, loosely: the lagoon and the Atlantic, stretched to the frame. */
+function MapBackground() {
   return (
-    <div className="map-stack__map" aria-hidden="true">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
-        <path className="map-stack__water" d="M0 82 C 22 74, 44 90, 64 80 S 90 72, 100 78 V100 H0z" />
-        <path className="map-stack__water" d="M34 56 C 48 48, 60 60, 74 54 S 92 56, 100 52 V62 C 88 66, 74 60, 62 66 S 42 62, 34 56z" />
-        <g className="map-stack__roads">
-          <path d="M0 26 L100 40" />
-          <path d="M28 0 L44 100" />
-          <path d="M76 0 L66 100" />
-        </g>
-        <g className="map-stack__pins">
-          {MAP_PINS.map(([x, y]) => (
-            <g key={`${x}-${y}`} transform={`translate(${x} ${y})`}>
-              <path d="M0 0c-2-2.6-3.1-4.3-3.1-5.8a3.1 3.1 0 0 1 6.2 0c0 1.5-1.1 3.2-3.1 5.8z" />
-              <circle cy="-5.8" r="1.1" fill="var(--cream)" />
-            </g>
-          ))}
-        </g>
-      </svg>
-      <span className="map-stack__maptag">
-        <PinIcon size={9} /> On the map
-      </span>
-    </div>
+    <svg className="map-stack__bg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <path
+        className="map-stack__water"
+        d="M44 28 C 56 18, 76 20, 100 24 V 66 C 88 62, 76 68, 64 70 C 56 72, 50 68, 47 60 C 43 50, 41 38, 44 28 Z"
+      />
+      <path className="map-stack__water" d="M40 70 C 44 72, 50 74, 56 76 L 54 80 C 48 79, 42 77, 38 75 Z" />
+      <path className="map-stack__water" d="M0 95 C 25 91, 50 94, 75 91 S 95 89, 100 90 V 100 H 0 Z" />
+      <path className="map-stack__road" d="M0 18 L100 30 M0 52 L100 46 M24 0 L36 100 M68 0 L62 100" />
+    </svg>
   );
 }
 
@@ -135,6 +142,21 @@ export default function MapSection() {
     const withPhoto = galleries.filter((g) => typeof g.image === "string" && g.image.startsWith("http"));
     return seededShuffle(withPhoto, seed).slice(0, PHOTO_COUNT);
   }, [galleries, seed]);
+
+  // Every space with a location inside the frame, as a faint pin.
+  const pins = useMemo(
+    () =>
+      galleries
+        .map((g) => ({ id: g.id, at: project(g) }))
+        .filter((p) => p.at),
+    [galleries],
+  );
+
+  // The photographed spaces: a stronger pin, and a line from their print.
+  const featured = photos
+    .map((g, i) => ({ id: g.id, at: project(g), from: PRINT_ANCHORS[i], slot: i + 1 }))
+    .filter((f) => f.at);
+  const featuredIds = new Set(featured.map((f) => f.id));
 
   return (
     <section className="map-section" id="map">
@@ -158,10 +180,34 @@ export default function MapSection() {
       </div>
 
       <Link to="/map" className="map-stack" aria-label="Explore our map">
-        {/* Faint map lines behind the prints, so the frame still says "map". */}
-        <svg className="map-stack__bg" viewBox="0 0 100 60" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M0 14 L100 22 M0 44 L100 36 M22 0 L34 60 M64 0 L58 60 M86 0 L92 60" />
+        <MapBackground />
+
+        {/* Every space, faint, where it really is. */}
+        {pins
+          .filter((p) => !featuredIds.has(p.id))
+          .map((p) => (
+            <span
+              key={p.id}
+              className="map-stack__dot"
+              style={{ left: `${p.at.x}%`, top: `${p.at.y}%` }}
+              aria-hidden="true"
+            />
+          ))}
+
+        {/* Desktop: a dashed line from each print to its space's pin. */}
+        <svg className="map-stack__lines" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {featured.map((f) => (
+            <line
+              key={f.id}
+              className={`map-stack__line map-stack__line--p${f.slot}`}
+              x1={f.from[0]}
+              y1={f.from[1]}
+              x2={f.at.x}
+              y2={f.at.y}
+            />
+          ))}
         </svg>
+
         {Array.from({ length: PHOTO_COUNT }, (_, i) =>
           photos[i] ? (
             <PhotoTile key={photos[i].id} space={photos[i]} slot={i + 1} />
@@ -176,7 +222,22 @@ export default function MapSection() {
             </span>
           ),
         )}
-        <MapTile />
+        {/* The photographed spaces' pins: stronger, under the prints (see the SCSS). */}
+        {featured.map((f) => (
+          <span
+            key={f.id}
+            className={`map-stack__pin map-stack__pin--p${f.slot}`}
+            style={{ left: `${f.at.x}%`, top: `${f.at.y}%` }}
+            aria-hidden="true"
+          >
+            <PinIcon size={12} />
+          </span>
+        ))}
+
+        <span className="map-stack__count">
+          <PinIcon size={9} />
+          {loading || galleries.length === 0 ? "On the map" : `${galleries.length} spaces on the map`}
+        </span>
       </Link>
 
       <div className="map-section__cta">
