@@ -4,6 +4,7 @@ import "./ArtGalleryApp.scss";
 import { useGalleries } from "../../hooks/useGalleries"; // ← live data from the API
 import { getInitials, placeholderColor } from "../../lib/placeholder";
 import { formatInstitutionType, INSTITUTION_TYPES } from "../../admin/institutionShared";
+import { filterSpaces } from "../../lib/search";
 
 // "All" plus one tab per InstitutionType, labelled as everywhere else. The tag
 // chips (Women Owned, Classics, ...) sit in their own row beneath the tabs.
@@ -111,15 +112,9 @@ function useGalleryFilters(data, { tagName = null, initialTab = "all" } = {}) {
   const filtered = useMemo(() => {
     let result = dataWithDistance;
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (g) =>
-          g.name.toLowerCase().includes(q) ||
-          g.neighborhood.toLowerCase().includes(q) ||
-          g.subArea?.toLowerCase().includes(q),
-      );
-    }
+    // Forgiving match: ignores tone marks, apostrophes, spelling variants
+    // and small typos (see lib/search.js).
+    result = filterSpaces(result, searchQuery);
 
     const tab = TABS.find((t) => t.id === activeTab);
     if (tab?.type) result = result.filter((g) => g.type === tab.type);

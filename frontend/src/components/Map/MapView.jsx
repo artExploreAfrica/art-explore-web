@@ -4,6 +4,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import styles from './MapView.module.scss';
 import { useGalleries } from '../../hooks/useGalleries'; // ← live data from the API
 import { placeOf } from '../../lib/adapters';
+import { filterSpaces } from '../../lib/search';
 import { neighbourhoodsGeoJSON, landmarksGeoJSON } from '../../data/lagosGeo';
 import GalleryCard from './GalleryCard';
 
@@ -207,10 +208,12 @@ const MapView = () => {
   // When a search query is active it overrides all top-bar filters.
   const panelSpaces = useMemo(() => {
     if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      return galleries
-        .filter((g) => !NOT_A_FIXED_SPACE.has(g.type))
-        .filter((g) => g.name.toLowerCase().includes(q) || placeOf(g).toLowerCase().includes(q));
+      // Forgiving match: ignores tone marks, apostrophes, spelling variants
+      // and small typos (see lib/search.js).
+      return filterSpaces(
+        galleries.filter((g) => !NOT_A_FIXED_SPACE.has(g.type)),
+        searchQuery,
+      );
     }
     return galleries.filter((g) => !NOT_A_FIXED_SPACE.has(g.type) && matchesFilters(g, filters));
   }, [galleries, filters, searchQuery]);
@@ -625,10 +628,7 @@ const MapView = () => {
   useEffect(() => {
     if (!mapReady) return;
     if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
-      const matches = galleriesRef.current.filter(
-        (g) => g.name.toLowerCase().includes(q) || placeOf(g).toLowerCase().includes(q),
-      );
+      const matches = filterSpaces(galleriesRef.current, searchQuery);
       updateGalleryFilter(filters, matches);
     } else {
       updateGalleryFilter(filters);
