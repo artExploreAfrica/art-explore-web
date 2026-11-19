@@ -15,8 +15,9 @@
   position:       relative;
   background:     var(--cream);
   // Lives on /map (MapPage), which gives it whatever the screen has left
-  // under the navbar; it fills that and never makes the page scroll.
-  padding:        16px var(--page-pad) 24px;
+  // under the navbar; it fills that, edge to edge with no frame, and never
+  // makes the page scroll. Only the filter bar keeps the page's side padding.
+  padding:        0;
   flex:           1;
   min-height:     0;
   width:          100%;
@@ -34,7 +35,7 @@
   display:         flex;
   justify-content: center;
   align-items:     center;
-  padding:         0 0 18px;
+  padding:         14px var(--page-pad);
   flex-shrink:     0;
   z-index:         10;
 
@@ -227,8 +228,11 @@
 .mapContainer {
   flex:          1;
   width:         100%;
-  border:        1px solid var(--rule);
-  border-radius: 2px;
+  // Borderless: the map meets the page edges; a hairline separates it
+  // from the filter bar above.
+  border:        none;
+  border-top:    1px solid var(--rule);
+  border-radius: 0;
   overflow:      hidden;
   background:    var(--sand);  // close to the light basemap while tiles load
   min-height:    0; // flex child must shrink below content height

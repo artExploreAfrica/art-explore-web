@@ -1,0 +1,117 @@
+@use '../../styles/brand' as *;
+
+// ─────────────────────────────────────────────────────────────
+// CONTACT US — cream ground, the pitch and direct links on the
+// left, the enquiry form on the right. Stacks on phones.
+// ─────────────────────────────────────────────────────────────
+
+.contact {
+  background: var(--cream);
+  padding: clamp(64px, 10vh, 120px) var(--page-pad);
+  // /#contact lands below the sticky navbar, not under it.
+  scroll-margin-top: var(--navbar-h, 88px);
+}
+
+.contact__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(32px, 6vw, 88px);
+  align-items: start;
+  max-width: 1120px;
+  margin: 0 auto;
+
+  @media (max-width: 860px) { grid-template-columns: minmax(0, 1fr); }
+}
+
+.contact__eyebrow {
+  @include eyebrow;
+  margin: 0 0 clamp(14px, 2vh, 22px);
+}
+
+.contact__eyebrow-rule { @include eyebrow-rule; }
+
+.contact__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.2rem, 5.5vw, 4.25rem);
+  line-height: 0.96;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 0 0 clamp(16px, 2.5vh, 24px);
+
+  em {
+    font-family: var(--font-accent);
+    font-style: italic;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: -0.01em;
+    color: var(--terracotta);
+  }
+}
+
+.contact__lede {
+  font-family: var(--font-body);
+  font-size: clamp(0.95rem, 1.15vw, 1.08rem);
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 44ch;
+}
+
+.contact__ways {
+  list-style: none;
+  margin: clamp(24px, 4vh, 36px) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.contact__way {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  text-decoration: none;
+  color: var(--ink);
+
+  &:hover .contact__way-value { color: var(--terracotta); }
+  &:hover .contact__way-icon { border-color: var(--terracotta); color: var(--terracotta); }
+  @include focus-ring(var(--ink), 3px);
+}
+
+.contact__way-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  font-size: 18px;
+  color: var(--ink);
+  transition: color 0.25s $ease-out, border-color 0.25s $ease-out;
+}
+
+.contact__way-label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.contact__way-value {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.98rem;
+  font-weight: 500;
+  word-break: break-word;
+  transition: color 0.25s $ease-out;
+}
+
+.contact__form { min-width: 0; }

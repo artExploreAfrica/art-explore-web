@@ -18,8 +18,8 @@ import "./LagosMap.scss";
  * the Island and Lekki clusters show where they really are; the pins of the
  * photographed spaces are stronger, and on desktop a dashed line runs from
  * each print to its pin. It's pictures only — no map library, nothing to
- * swipe — and the whole frame is one link to /map, with the "Explore our
- * map" button underneath.
+ * swipe — and the whole frame is one link to /map. It runs edge to edge,
+ * borderless, and the "Explore our map" button sits above it.
  *
  * The photos are a random pick of published spaces that have one, chosen
  * afresh on every visit so the home page shows off more of the catalogue.
@@ -179,6 +179,13 @@ export default function MapSection() {
         </p>
       </div>
 
+      {/* The way in sits above the map, so it's seen before the pictures. */}
+      <div className="map-section__cta">
+        <Link to="/map" className="map-section__btn">
+          Explore our map <span aria-hidden="true">→</span>
+        </Link>
+      </div>
+
       <Link to="/map" className="map-stack" aria-label="Explore our map">
         <MapBackground />
 
@@ -240,11 +247,6 @@ export default function MapSection() {
         </span>
       </Link>
 
-      <div className="map-section__cta">
-        <Link to="/map" className="map-section__btn">
-          Explore our map <span aria-hidden="true">→</span>
-        </Link>
-      </div>
     </section>
   );
 }
