@@ -1,5 +1,6 @@
 // The whole page is exactly one screen: navbar on top, map filling the rest.
-// Nothing scrolls, so a swipe can only ever move the map.
+// Nothing scrolls, so a swipe can only ever move the map. The footer is a
+// strip laid over the map's bottom edge (see Footer.scss, .site-footer--map).
 .map-page {
   height: 100vh;   // fallback for browsers without dvh
   height: 100dvh;  // follows the phone's address bar as it shows and hides
@@ -11,10 +12,18 @@
 }
 
 .map-page__main {
+  position: relative; // the footer strip is positioned against this
   flex: 1;
   min-height: 0; // let the map shrink to the space left under the navbar
   display: flex;
   flex-direction: column;
+}
+
+// Lift the map's bottom controls (zoom buttons, credits) above the footer
+// strip. Three classes deep so it wins over MapView's own control styles.
+.map-page .map-page__main .maplibregl-ctrl-bottom-right,
+.map-page .map-page__main .maplibregl-ctrl-bottom-left {
+  bottom: 38px;
 }
 
 // For screen readers; the map itself is the visual heading.

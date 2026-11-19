@@ -3,23 +3,25 @@ import { FiInstagram, FiMail } from "react-icons/fi";
 import "./Footer.scss";
 
 /**
- * Site footer, shared by every public page.
+ * Site footer, shared by every public page — one line, glanceable.
  *
- * Links only to places that exist on the site. Section links
- * (/#contribute) land on the home page and scroll there —
- * Home handles the hash once it mounts.
+ *   page (default): an ink bar in the navbar's style, in three zones —
+ *                   logo far left · links + icons centred · © far right
+ *                   (two short rows on phones).
+ *   map:            what pro maps do — a thin translucent strip laid over the
+ *                   bottom edge of the map, with the links, icons and ©.
+ *                   Same zones: small logo far left, links + icons centred,
+ *                   © far right.
+ *
+ * "Contact us" lands on the home page's contact section (/#contact); Home
+ * scrolls to it once it mounts.
  */
 
-const COLUMNS = [
-  {
-    title: "Explore",
-    links: [
-      { label: "About", to: "/about" },
-      { label: "The map", to: "/map" },
-      { label: "All galleries", to: "/galleries" },
-      { label: "Add a gallery", to: { pathname: "/", hash: "#contribute" } },
-    ],
-  },
+const LINKS = [
+  { label: "About", to: "/about" },
+  { label: "Map", to: "/map" },
+  { label: "Spaces", to: "/galleries" },
+  { label: "Contact us", to: { pathname: "/", hash: "#contact" } },
 ];
 
 // Site-level contact details come from the environment rather than being
@@ -29,87 +31,93 @@ const COLUMNS = [
 const INSTAGRAM_URL = import.meta.env.VITE_INSTAGRAM_URL;
 const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL;
 
-export default function Footer() {
+function Social() {
+  if (!INSTAGRAM_URL && !CONTACT_EMAIL) return null;
+  return (
+    <ul className="site-footer__social">
+      {INSTAGRAM_URL && (
+        <li>
+          <a
+            className="site-footer__social-link"
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Art Explore on Instagram"
+          >
+            <FiInstagram aria-hidden="true" />
+          </a>
+        </li>
+      )}
+      {CONTACT_EMAIL && (
+        <li>
+          <a className="site-footer__social-link" href={`mailto:${CONTACT_EMAIL}`} aria-label="Email Art Explore">
+            <FiMail aria-hidden="true" />
+          </a>
+        </li>
+      )}
+    </ul>
+  );
+}
+
+function Links() {
+  return (
+    <nav aria-label="Footer">
+      <ul className="site-footer__links">
+        {LINKS.map((l) => (
+          <li key={l.label}>
+            <Link className="site-footer__link" to={l.to}>
+              {l.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+function Logo() {
+  return (
+    <Link to="/" className="site-footer__logo" aria-label="Art Explore — home">
+      <img
+        src="/brand/favicon-red.png"
+        alt=""
+        className="site-footer__logo-icon"
+        aria-hidden="true"
+        width="512"
+        height="512"
+      />
+      <span className="site-footer__logo-text">Art Explore</span>
+    </Link>
+  );
+}
+
+export default function Footer({ variant = "page" }) {
   const year = new Date().getFullYear();
+
+  if (variant === "map") {
+    return (
+      <footer className="site-footer site-footer--map">
+        <Logo />
+        <div className="site-footer__middle">
+          <Links />
+          <Social />
+        </div>
+        <p className="site-footer__legal">&copy; {year} Art Explore</p>
+      </footer>
+    );
+  }
 
   return (
     <footer className="site-footer">
-      <div className="site-footer__top">
-        <div className="site-footer__brand">
-          <div className="site-footer__mark">
-            <img
-              src="/brand/favicon-red.png"
-              alt=""
-              className="site-footer__mark-icon"
-              aria-hidden="true"
-              width="512"
-              height="512"
-            />
-            <span className="site-footer__mark-text">Art Explore</span>
-          </div>
-          <p className="site-footer__line">
-            Galleries, museums and cultural spaces across Lagos — mapped.
-          </p>
-          {(INSTAGRAM_URL || CONTACT_EMAIL) && (
-            <ul className="site-footer__social">
-              {INSTAGRAM_URL && (
-                <li>
-                  <a
-                    className="site-footer__social-link"
-                    href={INSTAGRAM_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Art Explore on Instagram"
-                  >
-                    <FiInstagram aria-hidden="true" />
-                  </a>
-                </li>
-              )}
-              {CONTACT_EMAIL && (
-                <li>
-                  <a
-                    className="site-footer__social-link"
-                    href={`mailto:${CONTACT_EMAIL}`}
-                    aria-label="Email Art Explore"
-                  >
-                    <FiMail aria-hidden="true" />
-                  </a>
-                </li>
-              )}
-            </ul>
-          )}
-        </div>
-
-        <nav className="site-footer__nav" aria-label="Footer">
-          {COLUMNS.map((col) => (
-            <div className="site-footer__col" key={col.title}>
-              <p className="site-footer__heading">{col.title}</p>
-              <ul>
-                {col.links.map((l) => (
-                  <li key={l.label}>
-                    <Link className="site-footer__link" to={l.to}>
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </nav>
+      <Logo />
+      <div className="site-footer__middle">
+        <Links />
+        <Social />
       </div>
-
-      <div className="site-footer__bottom">
-        <p className="site-footer__legal">
-          &copy; {year} Art Explore. All rights reserved.
-        </p>
-        <button
-          type="button"
-          className="site-footer__top-btn"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        >
-          Back to top <span aria-hidden="true">↑</span>
-        </button>
-      </div>
+      <p className="site-footer__legal">
+        &copy; {year}
+        <span className="site-footer__legal-name"> Art Explore</span>
+      </p>
     </footer>
   );
 }
