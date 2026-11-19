@@ -184,6 +184,9 @@
     &:hover::after { background: var(--terracotta); }
   }
 
+  // No matches for the current search: still clickable, but faded.
+  &--empty { opacity: 0.45; }
+
   @include focus-ring(var(--terracotta), -2px);
 }
 

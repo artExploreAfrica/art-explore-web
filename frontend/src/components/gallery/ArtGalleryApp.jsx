@@ -109,40 +109,50 @@ function useGalleryFilters(data, { tagName = null, initialTab = "all" } = {}) {
     [data, userLocation],
   );
 
-  const filtered = useMemo(() => {
-    let result = dataWithDistance;
+  // Step 1 — the search, across every kind of space. Forgiving match: ignores
+  // tone marks, apostrophes, spelling variants and small typos (lib/search.js).
+  const searched = useMemo(
+    () => filterSpaces(dataWithDistance, searchQuery),
+    [dataWithDistance, searchQuery],
+  );
 
-    // Forgiving match: ignores tone marks, apostrophes, spelling variants
-    // and small typos (see lib/search.js).
-    result = filterSpaces(result, searchQuery);
-
-    const tab = TABS.find((t) => t.id === activeTab);
-    if (tab?.type) result = result.filter((g) => g.type === tab.type);
-    // A picked tag narrows the list across every kind of space.
-    if (tagName) result = result.filter((g) => g.tags?.some((t) => t.name === tagName));
-
+  // Step 2 — the chips (open now, top rated, near me). What's left is what
+  // every count on the page is taken from, so the tab and tag counts always
+  // say how many results that choice would give for this search.
+  const unTabbed = useMemo(() => {
+    let result = searched;
     if (openNow) result = result.filter((g) => isOpenNow(g.hours));
     if (topRated) result = result.filter((g) => g.rating >= 4.0);
-    if (nearMe && userLocation)
-      result = result.filter((g) => g.distanceKm <= 10);
+    if (nearMe && userLocation) result = result.filter((g) => g.distanceKm <= 10);
+    return result;
+  }, [searched, openNow, topRated, nearMe, userLocation]);
 
+  // Counts per tag: the search and chips applied, not the tag itself.
+  // Counts per tab: the tag applied too, since a tag narrows every tab.
+  const withTag = useMemo(
+    () => (tagName ? unTabbed.filter((g) => g.tags?.some((t) => t.name === tagName)) : unTabbed),
+    [unTabbed, tagName],
+  );
+
+  // Step 3 — the tab, then the sort.
+  const filtered = useMemo(() => {
+    const tab = TABS.find((t) => t.id === activeTab);
+    const result = tab?.type ? withTag.filter((g) => g.type === tab.type) : withTag;
     return [...result].sort((a, b) => {
       if (sortBy === "rating") return b.rating - a.rating;
       if (sortBy === "distance")
         return (a.distanceKm ?? 999) - (b.distanceKm ?? 999);
       return a.name.localeCompare(b.name);
     });
-  }, [
-    dataWithDistance,
-    searchQuery,
-    activeTab,
-    tagName,
-    openNow,
-    topRated,
-    nearMe,
-    userLocation,
-    sortBy,
-  ]);
+  }, [withTag, activeTab, sortBy]);
+
+  // Starting a search shows results from every kind of space: a tab picked
+  // earlier would hide matches of the other kinds. The visitor can still pick
+  // a tab while the search is on, to narrow it down.
+  const updateSearch = (q) => {
+    if (q.trim() && !searchQuery.trim()) setActiveTab("all");
+    setSearchQuery(q);
+  };
 
   const hasActiveFilters =
     searchQuery ||
@@ -165,7 +175,7 @@ function useGalleryFilters(data, { tagName = null, initialTab = "all" } = {}) {
   return {
     filtered,
     searchQuery,
-    setSearchQuery,
+    setSearchQuery: updateSearch,
     activeTab,
     setActiveTab,
     sortBy,
@@ -180,6 +190,8 @@ function useGalleryFilters(data, { tagName = null, initialTab = "all" } = {}) {
     resetAllFilters,
     resultCount: filtered.length,
     rawData: data,
+    countBase: withTag, // what the tab counts are taken from
+    tagCountBase: unTabbed, // what the tag counts are taken from
   };
 }
 
@@ -238,24 +250,31 @@ function SearchBox({ searchQuery, setSearchQuery }) {
   );
 }
 
-function CategoryTabs({ activeTab, setActiveTab, rawData, tagOptions, activeTag, setActiveTag }) {
+function CategoryTabs({ activeTab, setActiveTab, rawData, countBase, tagOptions, activeTag, setActiveTag }) {
   return (
     <>
       <div className="tabs" role="tablist">
-        {/* A type with no spaces yet gets no tab, unless it is the one selected. */}
+        {/* A type with no spaces at all gets no tab, unless it is the one
+            selected. Counts are for the current search, so a tab with no
+            matches stays (faded) and shows (0). */}
         {TABS.filter(
           (tab) => tab.id === "all" || tab.id === activeTab || countForTab(tab, rawData) > 0,
-        ).map((tab) => (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={tab.id === activeTab}
-            className={`tabs__tab ${tab.id === activeTab ? "tabs__tab--active" : ""}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label} ({countForTab(tab, rawData)})
-          </button>
-        ))}
+        ).map((tab) => {
+          const count = countForTab(tab, countBase);
+          return (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={tab.id === activeTab}
+              className={`tabs__tab ${tab.id === activeTab ? "tabs__tab--active" : ""} ${
+                count === 0 && tab.id !== activeTab ? "tabs__tab--empty" : ""
+              }`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label} ({count})
+            </button>
+          );
+        })}
       </div>
       {tagOptions.length > 0 && (
         <div className="subtabs" role="group" aria-label="Filter by tag">
@@ -288,6 +307,7 @@ function FilterRow({
   hasActiveFilters,
   resetAllFilters,
   resultCount,
+  searchQuery,
 }) {
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef(null);
@@ -302,7 +322,10 @@ function FilterRow({
 
   return (
     <div className="filter-row">
-      <p className="filter-row__count">Showing {resultCount} results</p>
+      <p className="filter-row__count" aria-live="polite">
+        Showing {resultCount} {resultCount === 1 ? "result" : "results"}
+        {searchQuery.trim() && <> for “{searchQuery.trim()}”</>}
+      </p>
       <div className="filter-row__right">
         <button
           className={`chip ${nearMe ? "chip--on" : ""}`}
@@ -477,14 +500,16 @@ export default function ArtGalleryApp() {
     setTag(null);
   };
 
+  // Tag chips: counts for the current search. Tags with no matches drop out
+  // while searching, except the one picked (so it can be switched off).
   const tagOptions = useMemo(() => {
-    const options = tagOptionsOf(galleries);
+    const options = tagOptionsOf(F.tagCountBase);
     // A tag nobody carries yet (a shared link to it) still shows, so it can be switched off.
     if (tagName && !options.some((o) => o.name === tagName)) {
       options.push({ name: tagName, label: tagName.toLowerCase().replace(/_/g, " "), count: 0 });
     }
     return options;
-  }, [galleries, tagName]);
+  }, [F.tagCountBase, tagName]);
   return (
     <div className="galleries" id="galleries">
       <header className="app__hero">
@@ -502,6 +527,7 @@ export default function ArtGalleryApp() {
         activeTab={tagName ? null : F.activeTab}
         setActiveTab={chooseTab}
         rawData={F.rawData}
+        countBase={F.countBase}
         tagOptions={tagOptions}
         activeTag={tagName}
         setActiveTag={chooseTag}
@@ -518,6 +544,7 @@ export default function ArtGalleryApp() {
         hasActiveFilters={F.hasActiveFilters}
         resetAllFilters={resetAll}
         resultCount={F.resultCount}
+        searchQuery={F.searchQuery}
       />
       {loading ? (
         <div className="empty">
