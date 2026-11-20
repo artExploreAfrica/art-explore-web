@@ -113,10 +113,10 @@ function project(g) {
 // Where each print's dashed line starts: its bottom-centre, in % of the
 // frame. Must match the desktop print positions in LagosMap.scss.
 const PRINT_ANCHORS = [
-  [18.5, 70],
-  [39.5, 74],
-  [61, 61],
-  [82.5, 50],
+  [35.5, 42],
+  [45.5, 53],
+  [56, 38],
+  [66, 48],
 ];
 
 /** Lagos, loosely: the lagoon and the Atlantic, stretched to the frame. */
