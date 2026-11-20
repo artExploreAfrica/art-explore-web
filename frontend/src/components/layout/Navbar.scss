@@ -29,6 +29,45 @@
     @media (max-width: 480px) { height: 64px; }
   }
 
+  // ── Desktop layout: links left · logo centred · Partner right ──
+  @media (min-width: 769px) {
+    .container {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+    }
+    .nav-links   { grid-column: 1; grid-row: 1; justify-self: start; }
+    .logo        { grid-column: 2; grid-row: 1; }
+    .nav-partner { grid-column: 3; grid-row: 1; justify-self: end; }
+  }
+
+  // ── Partner pill (desktop) / menu item (mobile) ─────────────
+  .nav-partner {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 22px;
+    border-radius: 999px;
+    background: var(--cream);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    transition: background 0.25s var(--ease-out);
+
+    &:hover { background: var(--orange); }
+    @include focus-ring(var(--cream));
+
+    @media (max-width: 768px) { display: none; }
+  }
+
+  .nav-links .nav-links__partner {
+    display: none;
+    @media (max-width: 768px) { display: block; }
+  }
+
   // ── Logo ───────────────────────────────────────────────────
   .logo {
     display: inline-flex;

@@ -148,7 +148,14 @@ export default function Navbar() {
             </ul>
           </li>
 
+          {/* Partner — a pill on the right on desktop; a plain item in the mobile menu */}
+          <li className="nav-links__partner">
+            <Link to="/partner" onClick={closeAll}>Partner</Link>
+          </li>
+
         </ul>
+
+        <Link to="/partner" className="nav-partner" onClick={closeAll}>Partner</Link>
       </div>
     </nav>
   );
