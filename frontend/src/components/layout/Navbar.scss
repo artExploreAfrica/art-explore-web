@@ -281,26 +281,6 @@
   }
 }
 
-// ── Homepage: transparent over the hero (desktop only) ──────
-// Fixed over the hero with no ground; a faint scrim in the hero keeps
-// it legible. Once the hero has scrolled away (.navbar--solid) the ink
-// bar fades back. Mobile keeps the solid sticky bar throughout.
-@media (min-width: 769px) {
-  .navbar--overlay {
-    position: fixed;
-    left: 0;
-    right: 0;
-    background: transparent;
-    border-bottom-color: transparent;
-    transition: background 0.3s var(--ease-out), border-color 0.3s var(--ease-out);
-
-    &.navbar--solid {
-      background: var(--ink);
-      border-bottom-color: var(--rule-on-dark);
-    }
-  }
-}
-
 // ── Keyframes ────────────────────────────────────────────────
 @keyframes navPanelIn {
   from { opacity: 0; transform: translateY(-12px); }
