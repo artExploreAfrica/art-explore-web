@@ -18,8 +18,8 @@ import "./LagosMap.scss";
  * the Island and Lekki clusters show where they really are; the pins of the
  * photographed spaces are stronger, and on desktop a dashed line runs from
  * each print to its pin. It's pictures only — no map library, nothing to
- * swipe — and the whole frame is one link to /map. It runs edge to edge,
- * borderless, and the "Explore our map" button sits above it.
+ * swipe — and the whole frame is one link to /map, with the "Explore our
+ * map" button underneath.
  *
  * The photos are a random pick of published spaces that have one, chosen
  * afresh on every visit so the home page shows off more of the catalogue.
@@ -113,10 +113,10 @@ function project(g) {
 // Where each print's dashed line starts: its bottom-centre, in % of the
 // frame. Must match the desktop print positions in LagosMap.scss.
 const PRINT_ANCHORS = [
-  [35.5, 42],
-  [45.5, 53],
-  [56, 38],
-  [66, 48],
+  [18.5, 70],
+  [39.5, 74],
+  [61, 61],
+  [82.5, 50],
 ];
 
 /** Lagos, loosely: the lagoon and the Atlantic, stretched to the frame. */
@@ -177,13 +177,6 @@ export default function MapSection() {
           co-ordinates. Search for a space, tap a pin for the address, then let
           your phone do the rest.
         </p>
-      </div>
-
-      {/* The way in sits above the map, so it's seen before the pictures. */}
-      <div className="map-section__cta">
-        <Link to="/map" className="map-section__btn">
-          Explore our map <span aria-hidden="true">→</span>
-        </Link>
       </div>
 
       <Link to="/map" className="map-stack" aria-label="Explore our map">
@@ -247,6 +240,11 @@ export default function MapSection() {
         </span>
       </Link>
 
+      <div className="map-section__cta">
+        <Link to="/map" className="map-section__btn">
+          Explore our map <span aria-hidden="true">→</span>
+        </Link>
+      </div>
     </section>
   );
 }

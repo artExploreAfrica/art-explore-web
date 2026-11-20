@@ -11,8 +11,7 @@
 
 .map-section {
   background: var(--cream);
-  // No bottom padding: the full-width map is the section's bottom edge.
-  padding: clamp(64px, 11vh, 140px) var(--page-pad) 0;
+  padding: clamp(64px, 11vh, 140px) var(--page-pad) clamp(32px, 5vh, 56px);
 }
 
 .map-section__head {
@@ -66,22 +65,20 @@
 .map-stack {
   position: relative;
   display: block;
-  // Edge to edge: cancel the section's side padding so the map spans the
-  // whole page, with no border or rounded corners — it runs straight into
-  // the next section.
-  margin: clamp(24px, 3.5vh, 36px) calc(-1 * var(--page-pad)) 0;
+  max-width: 980px;
+  margin: clamp(28px, 4vh, 44px) auto 0;
   aspect-ratio: 16 / 8.5;
-  max-height: 88vh;
+  border-radius: 20px;
+  border: 1px solid var(--rule);
   background: #efe6d4;
   overflow: hidden;
   text-decoration: none;
   color: inherit;
   isolation: isolate;
 
-  @media (max-width: 768px) { aspect-ratio: 1 / 1.08; }
+  @media (max-width: 768px) { aspect-ratio: 1 / 1.08; border-radius: 16px; }
 
-  // Inset, since the frame now touches the page edges.
-  &:focus-visible { outline: 3px solid var(--terracotta); outline-offset: -3px; }
+  &:focus-visible { outline: 2px solid var(--terracotta); outline-offset: 4px; }
 }
 
 // The map under the prints: lagoon, sea and a few roads, stretched to fit.
@@ -169,7 +166,7 @@
   color: var(--ink);
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: 0.6rem;
+  font-size: 0.72rem;
   white-space: nowrap;
 
   svg { color: var(--terracotta); flex-shrink: 0; }
@@ -192,7 +189,7 @@
   transform: rotate(var(--tilt, 0deg));
   transition: transform 0.35s ease;
 
-  @media (min-width: 769px) { padding: 6px 6px 0; }
+  @media (min-width: 769px) { padding: 8px 8px 0; }
 }
 
 // On hover the prints spread a touch and straighten, like someone nudging them.
@@ -208,21 +205,20 @@
 // overlaps is: a print may cover a neighbour's photo or the tail of its name,
 // never the start of a caption. The map card only covers photo corners.
 
-// Desktop (4 prints): small cards — about 13% of the width each — grouped
-// in the middle of the upper half, so most of the map (and the Island and
-// Lekki pins along the bottom) stays visible. PRINT_ANCHORS in LagosMap.jsx
+// Desktop (4 prints). Kept above ~75% so the bottom strip — where the
+// Island and Lekki pins cluster — stays open. PRINT_ANCHORS in LagosMap.jsx
 // (each print's bottom-centre) must follow these.
-.map-stack__print--p1 { left: 29%;   top: 9%;  width: 13%; height: 33%; --tilt: -3deg;   z-index: 1; }
-.map-stack__print--p2 { left: 39%;   top: 20%; width: 13%; height: 33%; --tilt: 2.5deg;  z-index: 2; }
-.map-stack__print--p3 { left: 49.5%; top: 7%;  width: 13%; height: 31%; --tilt: -1.5deg; z-index: 3; }
-.map-stack__print--p4 { left: 59.5%; top: 17%; width: 13%; height: 31%; --tilt: 3deg;    z-index: 4; }
+.map-stack__print--p1 { left: 4%;  top: 6%;  width: 29%; height: 64%; --tilt: -3deg;   z-index: 1; }
+.map-stack__print--p2 { left: 26%; top: 14%; width: 27%; height: 60%; --tilt: 2.5deg;  z-index: 2; }
+.map-stack__print--p3 { left: 48%; top: 5%;  width: 26%; height: 56%; --tilt: -1.5deg; z-index: 3; }
+.map-stack__print--p4 { left: 69%; top: 4%;  width: 27%; height: 46%; --tilt: 3deg;    z-index: 4; }
 
-// Phone (3 prints, gentler tilts): three small cards in a row across the
-// top, each overlapping the next; the rest is map.
+// Phone (3 prints, gentler tilts): p1 top-left, p2 top-right over p1's edge,
+// p3 below tucked under p1; the bottom strip is left for the pins.
 @media (max-width: 768px) {
-  .map-stack__print--p1 { left: 5%;  top: 6%;  width: 31%; height: 29%; --tilt: -2.5deg; z-index: 1; }
-  .map-stack__print--p2 { left: 34%; top: 12%; width: 31%; height: 29%; --tilt: 2deg;    z-index: 2; }
-  .map-stack__print--p3 { left: 63%; top: 5%;  width: 31%; height: 29%; --tilt: -1.5deg; z-index: 3; }
+  .map-stack__print--p1 { left: 5%;  top: 4%;  width: 45%; height: 42%; --tilt: -2.5deg; z-index: 2; }
+  .map-stack__print--p2 { left: 47%; top: 9%;  width: 48%; height: 40%; --tilt: 2deg;    z-index: 3; }
+  .map-stack__print--p3 { left: 8%;  top: 42%; width: 46%; height: 37%; --tilt: 1.5deg;  z-index: 1; }
   .map-stack__print--p4 { display: none; }
 }
 
@@ -277,12 +273,12 @@
   align-items: center;
   gap: 5px;
   min-width: 0;
-  padding: 4px 1px 5px;
+  padding: 6px 2px 7px;
   color: var(--ink);
   font-family: var(--font-body);
   text-align: left;
 
-  @media (min-width: 769px) { padding: 5px 2px 7px; }
+  @media (min-width: 769px) { padding: 8px 2px 10px; }
 
   svg { color: var(--terracotta); flex-shrink: 0; }
 }
@@ -295,7 +291,7 @@
   text-overflow: ellipsis;
   min-width: 0;
 
-  @media (min-width: 769px) { font-size: 0.7rem; }
+  @media (min-width: 769px) { font-size: 0.8rem; }
 }
 
 .map-stack__place {
@@ -306,8 +302,8 @@
 
   &::before { content: "· "; }
 
-  // The cards are small: the name gets the room (the area shows on /map).
-  display: none;
+  // Phones: the name gets the room.
+  @media (max-width: 768px) { display: none; }
 }
 
 .map-section__cta {
