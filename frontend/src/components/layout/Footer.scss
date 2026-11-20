@@ -1,59 +1,54 @@
 @use '../../styles/brand' as *;
 
 // ─────────────────────────────────────────────────────────────
-// FOOTER — one line, read at a glance.
+// FOOTER — ink, like the header (ink's role covers both).
 //
-// page: an ink bar in the navbar's language (same logo mark, same
-//       uppercase tracked links with the orange underline), but
-//       short: ~64px. Logo · links · icons · © · back to top.
-//       Phones wrap it to two short rows.
-// map:  a thin translucent strip over the bottom edge of the map,
-//       like Google/Apple Maps — small links, icons and ©.
+// Brand on the left, two link columns on the right, a thin legal
+// row beneath. Laid out across the width rather than stacked so it
+// stays the same height as the old three-line footer (~276px on
+// desktop). Links use the "navigation on ink" states: cream, turning
+// light orange with an underline on hover (4.97:1 on ink).
 // ─────────────────────────────────────────────────────────────
 
 .site-footer {
-  // Three zones: logo far left · links + icons centred · © far right.
-  // Equal side columns keep the middle truly centred on the page.
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 10px clamp(16px, 2.4vw, 32px);
-  min-height: 64px;
-  padding: 10px var(--page-pad);
   background: var(--ink);
   color: var(--on-dark);
-  border-top: 1px solid var(--rule-on-dark);
+  padding: clamp(36px, 5.5vh, 56px) var(--page-pad) clamp(20px, 3vh, 28px);
 }
 
-.site-footer__middle {
+.site-footer__top {
   display: flex;
-  align-items: center;
-  gap: clamp(16px, 2.4vw, 32px);
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: clamp(24px, 4vw, 64px);
+  padding-bottom: clamp(20px, 3vh, 32px);
+  border-bottom: 1px solid var(--rule-on-dark);
 }
 
-.site-footer__logo {
+.site-footer__brand {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 34ch;
+}
+
+.site-footer__mark {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  text-decoration: none;
-  line-height: 0;
-  justify-self: start;
-  @include focus-ring(var(--cream), 4px);
-
-  &:hover .site-footer__logo-icon { opacity: 0.82; }
+  gap: 10px;
+  margin: 0;
 }
 
-.site-footer__logo-icon {
-  height: 40px;
+.site-footer__mark-icon {
+  height: clamp(32px, 3.8vw, 44px);
   width: auto;
   display: block;
-  transition: opacity 0.3s var(--ease-out);
 }
 
-.site-footer__logo-text {
+.site-footer__mark-text {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 12px;
+  font-size: clamp(10px, 1.1vw, 13px);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--cream);
@@ -61,32 +56,22 @@
   white-space: nowrap;
 }
 
-.site-footer__links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px clamp(16px, 2vw, 28px);
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.site-footer__link {
-  @include nav-link-on-ink;
-  display: inline-block;
-  padding-bottom: 3px;
+.site-footer__line {
   font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  white-space: nowrap;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--on-dark-muted);
+  margin: 0;
 }
 
+// Instagram / email icons under the strapline. Cream on ink, turning
+// light orange on hover like the footer links; 36px circles so they are
+// comfortable touch targets.
 .site-footer__social {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   list-style: none;
-  margin: 0;
+  margin: 4px 0 0;
   padding: 0;
 }
 
@@ -94,12 +79,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: 1px solid var(--rule-on-dark);
   border-radius: 50%;
   color: var(--cream);
-  font-size: 15px;
+  font-size: 18px;
   transition: color 0.25s $ease-out, border-color 0.25s $ease-out;
 
   &:hover,
@@ -111,95 +96,89 @@
   @include focus-ring(var(--cream), 3px);
 }
 
+.site-footer__nav {
+  display: flex;
+  gap: clamp(32px, 6vw, 96px);
+}
+
+.site-footer__heading {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+  margin: 0 0 12px;
+}
+
+.site-footer__col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-footer__link {
+  @include nav-link-on-ink;
+  display: inline-block;
+  padding-bottom: 2px;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+
+.site-footer__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: clamp(14px, 2vh, 20px);
+}
+
 .site-footer__legal {
   font-family: var(--font-body);
   font-size: 11px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--on-dark-muted);
   margin: 0;
-  white-space: nowrap;
-  justify-self: end;
 }
 
+.site-footer__top-btn {
+  @include nav-link-on-ink;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 0 0 2px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
 
-// Phones: two short rows —
-//   logo ························ icons
-//   about map spaces contact us ·· © 2026
-@media (max-width: 768px) {
-  .site-footer {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
-    padding: 10px var(--page-pad) 12px;
+// Phones: each column becomes one wrapping row of links under the
+// brand, so the footer keeps its height (~260px) instead of growing
+// into a stack of five links. Headings stay for screen readers.
+@media (max-width: 600px) {
+  .site-footer { padding-top: 40px; padding-bottom: 28px; }
+  .site-footer__top { flex-direction: column; gap: 14px; padding-bottom: 16px; }
+  .site-footer__brand { gap: 6px; }
+  .site-footer__line { font-size: 0.85rem; line-height: 1.45; }
+  .site-footer__nav { flex-direction: column; gap: 4px; }
+  .site-footer__heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
-  .site-footer__middle { display: contents; } // its children join the rows
-  .site-footer__logo { order: 1; margin-right: auto; }
-  .site-footer__logo-icon { height: 34px; }
-  .site-footer__social { order: 2; }
-  // Links never shrink, so they can't share row 1 and drop to row 2,
-  // filling it, with © at its end.
-  .site-footer__middle > nav { order: 3; flex: 1 0 auto; }
-  .site-footer__links { flex-wrap: nowrap; gap: 14px; }
-  .site-footer__link { font-size: 11px; letter-spacing: 0.08em; }
-  .site-footer__legal { order: 4; font-size: 10px; letter-spacing: 0.04em; }
-  .site-footer__legal-name { display: none; }
-}
-
-// Very narrow phones: let the links wrap rather than overflow.
-@media (max-width: 360px) {
-  .site-footer__links { flex-wrap: wrap; gap: 4px 12px; }
-}
-
-// ── Map variant: a strip on the map's bottom edge ─────────────
-.site-footer--map {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5; // above the map canvas; the phone's space card (z 300) covers it
-  min-height: 0;
-  height: 34px;
-  gap: 18px;
-  padding: 0 14px;
-  border-top: 0;
-  background: rgba(36, 27, 18, 0.72);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar { display: none; }
-
-  .site-footer__middle { gap: 18px; }
-  .site-footer__logo { gap: 6px; }
-  .site-footer__logo-icon { height: 24px; }
-  .site-footer__logo-text { font-size: 10px; letter-spacing: 0.18em; }
-  .site-footer__links { flex-wrap: nowrap; gap: 16px; }
-  .site-footer__link { font-size: 10.5px; letter-spacing: 0.1em; padding-bottom: 2px; }
-  .site-footer__social { gap: 6px; }
-  .site-footer__social-link { width: 24px; height: 24px; font-size: 12px; border: 0; }
+  .site-footer__col ul { flex-direction: row; flex-wrap: wrap; gap: 4px 20px; }
+  .site-footer__link { font-size: 0.85rem; line-height: 1.4; }
+  .site-footer__bottom { padding-top: 12px; }
   .site-footer__legal { font-size: 10px; letter-spacing: 0.06em; }
-
-  @media (max-width: 768px) {
-    display: flex;
-    flex-wrap: nowrap;
-    justify-content: center;
-    height: 32px;
-    gap: 12px;
-    padding: 0 10px;
-    .site-footer__middle { display: flex; gap: 12px; }
-    justify-content: flex-start;
-    .site-footer__logo { order: 0; margin-right: 0; flex-shrink: 0; }
-    .site-footer__logo-icon { height: 22px; }
-    .site-footer__logo-text { display: none; } // icon only: no room on a phone
-    .site-footer__middle { margin: 0 auto; }
-    .site-footer__middle > nav { order: 1; flex: 0 0 auto; }
-    .site-footer__social { order: 2; }
-    .site-footer__links { gap: 12px; }
-    .site-footer__link { font-size: 10px; letter-spacing: 0.06em; }
-    // No room on a phone; the map's own credits are on screen anyway.
-    .site-footer__legal { display: none; }
-  }
 }
+
+.site-footer__top-btn { white-space: nowrap; }
