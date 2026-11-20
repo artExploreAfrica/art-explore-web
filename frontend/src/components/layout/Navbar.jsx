@@ -26,6 +26,36 @@ export default function Navbar() {
     return () => window.removeEventListener("resize", setNavHeight);
   }, []);
 
+  // Homepage: on desktop the navbar floats transparently over the hero
+  // and returns to the solid ink bar once the hero has scrolled away.
+  // (On mobile it is always the solid bar — see Navbar.scss.)
+  const [pastHero, setPastHero] = useState(false);
+  useEffect(() => {
+    if (!onHomePage) return;
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      const hero = document.getElementById("home");
+      const navH = navRef.current ? navRef.current.offsetHeight : 88;
+      setPastHero(!hero || window.scrollY > hero.offsetHeight - navH);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(check); };
+    check();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [onHomePage]);
+
+  const navClass = [
+    "navbar",
+    onHomePage && "navbar--overlay",
+    onHomePage && pastHero && "navbar--solid",
+  ].filter(Boolean).join(" ");
+
   // Close dropdown when clicking outside the navbar.
   useEffect(() => {
     const handleOutside = (e) => {
@@ -70,7 +100,7 @@ export default function Navbar() {
   const closeAll = () => { setIsMenuOpen(false); setOpenDropdown(null); };
 
   return (
-    <nav className="navbar" ref={navRef}>
+    <nav className={navClass} ref={navRef}>
       <div className="container">
 
         {/* ── Logo: rust icon + "Art Explore" text ── */}
@@ -148,7 +178,14 @@ export default function Navbar() {
             </ul>
           </li>
 
+          {/* Partner — a pill on the right on desktop; a plain item in the mobile menu */}
+          <li className="nav-links__partner">
+            <Link to="/partner" onClick={closeAll}>Partner</Link>
+          </li>
+
         </ul>
+
+        <Link to="/partner" className="nav-partner" onClick={closeAll}>Partner</Link>
       </div>
     </nav>
   );
